@@ -86,7 +86,7 @@ export const C172 = {
   CL0: 0.31, CLa: 5.14, CD0: 0.031, k: 0.0576,
   Cm0: 0.035, Cma: -1.8, Cmq: -12.4, Cmde: -1.28, CmFlap: 0.05,
   Clb: -0.089, Clp: -0.47, Clr: 0.096, Clda: 0.12,
-  Cnb: 0.065, Cnr: -0.099, Cnp: -0.03, Cndr: -0.0657, Cnda: -0.0053, Cn0: 0.0006,
+  Cnb: 0.08, Cnr: -0.099, Cnp: -0.03, Cndr: -0.0657, Cnda: -0.0053, Cn0: 0.00028,
   CYb: -0.31, CYdr: 0.187,
   deMax: 0.40, daMax: 0.30, drMax: 0.29, trimMax: 0.22,
   Pmax: 119300, Tstatic: 2500, etaMax: 0.74,
@@ -145,6 +145,7 @@ export class Aircraft {
     this.env = env;
     this.load = { front: 340, rear: 0, fuelGal: 38, bagA: 20, bagB: 0 };
     this.failures = { engine: false, vacuum: false, pitot: false, static: false, alternator: false };
+    this.extMoment = v3(0, 0, 0); // body-axis moment from outside effects (wake vortices), N·m
     this.reset({ x: 0, z: 0, hdg: 0, onGround: true });
   }
 
@@ -219,6 +220,7 @@ export class Aircraft {
   }
 
   step(dt) {
+    if (!(dt > 0)) { this.updateDerived(0); return; }
     // fixed substeps for stiff gear springs
     const n = Math.max(1, Math.ceil(dt / (1 / 240)));
     const h = dt / n;
@@ -322,14 +324,15 @@ export class Aircraft {
     const Cn = ac.Cn0 + ac.Cnb * beta + ac.Cnr * rh + ac.Cnp * ph + ac.Cndr * dr + ac.Cnda * da;
     let Mb = v3(qbar * ac.S * ac.b * Cl, qbar * ac.S * ac.c * Cm, qbar * ac.S * ac.b * Cn);
     // left-turning tendencies: P-factor + spiraling slipstream (yaw left), torque (roll left)
-    Mb.z += -T * (0.15 + 2.5 * Math.max(0, alpha));
-    Mb.x += -0.12 * T;
+    Mb.z += -T * (0.07 + 1.1 * Math.max(0, alpha));
+    Mb.x += -0.035 * T;
     // slipstream over the tail keeps some elevator/rudder authority at low speed
     const slip = Math.max(0, T) / ac.Tstatic;
     Mb.y += 1600 * slip * (-de) * 1.0;
     Mb.z += 900 * slip * ctl.rudder;
     // pitch-up from power (thrust line below CG is small on a 172; a touch of nose-up)
     Mb.y += 0.03 * T;
+    Mb.x += this.extMoment.x; Mb.y += this.extMoment.y; Mb.z += this.extMoment.z;
 
     // ---- ground contact ----
     const Fw = v3(0, -m * G0, 0); // world forces start with gravity
@@ -487,7 +490,7 @@ export class Aircraft {
     }
     e.oilT = lerp(e.oilT, e.running ? 0.45 + 0.4 * (P / ac.Pmax) - 0.1 * clamp(ias / KT / 120, 0, 1) : 0.15, dt * 0.01);
     // electrical
-    el.alt = e.running && e.rpm > 1000 && el.master && !this.failures.alternator;
+    el.alt = e.running && e.rpm > 650 && el.master && !this.failures.alternator;
     if (el.master) {
       const load = 3 + (el.avionics ? 9 : 0) + (el.lights.landing ? 8 : 0) + (el.lights.taxi ? 6 : 0) + (el.lights.strobe ? 3 : 0) + (el.lights.nav ? 2 : 0) + (el.lights.beacon ? 2 : 0) + (el.pitotHeat ? 10 : 0);
       if (el.alt) { el.volts = 28.2; el.amps = 2; el.battery = Math.min(1, el.battery + dt * 0.002); }
@@ -495,7 +498,7 @@ export class Aircraft {
     } else { el.volts = 0; el.amps = 0; }
     this.powered = el.master && el.volts > 20;
     // vacuum gyros
-    const suction = e.rpm > 450 && !this.failures.vacuum ? clamp(2 + 3.2 * (e.rpm - 450) / 1500, 0, 5.2) : 0;
+    const suction = e.rpm > 450 && !this.failures.vacuum ? clamp(3.0 + 2.6 * (e.rpm - 500) / 1500, 0, 5.3) : 0;
     this.suction = suction;
     const spinT = suction > 3.5 ? 1 : suction / 3.5;
     this.inst.gyroSpin = lerp(this.inst.gyroSpin, spinT, dt * (spinT > this.inst.gyroSpin ? 0.15 : 0.03));

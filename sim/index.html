@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Fly · Zarhart</title>
+<meta name="description" content="A free in-browser flight simulator for student pilots: C172-class flight model, VFR scenery, six-pack and glass instruments, and lessons linked to the FAA Private Pilot written test.">
+<link rel="icon" href="../assets/img/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Saira+Condensed:wght@600;700;800&display=swap">
+<link rel="stylesheet" href="../assets/css/site.css">
+<link rel="stylesheet" href="../assets/css/sim.css">
+<script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/" } }</script>
+</head>
+<body class="sim-body">
+<canvas id="view" tabindex="0" aria-label="Flight simulator view"></canvas>
+<canvas id="panel" aria-label="Instrument panel"></canvas>
+
+<header class="sim-top">
+  <a class="brand" href="../" aria-label="Zarhart home">
+    <svg viewBox="0 0 64 64" aria-hidden="true"><use href="#mark"/></svg><span>ZARHART</span>
+  </a>
+  <nav class="tools" aria-label="Simulator tools">
+    <button data-drawer="lessons">Lessons</button>
+    <button data-drawer="aircraft">Aircraft</button>
+    <button data-drawer="radio">Radio</button>
+    <button data-drawer="map">Map</button>
+    <button data-drawer="check">Checklist</button>
+    <button data-drawer="weather">Weather</button>
+    <button data-drawer="fail">Failures</button>
+    <button data-drawer="settings">Settings</button>
+    <button data-drawer="help">Keys</button>
+  </nav>
+</header>
+
+<div id="vfr" class="vfr ok" role="status"></div>
+<div id="toasts" aria-live="polite"></div>
+<section id="objectives" class="obj" hidden aria-label="Lesson objectives"></section>
+<div id="stall" class="stall" hidden>STALL</div>
+<div id="gmeter" class="gmeter" hidden></div>
+<div id="lightgun" class="lightgun" hidden></div>
+<div id="strip" class="strip" hidden></div>
+
+<aside id="drawer" class="drawer" hidden aria-labelledby="drawerTitle">
+  <header><h2 id="drawerTitle"></h2><button id="drawerClose" class="xbtn" aria-label="Close">✕</button></header>
+  <div id="drawerBody"></div>
+</aside>
+
+<div id="touch" class="touch" hidden>
+  <div id="stick" class="stick"><div id="knob" class="knob"></div></div>
+  <label class="thr"><span>THR</span><input id="thr" type="range" min="0" max="100" value="0" orient="vertical" aria-label="Throttle"></label>
+</div>
+
+<div id="paused" class="pausedOverlay" hidden><div><p class="eyebrow">Paused</p><button class="btn primary" id="resume">Resume (P)</button></div></div>
+
+<div id="crash" class="modal" hidden role="dialog" aria-labelledby="crashTitle">
+  <div class="card">
+    <p class="eyebrow" style="color:var(--red)">Flight ended</p>
+    <h2 id="crashTitle">That one didn't hold together.</h2>
+    <p id="crashReason" class="lede"></p>
+    <div class="row"><button class="btn primary" id="crashRetry">Try again (Enter)</button><button class="btn" id="crashLessons">Pick a lesson</button></div>
+  </div>
+</div>
+
+<div id="start" class="modal start" role="dialog" aria-labelledby="startTitle">
+  <div class="card">
+    <p class="eyebrow">Zarhart flight simulator</p>
+    <h2 id="startTitle">Ready for departure.</h2>
+    <p class="lede">A C172-class airplane over the Zarhart Valley: three airports, two VORs, Class D airspace and landmarks for flying by sight. Every lesson ties to questions on the FAA written test.</p>
+    <div id="loading" class="loading"><span class="spinner" aria-hidden="true"></span><span id="loadMsg">Loading…</span></div>
+    <div id="startChoices" hidden>
+      <div class="row">
+        <button class="btn primary" id="startLesson">Start lesson 1: Traffic pattern</button>
+        <button class="btn" id="startPick">Pick a lesson</button>
+        <button class="btn ghost" id="startFree">Free flight</button>
+      </div>
+      <ul class="quickkeys">
+        <li><kbd>↑</kbd><kbd>↓</kbd> pitch · <kbd>←</kbd><kbd>→</kbd> roll · <kbd>Q</kbd><kbd>E</kbd> rudder</li>
+        <li><kbd>R</kbd><kbd>F</kbd> throttle · <kbd>[</kbd><kbd>]</kbd> flaps · <kbd>T</kbd><kbd>G</kbd> trim · <kbd>B</kbd> brakes · <kbd>Shift</kbd>+<kbd>B</kbd> parking brake</li>
+        <li><kbd>C</kbd> view · <kbd>I</kbd> panel · <kbd>M</kbd> map · <kbd>K</kbd> checklist · <kbd>P</kbd> pause. Joysticks and gamepads work too.</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="mark" viewBox="0 0 64 64">
+    <clipPath id="mc"><circle cx="32" cy="32" r="28"/></clipPath>
+    <g clip-path="url(#mc)" transform="rotate(-14 32 32)"><rect width="64" height="35" fill="#2F7FD0"/><rect y="35" width="64" height="29" fill="#8A5A2B"/><rect y="34" width="64" height="2" fill="#fff"/></g>
+    <circle cx="32" cy="32" r="28" fill="none" stroke="#E8EEF5" stroke-width="4"/>
+    <path d="M14 33h12l6 5 6-5h12" fill="none" stroke="#E64BD0" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
+  </symbol>
+</svg>
+<noscript><p style="padding:24px">Zarhart needs JavaScript and WebGL.</p></noscript>
+<script type="module" src="../assets/js/sim/main.js"></script>
+</body>
+</html>
