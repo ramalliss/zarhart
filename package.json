@@ -1,0 +1,6 @@
+{
+  "name": "zarhart",
+  "private": true,
+  "type": "module",
+  "scripts": { "test": "node tools/test-fdm.mjs", "serve": "python -m http.server 8765" }
+}
