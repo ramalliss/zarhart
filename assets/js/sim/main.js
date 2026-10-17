@@ -449,6 +449,7 @@ function renderObjectives() {
   const st = lessons.status(); const el = $("#objectives");
   if (!st) { el.hidden = true; return; }
   el.hidden = false;
+  if (lessons.lesson !== renderObjectives.last) { renderObjectives.last = lessons.lesson; el.classList.toggle("min", innerWidth < 720); }
   el.innerHTML = `<div class="ohead"><span class="ltag">Lesson</span><button class="xbtn" id="oMin" aria-label="Collapse">–</button></div><h3>${esc(st.title)}</h3>
     <ol class="objs">${st.objectives.map((o) => `<li class="${o.state}">${esc(o.text)}</li>`).join("")}</ol>
     ${st.done ? `<div class="result ${st.failed ? "bad" : "good"}"><b>${st.failed ? "Lesson ended" : "Lesson complete"}</b>${st.failed ? `<p>${esc(st.failed)}</p>` : ""}${st.results.map((r) => `<p>${esc(r)}</p>`).join("")}</div>` : ""}

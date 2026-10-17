@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Prep · Zarhart</title>
+<meta name="description" content="Free FAA Private Pilot (PAR) written-test prep: study guide, flashcards, quizzes, a timed 60-question practice exam and Quizlet export, linked to simulator lessons.">
+<link rel="icon" href="../assets/img/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Saira+Condensed:wght@600;700;800&display=swap">
+<link rel="stylesheet" href="../assets/css/site.css">
+<link rel="stylesheet" href="../assets/css/prep.css">
+</head>
+<body>
+<header class="topnav"><div class="wrap">
+  <a class="brand" href="../"><img src="../assets/img/favicon.svg" alt="" width="28" height="28"><span>ZARHART</span></a>
+  <nav aria-label="Main"><a href="../sim/">Fly</a><a href="./" aria-current="page">Study</a><a href="../#path">Path</a><a href="https://github.com/ramalliss/zarhart" target="_blank" rel="noopener">GitHub</a></nav>
+</div></header>
+
+<main class="wrap prep">
+  <section class="phead">
+    <p class="eyebrow">FAA Private Pilot · Airplane (PAR) knowledge test</p>
+    <h1>Written-test prep</h1>
+    <p class="lede"><b id="count">175</b> practice questions with answers and explanations, organized by the topics the test covers. Every topic links to the FAA handbook chapter and to a simulator lesson where you can fly it. Pass mark: 70%.</p>
+  </section>
+
+  <nav class="tabs" role="tablist" aria-label="Study modes">
+    <button role="tab" id="tab-guide" aria-controls="p-guide">Study guide</button>
+    <button role="tab" id="tab-cards" aria-controls="p-cards">Flashcards</button>
+    <button role="tab" id="tab-quiz" aria-controls="p-quiz">Quiz</button>
+    <button role="tab" id="tab-exam" aria-controls="p-exam">Practice exam</button>
+    <button role="tab" id="tab-quizlet" aria-controls="p-quizlet">Quizlet</button>
+    <button role="tab" id="tab-resources" aria-controls="p-resources">Resources</button>
+  </nav>
+
+  <section id="p-guide" role="tabpanel" aria-labelledby="tab-guide">
+    <div id="weak" class="weakbox"></div>
+    <div id="guide"><p class="dnote">Loading questions…</p></div>
+  </section>
+
+  <section id="p-cards" role="tabpanel" aria-labelledby="tab-cards" hidden>
+    <div class="toolbar">
+      <label>Deck <select id="fcDeck"></select></label>
+      <label>Topic <select id="fcTopic"></select></label>
+      <label class="chk"><input type="checkbox" id="fcSkip"> Hide cards I know</label>
+      <button class="btn small" id="fcShuffle">Shuffle</button>
+    </div>
+    <p class="status"><span id="fcCount"></span><span>Space flip · ← → move · K know it · L still learning</span></p>
+    <div id="fcStage"></div>
+    <div class="actions split"><span><button class="btn" id="fcPrev">← Prev</button> <button class="btn primary" id="fcFlip">Flip</button> <button class="btn" id="fcNext">Next →</button></span><span><button class="btn" id="fcLearn">Still learning</button> <button class="btn good" id="fcKnow">I know this</button></span></div>
+  </section>
+
+  <section id="p-quiz" role="tabpanel" aria-labelledby="tab-quiz" hidden>
+    <div class="toolbar">
+      <label>Deck <select id="qzDeck"></select></label>
+      <label>Topic <select id="qzTopic"></select></label>
+      <label>Length <select id="qzLen"><option value="10">10</option><option value="20">20</option><option value="40">40</option><option value="999">All</option></select></label>
+      <button class="btn primary small" id="qzStart">New quiz</button>
+    </div>
+    <div id="qzStage"></div>
+  </section>
+
+  <section id="p-exam" role="tabpanel" aria-labelledby="tab-exam" hidden>
+    <div id="exStage" class="examintro">
+      <h2>Practice knowledge test</h2>
+      <p class="lede">60 random questions, 2 hours 30 minutes, no feedback until you submit. That's the same format as the FAA test at a PSI center. Your report groups misses by topic and ACS area.</p>
+      <ul class="rules"><li>Choices are shuffled every time.</li><li>Jump between questions with the number grid.</li><li>Scores stay on this device only.</li></ul>
+      <button class="btn primary" id="exStart">Start the practice exam</button>
+    </div>
+  </section>
+
+  <section id="p-quizlet" role="tabpanel" aria-labelledby="tab-quizlet" hidden>
+    <ol class="steps"><li>Pick a deck, then select <b>Copy for Quizlet</b>.</li><li>In Quizlet: <b>Create → Flashcard set → Import</b>.</li><li>Paste. Set “Between term and definition” to <b>Tab</b> and “Between cards” to <b>New line</b>.</li></ol>
+    <div class="toolbar"><label>Deck <select id="qlDeck"></select></label><label class="chk"><input type="checkbox" id="qlWhy" checked> Include explanations</label><button class="btn primary small" id="qlCopy">Copy for Quizlet</button></div>
+    <textarea id="qlText" readonly spellcheck="false" aria-label="Quizlet import text"></textarea>
+    <p class="status ok" id="qlStatus" role="status"></p>
+  </section>
+
+  <section id="p-resources" role="tabpanel" aria-labelledby="tab-resources" hidden>
+    <h2>The free path to your written test</h2>
+    <ol class="path">
+      <li><span class="n">1</span><div><h3>Ground-school lessons</h3><p><a href="https://fly8ma.com/private-pilot-ground-school/" target="_blank" rel="noopener">FLY8MA free ground school</a>: video lessons for every topic. <span class="chip">Free · no written-test endorsement</span></p></div></li>
+      <li><span class="n">2</span><div><h3>Study handbook</h3><p><a href="https://www.faa.gov/regulations_policies/handbooks_manuals/aviation/phak" target="_blank" rel="noopener">FAA Pilot's Handbook of Aeronautical Knowledge</a>. Each Zarhart topic lists its chapter. <span class="chip">Free PDF</span></p></div></li>
+      <li><span class="n">3</span><div><h3>Practice exams: start here</h3><p><a href="https://courses.sportys.com/training/portal/course/PRIVATE/testprep" target="_blank" rel="noopener">Sporty's free practice tests</a>: unlimited timed 60-question tests. <span class="chip">Free account</span></p></div></li>
+      <li><span class="n">4</span><div><h3>More practice questions</h3><p><a href="https://www.kingschools.com/free-faa-exam/" target="_blank" rel="noopener">King Schools free FAA test</a>, plus the Zarhart practice exam. <span class="chip">Free</span></p></div></li>
+      <li><span class="n">5</span><div><h3>Get your endorsement</h3><p>A CFI or a home-study course must sign you off before you test. The free FLY8MA tier doesn't include it. <span class="chip">Required</span></p></div></li>
+      <li><span class="n">6</span><div><h3>Get your FAA Tracking Number (FTN)</h3><p>Register in <a href="https://iacra.faa.gov/" target="_blank" rel="noopener">FAA IACRA</a>. Your name must match your ID exactly. <span class="chip">Free</span></p></div></li>
+      <li><span class="n">7</span><div><h3>Book the official written exam</h3><p>Schedule at a testing center through the <a href="https://faa.psiexams.com/" target="_blank" rel="noopener">FAA testing portal (PSI)</a>. <span class="chip">$175 + tax</span></p></div></li>
+    </ol>
+    <p class="dnote">Fees and requirements change. Confirm them on each site before you pay. Zarhart is a free study aid and isn't affiliated with any of these organizations.</p>
+  </section>
+</main>
+
+<footer class="site"><div class="wrap"><div class="row"><b>Zarhart</b><span>Free and open source (MIT)</span><a href="https://github.com/ramalliss/zarhart">GitHub</a></div><p>Study aid only. Not FAA-approved training and not for real-world navigation. Questions are written from public FAA references (AIM, 14 CFR, PHAK) and verified against them.</p></div></footer>
+<script type="module" src="../assets/js/prep/prep.js"></script>
+</body>
+</html>

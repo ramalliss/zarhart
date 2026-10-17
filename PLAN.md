@@ -17,18 +17,9 @@ The site is published with **GitHub Pages** from this repo (`ramalliss/zarhart`,
 
 ## Status
 
-| Piece | State |
-|---|---|
-| `assets/js/sim/fdm.js`: flight dynamics (C172N class) | **Done and tested.** See the test results below. |
-| `assets/js/sim/world-data.js`: terrain, airports, navaids, airspace, VFR minimums | **Done.** Used by the FDM and the tests. |
-| `tools/test-fdm.mjs`: headless checks (`npm test`) | **Done** |
-| `assets/data/questions.json`: 126-card bank (57 from a Sporty's practice test + 69 extra) | **Done.** Built earlier in the original session. |
-| 3D renderer, airplane model, cockpit | To do |
-| Instrument panel (six-pack + G1000-style PFD/MFD) | To do |
-| Moving map / sectional view, radios, ATIS, ATC text | To do |
-| Checklists, lessons, scoring, failures, weather UI | To do |
-| Landing page, exam prep pages, roadmap page | To do |
-| README screenshots, Pages deploy, smoke test | To do |
+All of the planned first version has shipped: the simulator (world, airplane, steam and glass panels, map, radios/ATC, pilot-controlled lighting, VFR minimums monitor, checklists, 13 lessons, failures, weather, weight & balance, audio, keyboard/gamepad/touch with auto-rudder), the prep site (175 questions, study guide, flashcards, quiz, timed practice exam, Quizlet export, resources), and the landing page with the written-test roadmap. It's published with GitHub Pages.
+
+Ideas for next versions: more airports and scenery detail, shadows, a proper spin model, ATC for the Class D pattern sequence, a W&B lesson, more PHAK questions per topic, and replay/debrief graphs.
 
 ### FDM test results (`npm test`, standard day, 2,300-lb class weight)
 ```

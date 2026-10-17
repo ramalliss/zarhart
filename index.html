@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Zarhart · Learn to fly in your browser</title>
+<meta name="description" content="Zarhart is a free, open-source flight simulator and FAA Private Pilot written-test prep site. Fly exam-linked lessons in a C172-class airplane, then study with flashcards and timed practice exams.">
+<meta property="og:title" content="Zarhart: learn to fly in your browser">
+<meta property="og:description" content="Free flight simulator + FAA Private Pilot written-test prep. Named for Zara Rutherford and Amelia Earhart.">
+<link rel="icon" href="assets/img/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Saira+Condensed:wght@600;700;800&display=swap">
+<link rel="stylesheet" href="assets/css/site.css">
+<style>
+/* Layout: full-bleed live attitude-indicator hero, then a single 1180px column of sections. */
+.hero { position: relative; min-height: min(92vh, 860px); display: grid; align-items: end; overflow: hidden; border-bottom: 1px solid var(--line); }
+#adi { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.hero::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(7,11,16,0) 30%, rgba(7,11,16,.55) 70%, var(--bg) 100%); pointer-events: none; }
+.hero .wrap { position: relative; z-index: 2; width: 100%; padding-block: 120px 56px; display: grid; gap: 18px; }
+.wordmark { font: 800 clamp(72px, 16vw, 210px)/0.82 var(--f-display); letter-spacing: .04em; margin: 0; color: #fff; text-shadow: 0 6px 40px rgba(0,0,0,.35); }
+.wordmark span { color: var(--magenta); }
+.hero .lede { color: #dbe5ef; font-size: clamp(19px, 2.2vw, 24px); max-width: 52ch; }
+.cta { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 6px; }
+.readouts { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
+.readout { font: 600 14px/1 var(--f-mono); padding: 10px 12px; border-radius: 6px; background: rgba(0,0,0,.62); border: 1px solid rgba(255,255,255,.18); color: var(--green); }
+.readout i { font-style: normal; color: #b7c3cf; margin-right: 8px; letter-spacing: .08em; font-size: 11px; }
+
+section.band { padding-block: 88px 0; }
+.sechead { display: grid; gap: 12px; margin-bottom: 30px; max-width: 760px; }
+.names { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.name { position: relative; padding: 26px; border-radius: 16px; background: var(--panel); border: 1px solid var(--line); overflow: hidden; display: grid; gap: 10px; }
+.name .yr { font: 800 clamp(64px, 8vw, 104px)/0.85 var(--f-display); color: transparent; -webkit-text-stroke: 1.5px var(--line-2); }
+.name h3 { font-size: 34px; }
+.name p { color: var(--muted); }
+.name .tag { font: 600 12px var(--f-mono); letter-spacing: .1em; text-transform: uppercase; color: var(--cyan); }
+.nameplace { margin-top: 14px; color: var(--muted); max-width: 72ch; }
+
+.merge { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.sim { padding: 22px; border-radius: 14px; background: var(--panel); border: 1px solid var(--line); display: grid; gap: 10px; align-content: start; }
+.sim h3 { font-size: 26px; }
+.sim .from { font: 600 12px var(--f-mono); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.sim ul { margin: 0; padding-left: 18px; color: #c9d3de; display: grid; gap: 6px; }
+.sim.ours { background: linear-gradient(180deg, rgba(230,75,208,.16), var(--panel)); border-color: var(--magenta); }
+.sim.ours .from { color: var(--magenta); }
+
+.lessons { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; }
+.lesson { display: grid; gap: 8px; padding: 18px; border-radius: 12px; background: var(--panel); border: 1px solid var(--line); text-decoration: none; color: var(--text); }
+.lesson:hover { border-color: var(--magenta); color: var(--text); }
+.lesson .lt { font: 600 11px var(--f-mono); letter-spacing: .1em; text-transform: uppercase; color: var(--magenta); }
+.lesson h3 { font-size: 23px; }
+.lesson .codes { display: flex; flex-wrap: wrap; gap: 4px; margin-top: auto; }
+.lesson .codes span { font: 600 11px/1 var(--f-mono); padding: 4px 6px; border-radius: 3px; background: var(--sign-y); color: var(--sign-k); }
+
+.path { list-style: none; margin: 0; padding: 0; display: grid; gap: 0; counter-reset: s; border-left: 2px solid var(--line-2); margin-left: 18px; }
+.path li { position: relative; padding: 0 0 28px 34px; display: grid; gap: 4px; max-width: 760px; }
+.path li::before { counter-increment: s; content: counter(s); position: absolute; left: -19px; top: -4px; width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; font: 800 18px var(--f-display); background: var(--bg); border: 2px solid var(--magenta); color: #fff; }
+.path h3 { font-size: 25px; }
+.path p { color: var(--muted); }
+.path .cost { font: 600 12.5px var(--f-mono); color: var(--cyan); }
+
+.endcta { margin-top: 88px; padding: 40px; border-radius: 20px; background: radial-gradient(ellipse at 20% 0%, rgba(47,127,208,.35), transparent 60%), var(--panel); border: 1px solid var(--line-2); display: grid; gap: 16px; }
+.endcta h2 { max-width: 18ch; }
+
+@media (max-width: 960px) { .merge { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 640px) { .names, .merge { grid-template-columns: minmax(0, 1fr); } .hero .wrap { padding-block: 96px 40px; } .endcta { padding: 26px; } }
+</style>
+</head>
+<body>
+<header class="topnav"><div class="wrap">
+  <a class="brand" href="./"><img src="assets/img/favicon.svg" alt="" width="28" height="28"><span>ZARHART</span></a>
+  <nav aria-label="Main"><a href="sim/">Fly</a><a href="prep/">Study</a><a href="#path">Path</a><a href="https://github.com/ramalliss/zarhart" target="_blank" rel="noopener">GitHub</a></nav>
+</div></header>
+
+<header class="hero">
+  <canvas id="adi" aria-hidden="true"></canvas>
+  <div class="wrap">
+    <p class="eyebrow">Free · open source · runs in your browser</p>
+    <h1 class="wordmark">ZAR<span>HART</span></h1>
+    <p class="lede">Learn to fly before you fly. A flight simulator, ground-school links and FAA Private Pilot written-test prep, all in one cockpit.</p>
+    <div class="cta"><a class="btn primary" href="sim/">Launch the simulator</a><a class="btn" href="prep/">Start written-test prep</a></div>
+    <div class="readouts" aria-label="At a glance"><span class="readout"><i>LESSONS</i>13 exam-linked</span><span class="readout"><i>QUESTIONS</i>175 with explanations</span><span class="readout"><i>AIRCRAFT</i>C172-class</span><span class="readout"><i>COST</i>$0 · no install</span></div>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="band" aria-labelledby="named">
+    <div class="sechead"><p class="eyebrow">The name</p><h2 id="named">Named for two record-setters.</h2></div>
+    <div class="names">
+      <article class="name"><span class="yr">1932</span><p class="tag">Amelia Earhart</p><h3>First woman to fly solo across the Atlantic</h3><p>On 20–21 May 1932 she flew a Lockheed Vega from Harbour Grace, Newfoundland, to Northern Ireland, nonstop and alone. In 1937 she disappeared near Howland Island while the Coast Guard cutter <i>Itasca</i> waited for her.</p></article>
+      <article class="name"><span class="yr">2022</span><p class="tag">Zara Rutherford</p><h3>Youngest woman to fly solo around the world</h3><p>At 19, in a Shark ultralight, she flew around the world in 155 days and landed back in Belgium on 20 January 2022. She started with a private pilot license, which is where you're headed.</p></article>
+    </div>
+    <p class="nameplace">The Zarhart Valley carries their names: Lake Itasca, Atchison (Earhart's hometown), Harbour Grace, Electra Field, the town of Rutherford and the airspace P-19.</p>
+  </section>
+
+  <section class="band" aria-labelledby="merge">
+    <div class="sechead"><p class="eyebrow">Three sims, one cockpit</p><h2 id="merge">The best of X-Plane, Flight Simulator and FlightGear.</h2><p class="lede">Each desktop sim is great at one thing. Zarhart takes that one thing from each and adds what a student pilot actually needs for the written test.</p></div>
+    <div class="merge">
+      <article class="sim"><p class="from">From X-Plane 12</p><h3>Procedures & physics</h3><ul><li>Flight model from real aerodynamics: stall, P-factor, ground effect, CG</li><li>Checklists that tick themselves when you do the step</li><li>VOR, DME and GPS navigation</li></ul></article>
+      <article class="sim"><p class="from">From MSFS 2024</p><h3>A world to fly over</h3><ul><li>Farms, forests, rivers, roads and towns for flying by landmarks</li><li>C172 with steam gauges or a G1000-style glass cockpit</li><li>Live weather, clouds and time of day</li></ul></article>
+      <article class="sim"><p class="from">From FlightGear</p><h3>Free & open</h3><ul><li>MIT-licensed, on GitHub</li><li>No install, no account, works on a school laptop</li><li>Keyboard, joystick, gamepad or touch</li></ul></article>
+      <article class="sim ours"><p class="from">Only in Zarhart</p><h3>It teaches the test</h3><ul><li>Lessons linked to written-test questions</li><li>A VFR minimums monitor that shows the cloud clearance you need</li><li>Failures that teach systems: pitot, static, vacuum, carb ice</li><li>Pilot-controlled lighting, light-gun signals, visible wake turbulence</li></ul></article>
+    </div>
+  </section>
+
+  <section class="band" aria-labelledby="lessons">
+    <div class="sechead"><p class="eyebrow">Fly the questions</p><h2 id="lessons">Lessons that teach the written test.</h2><p class="lede">Each lesson sets up the scenario, checks your objectives live and debriefs you. The yellow codes open the matching test questions.</p></div>
+    <div class="lessons" id="lessonGrid"></div>
+  </section>
+
+  <section class="band" id="path" aria-labelledby="pathh">
+    <div class="sechead"><p class="eyebrow">Your path</p><h2 id="pathh">From zero to the written test, mostly free.</h2></div>
+    <ol class="path">
+      <li><h3>Ground-school lessons</h3><p><a href="https://fly8ma.com/private-pilot-ground-school/" target="_blank" rel="noopener">FLY8MA free ground school</a>: video lessons for every subject.</p><span class="cost">Free · no written-test endorsement</span></li>
+      <li><h3>Study handbook</h3><p>The <a href="https://www.faa.gov/regulations_policies/handbooks_manuals/aviation/phak" target="_blank" rel="noopener">FAA Pilot's Handbook of Aeronautical Knowledge</a>. Zarhart Prep lists the chapter for each topic.</p><span class="cost">Free PDF</span></li>
+      <li><h3>Practice exams: start here</h3><p><a href="https://courses.sportys.com/training/portal/course/PRIVATE/testprep" target="_blank" rel="noopener">Sporty's free practice tests</a>: unlimited timed 60-question tests.</p><span class="cost">Free account</span></li>
+      <li><h3>More practice questions</h3><p><a href="https://www.kingschools.com/free-faa-exam/" target="_blank" rel="noopener">King Schools free FAA test</a>, plus the <a href="prep/#exam">Zarhart practice exam</a>.</p><span class="cost">Free</span></li>
+      <li><h3>Get your endorsement</h3><p>A flight instructor or a home-study course must endorse you before you take the test.</p><span class="cost">Required</span></li>
+      <li><h3>Get your FAA Tracking Number</h3><p>Register in <a href="https://iacra.faa.gov/" target="_blank" rel="noopener">FAA IACRA</a> to get your FTN. Use your name exactly as it appears on your ID.</p><span class="cost">Free</span></li>
+      <li><h3>Book the official written exam</h3><p>Schedule at a testing center through the <a href="https://faa.psiexams.com/" target="_blank" rel="noopener">FAA testing portal (PSI)</a>. Bring your ID and endorsement. 70% passes.</p><span class="cost">$175 + applicable tax</span></li>
+    </ol>
+  </section>
+
+  <section class="endcta">
+    <p class="eyebrow">Cleared for takeoff</p>
+    <h2>Fly a pattern now. Study the question it teaches tonight.</h2>
+    <div class="cta"><a class="btn primary" href="sim/?lesson=pattern">Fly lesson 1</a><a class="btn" href="prep/#exam">Take a practice exam</a></div>
+  </section>
+</main>
+
+<footer class="site"><div class="wrap">
+  <div class="row"><b>Zarhart</b><span>Free and open source (MIT)</span><a href="https://github.com/ramalliss/zarhart">Source on GitHub</a><a href="sim/">Fly</a><a href="prep/">Study</a></div>
+  <p>Study aid only. Not FAA-approved training and not for real-world navigation. Not affiliated with Sporty's, King Schools, FLY8MA, Laminar Research, Microsoft or the FlightGear project. Practice questions are written from public FAA references.</p>
+</div></footer>
+
+<script type="module">
+// Lesson cards (kept in sync with assets/js/sim/lessons.js)
+const L = [
+  ["pattern", "Takeoffs & landings", "Traffic pattern at Zarhart Field", ["t16", "t26", "t1"]],
+  ["vasi", "Airport lighting", "Short final: fly the VASI", ["t23", "t52", "t54"]],
+  ["steep", "Performance maneuvers", "Steep turns (45° bank)", ["t34", "t58"]],
+  ["stall", "Slow flight & stalls", "Power-off stall & recovery", ["t42", "t9", "e34"]],
+  ["softfield", "Takeoffs & landings", "Soft-field takeoff on grass", ["t55", "t21", "t35"]],
+  ["vor", "Navigation", "VOR tracking: ZRH 090 radial", ["e55", "e60"]],
+  ["xc", "Navigation", "Cross-country by pilotage", ["t57", "e62", "t1"]],
+  ["night", "Night operations", "Pilot-controlled lighting", ["t33", "e49"]],
+  ["enginefail", "Emergencies", "Engine failure: glide and land", ["t59", "e54"]],
+  ["carbice", "Aircraft systems", "Carburetor ice", ["e41"]],
+  ["crosswind", "Takeoffs & landings", "Gusty crosswind landing", ["e19"]],
+  ["wake", "Wake turbulence", "Wake turbulence behind a heavy jet", ["t25", "t36", "t53"]],
+  ["nordo", "Airport operations", "Radio failure: light gun signals", ["e47", "e48"]],
+];
+document.getElementById("lessonGrid").innerHTML = L.map(([id, tag, t, codes]) => `<a class="lesson" href="sim/?lesson=${id}"><span class="lt">${tag}</span><h3>${t}</h3><span class="codes">${codes.map((c) => `<span>${c.toUpperCase()}</span>`).join("")}</span></a>`).join("");
+
+// Hero: a live, gently banking attitude indicator
+const cv = document.getElementById("adi"), g = cv.getContext("2d");
+const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+let W = 0, H = 0, tx = 0, ty = 0, bank = -8, pitch = 2;
+function size() { const dpr = Math.min(2, devicePixelRatio || 1); W = cv.clientWidth; H = cv.clientHeight; cv.width = W * dpr; cv.height = H * dpr; g.setTransform(dpr, 0, 0, dpr, 0, 0); }
+addEventListener("resize", size); size();
+addEventListener("pointermove", (e) => { tx = (e.clientX / innerWidth - 0.5) * 2; ty = (e.clientY / innerHeight - 0.5) * 2; });
+addEventListener("deviceorientation", (e) => { if (e.gamma != null) { tx = Math.max(-1, Math.min(1, e.gamma / 30)); ty = Math.max(-1, Math.min(1, ((e.beta || 45) - 45) / 30)); } });
+function draw(t) {
+  const s = t / 1000;
+  const tb = reduce ? -8 : -10 * Math.sin(s * 0.23) + tx * 14, tp = reduce ? 2 : 2 + 3 * Math.sin(s * 0.17) - ty * 6;
+  bank += (tb - bank) * 0.04; pitch += (tp - pitch) * 0.04;
+  const cx = W * 0.62, cy = H * 0.46, ppd = H / 34;
+  g.save(); g.translate(cx, cy); g.rotate(-bank * Math.PI / 180); g.translate(0, pitch * ppd);
+  const sky = g.createLinearGradient(0, -H * 1.4, 0, 0); sky.addColorStop(0, "#08306f"); sky.addColorStop(1, "#3d8be3");
+  g.fillStyle = sky; g.fillRect(-W * 2, -H * 3, W * 4, H * 3);
+  const gnd = g.createLinearGradient(0, 0, 0, H * 1.4); gnd.addColorStop(0, "#7e4d1f"); gnd.addColorStop(1, "#2e1b0b");
+  g.fillStyle = gnd; g.fillRect(-W * 2, 0, W * 4, H * 3);
+  g.fillStyle = "#fff"; g.fillRect(-W * 2, -1.5, W * 4, 3);
+  g.strokeStyle = "rgba(255,255,255,.85)"; g.lineWidth = 2; g.font = "600 14px 'IBM Plex Mono', monospace"; g.fillStyle = "rgba(255,255,255,.85)"; g.textAlign = "center"; g.textBaseline = "middle";
+  for (let p = -30; p <= 30; p += 2.5) { if (!p) continue; const w = p % 10 === 0 ? 220 : p % 5 === 0 ? 110 : 50; g.beginPath(); g.moveTo(-w / 2, -p * ppd); g.lineTo(w / 2, -p * ppd); g.stroke(); if (p % 10 === 0) { g.fillText(Math.abs(p), -w / 2 - 22, -p * ppd); g.fillText(Math.abs(p), w / 2 + 22, -p * ppd); } }
+  g.restore();
+  // bank arc and pointer
+  g.save(); g.translate(cx, cy); const r = Math.min(W, H) * 0.32;
+  g.strokeStyle = "rgba(255,255,255,.9)"; g.lineWidth = 2.5; g.beginPath(); g.arc(0, 0, r, -150 * Math.PI / 180, -30 * Math.PI / 180); g.stroke();
+  for (const b of [-60, -45, -30, -20, -10, 10, 20, 30, 45, 60]) { const a = b * Math.PI / 180; const l = Math.abs(b) % 30 === 0 ? 20 : 11; g.beginPath(); g.moveTo(Math.sin(a) * r, -Math.cos(a) * r); g.lineTo(Math.sin(a) * (r + l), -Math.cos(a) * (r + l)); g.stroke(); }
+  g.fillStyle = "#fff"; g.beginPath(); g.moveTo(0, -r); g.lineTo(-9, -r - 16); g.lineTo(9, -r - 16); g.fill();
+  g.rotate(-bank * Math.PI / 180); g.beginPath(); g.moveTo(0, -r + 3); g.lineTo(-10, -r + 19); g.lineTo(10, -r + 19); g.fill();
+  g.restore();
+  // aircraft symbol
+  g.fillStyle = "#ffd21f"; g.strokeStyle = "#000"; g.lineWidth = 1.2;
+  g.beginPath(); g.moveTo(cx, cy); g.lineTo(cx - 120, cy + 44); g.lineTo(cx - 64, cy + 44); g.lineTo(cx, cy + 18); g.lineTo(cx + 64, cy + 44); g.lineTo(cx + 120, cy + 44); g.closePath(); g.fill(); g.stroke();
+  g.fillRect(cx - 260, cy - 3, 80, 6); g.fillRect(cx + 180, cy - 3, 80, 6);
+  if (!reduce) requestAnimationFrame(draw);
+}
+requestAnimationFrame(draw);
+</script>
+</body>
+</html>

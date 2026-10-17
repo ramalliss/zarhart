@@ -143,7 +143,11 @@ kbd { font: 600 12px/1 var(--f-mono); padding: 4px 6px; border-radius: 5px; back
 .thr input { writing-mode: vertical-lr; direction: rtl; height: 120px; accent-color: var(--magenta); }
 
 @media (max-width: 720px) {
-  .vfr { top: auto; bottom: calc(var(--panel-h, 0px) + 150px); right: var(--gutter-r); max-width: 230px; font-size: 12px; }
+  .vfr { top: auto; bottom: calc(var(--panel-h, 0px) + 146px); right: var(--gutter-r); max-width: 210px; font-size: 12px; }
+  #toasts { top: calc(env(safe-area-inset-top, 0px) + 168px); }
+  .gmeter { top: calc(env(safe-area-inset-top, 0px) + 118px); }
+  .lightgun { top: calc(env(safe-area-inset-top, 0px) + 180px); width: calc(100vw - 32px); }
+  .obj.min { width: calc(100vw - 32px); }
   .obj { width: min(300px, calc(100vw - 32px)); font-size: 13px; }
   .tools { max-width: calc(100vw - 80px); }
   .sim-top .brand span { display: none; }

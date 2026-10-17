@@ -63,8 +63,16 @@ export class Panel {
     const lip = Math.min(30, H * 0.11);
     g.fillStyle = "#0d1014"; g.fillRect(0, 0, W, lip);
     const Ha = H - lip;
-    const D = Math.min(Ha * 0.47, W / 9.1); const R = D / 2 * 0.92;
     const y1 = lip + Ha * 0.265, y2 = lip + Ha * 0.745;
+    if (W < 640) { // phones: six-pack only
+      const D = Math.min(Ha * 0.47, (W - 16) / 3.35), R = D / 2 * 0.92; const x0 = (W - D * 3.3) / 2;
+      const xB = x0 + D * 0.55, xC = xB + D * 1.1, xD = xC + D * 1.1;
+      this.asi(xB, y1, R, d.ias); this.ai(xC, y1, R, d.aiPitch, d.aiBank, ac.inst.gyroSpin); this.alt(xD, y1, R, d.altInd, ac.inst.kollsman);
+      this.tc(xB, y2, R, d.tc, d.ball, ac.powered); this.hi(xC, y2, R, d.hi, ac.inst.hdgBug); this.vsi(xD, y2, R, d.vsi);
+      this.compass(xC, lip / 2 + 1, Math.min(D * 1.3, 170), lip - 6, d.compass);
+      return;
+    }
+    const D = Math.min(Ha * 0.47, W / 9.1); const R = D / 2 * 0.92;
     const total = D * 8.15; const x0 = Math.max(6, (W - total) / 2);
     const xA = x0 + D * 0.5, xB = xA + D * 1.13, xC = xB + D * 1.08, xD = xC + D * 1.08, xE = xD + D * 1.13;
     const xR = xE + D * 0.62;
@@ -287,7 +295,7 @@ export class Panel {
   drawGlass(S) {
     const g = this.g, W = this.w, H = this.h;
     g.fillStyle = "#15181c"; g.fillRect(0, 0, W, H);
-    const gap = 10; const pw = Math.min(W * 0.58, H * 1.75); const mw = Math.min(W - pw - gap * 3, H * 1.6);
+    const gap = 10; const narrow = W < 640; const pw = narrow ? W - 20 : Math.min(W * 0.58, H * 1.75); const mw = narrow ? 0 : Math.min(W - pw - gap * 3, H * 1.6);
     const x0 = Math.max(gap, (W - pw - mw - gap) / 2);
     const on = S.ac.powered && S.ac.elec.avionics;
     this.screen(x0, 6, pw, H - 12, on, () => this.pfd(x0 + 6, 12, pw - 12, H - 24, S));

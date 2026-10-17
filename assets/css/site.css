@@ -49,7 +49,7 @@ p { margin: 0; }
 .topnav { position: sticky; top: 0; z-index: 40; background: rgba(7, 11, 16, .82); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-bottom: 1px solid var(--line); }
 .topnav .wrap { display: flex; align-items: center; gap: 22px; height: 60px; }
 .brand { display: flex; align-items: center; gap: 10px; color: var(--text); text-decoration: none; font: 800 22px/1 var(--f-display); letter-spacing: .14em; }
-.brand svg { width: 28px; height: 28px; flex: none; }
+.brand svg, .brand img { width: 28px; height: 28px; flex: none; }
 .topnav nav { display: flex; gap: 4px; margin-left: auto; overflow-x: auto; }
 .topnav nav a { color: var(--muted); text-decoration: none; font: 600 15px/1 var(--f-body); padding: 10px 12px; border-radius: 6px; white-space: nowrap; }
 .topnav nav a:hover, .topnav nav a[aria-current="page"] { color: var(--text); background: var(--panel-2); }
