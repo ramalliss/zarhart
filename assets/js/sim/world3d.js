@@ -612,7 +612,20 @@ export class World {
     else { this.scene.fog.color.copy(fc); this.scene.fog.near = Math.min(800, visM * 0.05); this.scene.fog.far = visM * 1.25; }
     this.renderer.setClearColor(this.scene.fog.color);
     this.sky.visible = env.inCloud < 0.5;
+    this.updateEnvMap(env.hour);
     if (this.clouds) this.clouds.setLight(new THREE.Color().copy(warm).multiplyScalar(0.25 + 0.75 * day).lerp(new THREE.Color(1, 1, 1), 0.4 * day), new THREE.Color(0.55, 0.6, 0.68).multiplyScalar(0.2 + 0.8 * day));
+  }
+  /** Image-based lighting for the airplane's paint: a PMREM of the current sky, refreshed when the time of day changes. */
+  updateEnvMap(hour) {
+    if (this.envHour != null && Math.abs(hour - this.envHour) < 0.25) return;
+    this.envHour = hour;
+    this.pmrem ||= new THREE.PMREMGenerator(this.renderer);
+    const envScene = new THREE.Scene(); const vis = this.sky.visible; this.sky.visible = true;
+    envScene.add(this.sky);
+    const rt = this.pmrem.fromScene(envScene, 0, 0.1, 200000);
+    this.scene.add(this.sky); this.sky.visible = vis;
+    if (this.envRT) this.envRT.dispose();
+    this.envRT = rt; this.scene.environment = rt.texture;
   }
   /** per-frame animation: lights, beacons, VASI, windsocks */
   update(t, eye, state) {

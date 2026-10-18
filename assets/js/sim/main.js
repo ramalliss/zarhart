@@ -3,7 +3,7 @@ import * as THREE from "three";
 import { Aircraft, C172, KT, FT, weightBalance } from "./fdm.js";
 import { AIRPORTS, NAVAIDS, groundAt, airspaceAt, vfrMinimums, nearestAirport, heightAt, rectDist } from "./world-data.js";
 import { World } from "./world3d.js";
-import { buildAirplane, buildCockpit, animateAirplane } from "./plane3d.js";
+import { buildAirplane, buildCockpit, animateAirplane, buildShadow } from "./plane3d.js";
 import { Weather, PRESETS } from "./weather.js";
 import { vor, gps, WAYPOINTS, wrap180 } from "./nav.js";
 import { Input } from "./input.js";
@@ -27,6 +27,7 @@ const freqInfo = (f) => FREQS.find((q) => Math.abs(q.f - f) < 0.004);
 
 /* ---------------- settings ---------------- */
 const settings = Object.assign({ quality: "high", invert: false, mouseYoke: false, autoRudder: true, sound: true, voice: false, panel: "steam" }, store.get("settings", {}));
+settings.assist ||= settings.autoRudder === false ? "off" : "assisted";
 const saveSettings = () => store.set("settings", settings);
 
 /* ---------------- renderer & scene ---------------- */
@@ -43,7 +44,7 @@ const ac = new Aircraft(env);
 const panel = new Panel($("#panel"));
 panel.mode = settings.panel;
 const input = new Input(view);
-input.invert = settings.invert; input.mouseYoke = settings.mouseYoke; input.autoRudder = settings.autoRudder;
+input.invert = settings.invert; input.mouseYoke = settings.mouseYoke; input.autoRudder = settings.assist !== "off"; input.assist = settings.assist;
 const audio = new Audio(); audio.enabled = settings.sound;
 
 const sim = {
@@ -73,6 +74,7 @@ function setRoute(pts) { sim.route = pts; if (pts?.length) { sim.gpsWp = pts[pts
 
 /* ---------------- visuals: airplane, cockpit, parked aircraft ---------------- */
 const plane = buildAirplane({ reg: "N19ZR" }); scene.add(plane);
+const shadow = buildShadow(); scene.add(shadow);
 const cockpit = buildCockpit(); scene.add(cockpit);
 const cockpitProp = new THREE.Mesh(new THREE.CircleGeometry(0.98, 32), new THREE.MeshBasicMaterial({ color: 0x9aa3ad, transparent: true, opacity: 0.035, side: THREE.DoubleSide, depthWrite: false }));
 cockpitProp.position.set(0, -0.08, -2.34); cockpit.add(cockpitProp);
@@ -280,11 +282,24 @@ const keymap = {
   o: () => { ac.inst.hiDrift = wrap180(ac.derived.compass - (ac.derived.hi - ac.inst.hiDrift)); say("Heading indicator set to the magnetic compass.", "info", 2000); },
   l: () => { ac.elec.lights.landing = !ac.elec.lights.landing; say(`Landing light ${ac.elec.lights.landing ? "ON" : "OFF"}`, "info", 1400); },
   n: () => { [sim.radio.nav1, sim.radio.nav1s] = [sim.radio.nav1s, sim.radio.nav1]; },
-  y: () => { input.mouseYoke = settings.mouseYoke = !settings.mouseYoke; saveSettings(); say(`Mouse yoke ${input.mouseYoke ? "ON: move the mouse to fly" : "OFF"}`, "info", 2200); },
+  y: () => { input.mouseYoke = settings.mouseYoke = !settings.mouseYoke; saveSettings(); say(`Mouse yoke ${input.mouseYoke ? "ON: move the mouse away from the centre ring to fly" : "OFF"}`, "info", 2200); },
+  u: () => { const m = ["assisted", "rudder", "off"]; setAssist(m[(m.indexOf(settings.assist) + 1) % 3]); },
   " ": () => pttClick(),
   Enter: () => { if (!$("#crash").hidden) retry(); },
 };
 input.on("keymap", keymap);
+const ASSIST_LABEL = { assisted: "Assisted", rudder: "Auto-rudder", off: "Manual" };
+function setAssist(mode) { settings.assist = input.assist = mode; input.autoRudder = mode !== "off"; input.tgt = null; saveSettings(); say(`Flight assist: ${ASSIST_LABEL[mode]}${mode === "assisted" ? ". Arrows change pitch and bank; let go and the airplane holds its attitude." : mode === "rudder" ? ". You fly the stick; rudder is automatic." : ". Fully manual, including rudder."}`, "info", 4000); }
+const ctlEls = { dot: document.querySelector("#ctl .ctl-dot"), rud: document.querySelector("#ctl .ctl-rud span"), thr: document.querySelector("#ctl .ctl-thr span"), txt: document.querySelector("#ctl .ctl-txt"), yoke: document.querySelector("#yoke"), yokeDot: document.querySelector("#yoke span") };
+function updateControlIndicator() {
+  const c = ac.ctl; if (!ctlEls.dot) return;
+  ctlEls.dot.style.transform = `translate(${c.aileron * 30}px, ${c.elevator * 30}px)`;
+  ctlEls.rud.style.transform = `translateX(${c.rudder * 30}px)`;
+  ctlEls.thr.style.height = `${Math.round(c.throttle * 100)}%`;
+  ctlEls.txt.textContent = `${ASSIST_LABEL[settings.assist].toUpperCase()} · FLAPS ${ac.flapsSet} · TRIM ${c.trim >= 0 ? "+" : ""}${Math.round(c.trim * 100)}`;
+  ctlEls.yoke.hidden = !input.mouseYoke || sim.paused;
+  if (input.mouseYoke) ctlEls.yokeDot.style.transform = `translate(${input.mouse.x * innerWidth / 2}px, ${input.mouse.y * (innerHeight - (parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--panel-h")) || 0)) / 2}px)`;
+}
 function togglePause() { if (!sim.ready || !$("#start").hidden) return; sim.paused = !sim.paused; $("#paused").hidden = !sim.paused; }
 
 /* ---------------- drawers ---------------- */
@@ -402,7 +417,7 @@ function renderDrawer() {
     B.innerHTML = `<div class="form"><label>Graphics <select id="sQ"><option value="high">High</option><option value="low">Low (faster)</option></select></label>
       <label class="chk"><input type="checkbox" id="sInv" ${settings.invert ? "checked" : ""}> Invert pitch (↑ = nose up)</label>
       <label class="chk"><input type="checkbox" id="sMouse" ${settings.mouseYoke ? "checked" : ""}> Mouse yoke (Y)</label>
-      <label class="chk"><input type="checkbox" id="sAuto" ${settings.autoRudder ? "checked" : ""}> Auto-rudder (turn off to practise P-factor and coordination)</label>
+      <label>Flight assist <select id="sAssist"><option value="assisted">Assisted: arrows change pitch and bank, let go to hold (easiest)</option><option value="rudder">Auto-rudder only: real stick, rudder handled for you</option><option value="off">Off: fully manual (practise P-factor and coordination)</option></select></label>
       <label class="chk"><input type="checkbox" id="sSound" ${settings.sound ? "checked" : ""}> Sound</label>
       <label class="chk"><input type="checkbox" id="sVoice" ${settings.voice ? "checked" : ""}> Spoken ATC & ATIS (text-to-speech)</label>
       <label>Instrument panel (I) <select id="sPanel"><option value="steam">Six-pack (steam gauges)</option><option value="glass">Glass cockpit (G1000 style)</option><option value="off">Hidden</option></select></label></div>
@@ -411,13 +426,14 @@ function renderDrawer() {
     $("#sQ", B).addEventListener("change", (e) => { settings.quality = e.target.value; saveSettings(); say("Reload the page to apply graphics quality.", "info"); });
     $("#sInv", B).addEventListener("change", (e) => { settings.invert = input.invert = e.target.checked; saveSettings(); });
     $("#sMouse", B).addEventListener("change", (e) => { settings.mouseYoke = input.mouseYoke = e.target.checked; saveSettings(); });
-    $("#sAuto", B).addEventListener("change", (e) => { settings.autoRudder = input.autoRudder = e.target.checked; saveSettings(); });
+    $("#sAssist", B).value = settings.assist;
+    $("#sAssist", B).addEventListener("change", (e) => { setAssist(e.target.value); });
     $("#sSound", B).addEventListener("change", (e) => { settings.sound = audio.enabled = e.target.checked; saveSettings(); });
     $("#sVoice", B).addEventListener("change", (e) => { settings.voice = e.target.checked; saveSettings(); });
     $("#sPanel", B).addEventListener("change", (e) => { settings.panel = panel.mode = e.target.value; saveSettings(); layout(); });
   } else if (n === "help") {
     const k = (keys, what) => `<li><span class="keys">${keys.map((x) => `<kbd>${esc(x)}</kbd>`).join(" ")}</span><span>${esc(what)}</span></li>`;
-    B.innerHTML = `<ul class="keylist">${k(["↑", "W"], "Nose down")}${k(["↓", "S"], "Nose up")}${k(["←", "→", "A", "D"], "Roll (ailerons)")}${k(["Q", "E"], "Rudder / nosewheel steering")}${k(["R", "F"], "Throttle up / down (Shift = full / idle)")}${k(["[", "]"], "Flaps up / down a notch")}${k(["T", "G"], "Trim nose up / down")}${k(["B"], "Brakes (with rudder for differential)")}${k(["Shift+B"], "Parking brake")}${k(["H"], "Carburetor heat")}${k(["L"], "Landing light")}${k(["O"], "Set the heading indicator to the compass")}${k(["Space"], "Click the mic (pilot-controlled lighting)")}${k(["N"], "Swap NAV1")}${k(["C"], "Change view: cockpit, chase, orbit, tower")}${k(["I"], "Panel: six-pack, glass, hidden")}${k(["M"], "Map")}${k(["K"], "Checklist")}${k(["Y"], "Mouse yoke on/off")}${k(["P", "Esc"], "Pause")}</ul>
+    B.innerHTML = `<ul class="keylist">${k(["↑", "W"], "Nose down")}${k(["↓", "S"], "Nose up")}${k(["←", "→", "A", "D"], "Roll (ailerons)")}${k(["Q", "E"], "Rudder / nosewheel steering")}${k(["R", "F"], "Throttle up / down (Shift = full / idle)")}${k(["[", "]"], "Flaps up / down a notch")}${k(["T", "G"], "Trim nose up / down")}${k(["B"], "Brakes (with rudder for differential)")}${k(["Shift+B"], "Parking brake")}${k(["H"], "Carburetor heat")}${k(["L"], "Landing light")}${k(["O"], "Set the heading indicator to the compass")}${k(["Space"], "Click the mic (pilot-controlled lighting)")}${k(["N"], "Swap NAV1")}${k(["C"], "Change view: cockpit, chase, orbit, tower")}${k(["I"], "Panel: six-pack, glass, hidden")}${k(["M"], "Map")}${k(["K"], "Checklist")}${k(["Y"], "Mouse yoke on/off")}${k(["U"], "Flight assist: Assisted → Auto-rudder → Manual")}${k(["P", "Esc"], "Pause")}</ul>
       <p class="dnote">Mouse: drag to look around (cockpit) or orbit (outside views). Scroll to zoom. Double-click to recentre. Scroll over panel knobs (Kollsman, OBS, heading bug, attitude indicator) to set them. Click the HI knob to align it with the compass.</p>`;
   }
 }
@@ -556,6 +572,8 @@ function tick(now) {
     const d = sim.d = ac.derived;
     plane.position.set(ac.pos.x, ac.pos.y, ac.pos.z); plane.quaternion.set(ac.q.x, ac.q.y, ac.q.z, ac.q.w);
     animateAirplane(plane, ac, sim.t, sim.paused ? 0 : dt);
+    { const pp = plane.userData.parts, cp = cockpit.userData.ext?.userData.parts; if (cp) for (const k of ["ailL", "ailR", "flapL", "flapR"]) cp[k].rotation.x = pp[k].rotation.x; }
+    { const gh = groundAt(ac.pos.x, ac.pos.z).h, agl = ac.pos.y - gh; shadow.position.set(ac.pos.x, gh + 0.06, ac.pos.z); shadow.rotation.y = -ac.derived.hdg * DEG; shadow.material.opacity = Math.max(0, 1 - agl / 160) * (world.night ? 0.25 : 0.85); shadow.visible = shadow.material.opacity > 0.02; }
     updateCamera(dt);
     const probe = world.clouds.probe(camera.position.x, camera.position.y, camera.position.z);
     world.setEnvironment({ hour: weather.hour, visSM: weather.visSM, inCloud: probe.inside });
@@ -567,6 +585,7 @@ function tick(now) {
       const ete = g && d.gs > 20 ? (() => { const m = g.dist / d.gs * 60; return `${Math.floor(m)}:${String(Math.round((m % 1) * 60)).padStart(2, "0")}`; })() : "";
       panel.draw({ ac, d, vor1: sim.vor1, gps: g, ete, radio: sim.radio, base: sectionalBase, route: sim.route, mfdRange: sim.mfdRange, wind: { dir: weather.windDir, kt: weather.windKt }, act });
     }
+    updateControlIndicator();
     hudT += dt; if (hudT > 0.12) { hudT = 0; hudUpdate(); }
     audio.update(ac, d, sim.paused);
   }
@@ -593,7 +612,7 @@ async function boot() {
   requestAnimationFrame(frame);
 }
 window.__zarhart = {
-  sim, ac, weather, world, lessons, camera, panel, settings, keys: input.keys, frame: (ms) => tick(ms), radioCall, pttClick,
+  sim, ac, weather, world, lessons, camera, panel, settings, keys: input.keys, frame: (ms) => tick(ms), radioCall, pttClick, renderer, scene, plane, cockpit, camState, layout,
   /** headless stepping for tests: advance `secs` of sim time at 30 Hz without rendering; pilot(ac, d, sim, dt) flies */
   step(secs, pilot) { for (let i = 0, n = Math.round(secs * 30); i < n; i++) { if (ac.crashed || lessons.done) break; stepSim(1 / 30, pilot); } return ac.derived; },
 };

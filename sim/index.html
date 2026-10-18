@@ -41,6 +41,8 @@
 <div id="gmeter" class="gmeter" hidden></div>
 <div id="lightgun" class="lightgun" hidden></div>
 <div id="strip" class="strip" hidden></div>
+<div id="ctl" class="ctl" title="Control positions (U changes flight assist)"><div class="ctl-stick"><span class="ctl-dot"></span></div><div class="ctl-thr" aria-label="Throttle"><span></span></div><div class="ctl-rud"><span></span></div><div class="ctl-txt"></div></div>
+<div id="yoke" class="yoke" hidden aria-hidden="true"><span></span></div>
 
 <aside id="drawer" class="drawer" hidden aria-labelledby="drawerTitle">
   <header><h2 id="drawerTitle"></h2><button id="drawerClose" class="xbtn" aria-label="Close">✕</button></header>
@@ -76,7 +78,7 @@
         <button class="btn ghost" id="startFree">Free flight</button>
       </div>
       <ul class="quickkeys">
-        <li><kbd>↑</kbd><kbd>↓</kbd> pitch · <kbd>←</kbd><kbd>→</kbd> roll · <kbd>Q</kbd><kbd>E</kbd> rudder</li>
+        <li><kbd>↑</kbd><kbd>↓</kbd> pitch · <kbd>←</kbd><kbd>→</kbd> bank: in Assisted mode let go and the airplane holds its attitude (<kbd>U</kbd> changes assist)</li>
         <li><kbd>R</kbd><kbd>F</kbd> throttle · <kbd>[</kbd><kbd>]</kbd> flaps · <kbd>T</kbd><kbd>G</kbd> trim · <kbd>B</kbd> brakes · <kbd>Shift</kbd>+<kbd>B</kbd> parking brake</li>
         <li><kbd>C</kbd> view · <kbd>I</kbd> panel · <kbd>M</kbd> map · <kbd>K</kbd> checklist · <kbd>P</kbd> pause. Joysticks and gamepads work too.</li>
       </ul>

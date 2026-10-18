@@ -9,6 +9,8 @@ export class Input {
     this.invert = false;
     this.mouseYoke = false;
     this.autoRudder = true;
+    this.assist = "assisted"; // assisted | rudder | off
+    this.tgt = null; // attitude targets for assisted mode
     this.mouse = { x: 0, y: 0, inside: false };
     this.touch = { active: false, x: 0, y: 0, throttle: null };
     this.handlers = {}; // one-shot actions: name -> fn
@@ -64,23 +66,44 @@ export class Input {
         if (gp.axes.length > 5) yawT = dz(gp.axes[5]); else if (gp.axes.length > 3) yawT = dz(gp.axes[3]);
       }
     }
-    // mouse yoke
+    // mouse yoke (dead zone around the reticle at screen centre)
     if (this.mouseYoke && !usingAnalog && pitchT === 0 && rollT === 0) {
-      usingAnalog = true; rollT = clamp(this.mouse.x * 1.4, -1, 1); pitchT = clamp((this.mouse.y + 0.15) * 1.6, -1, 1) * (this.invert ? -1 : 1);
+      const dzm = (v) => (Math.abs(v) < 0.06 ? 0 : (v - Math.sign(v) * 0.06) / 0.94);
+      usingAnalog = true; rollT = clamp(dzm(this.mouse.x) * 1.3, -1, 1); pitchT = clamp(dzm(this.mouse.y) * 1.5, -1, 1) * (this.invert ? -1 : 1);
     }
     // touch stick
     if (this.touch.active) { usingAnalog = true; rollT = this.touch.x; pitchT = this.touch.y * (this.invert ? -1 : 1); }
     this.manRudder = this.manRudder || 0;
-    if (usingAnalog) { c.elevator = pitchT; c.aileron = rollT; this.manRudder = Math.abs(yawT) > 0 ? yawT : ramp(this.manRudder, 0, 2.5, 3); }
+    const expo = (v) => Math.sign(v) * (0.35 * Math.abs(v) + 0.65 * v * v);
+    const d = ac.derived || {};
+    const assisted = this.assist === "assisted" && !d.onGround;
+    if (assisted) {
+      // rate command, attitude hold: inputs change pitch/bank; let go and the attitude is held
+      const pIn = usingAnalog ? expo(pitchT) : pitchT, rIn = usingAnalog ? expo(rollT) : rollT;
+      if (!this.tgt) this.tgt = { pitch: d.pitch || 0, bank: Math.abs(d.bank || 0) < 7 ? 0 : d.bank };
+      const t = this.tgt;
+      if (Math.abs(pIn) > 0.04) t.pitch += pIn * 5 * dt;
+      if (Math.abs(rIn) > 0.04) t.bank += rIn * 32 * dt;
+      else if (Math.abs(t.bank) < 7) t.bank -= Math.sign(t.bank) * Math.min(Math.abs(t.bank), 10 * dt); // wing leveller
+      t.pitch = clamp(clamp(t.pitch, -20, 25), (d.pitch || 0) - 8, (d.pitch || 0) + 8);
+      t.bank = clamp(clamp(t.bank, -60, 60), (d.bank || 0) - 15, (d.bank || 0) + 15);
+      const q = ac.w ? ac.w.y * 57.3 : 0, p = ac.w ? ac.w.x * 57.3 : 0; // body rates, deg/s
+      const bankFF = 0.18 * (1 / Math.cos(Math.min(70, Math.abs(d.bank || 0)) * Math.PI / 180) - 1);
+      c.elevator = clamp(0.085 * (t.pitch - (d.pitch || 0)) - 0.03 * q + bankFF, -1, 1);
+      const be = t.bank - (d.bank || 0); this.bI = clamp((this.bI || 0) + be * dt, -20, 20); if (Math.abs(rIn) > 0.04) this.bI *= 0.98;
+      c.aileron = clamp(0.075 * be + 0.012 * this.bI - 0.016 * p, -1, 1);
+      c.trim = clamp(c.trim + c.elevator * 0.25 * dt, -1, 1); // auto-trim
+      this.manRudder = usingAnalog ? yawT : ramp(this.manRudder, yawT, 4, 5);
+    } else if (usingAnalog) { this.tgt = null; c.elevator = pitchT; c.aileron = rollT; this.manRudder = Math.abs(yawT) > 0 ? yawT : ramp(this.manRudder, 0, 2.5, 3); }
     else {
-      c.elevator = ramp(c.elevator, pitchT * 0.75, 1.6, 2.6);
-      c.aileron = ramp(c.aileron, rollT * 0.8, 2.6, 3.2);
-      this.manRudder = ramp(this.manRudder, yawT, 2.4, 3.2);
+      this.tgt = null;
+      c.elevator = ramp(c.elevator, pitchT * 0.85, 4, 5);
+      c.aileron = ramp(c.aileron, rollT * 0.9, 5, 6);
+      this.manRudder = ramp(this.manRudder, yawT, 4, 5);
     }
     c.rudder = this.manRudder;
     // auto-rudder (like MSFS for keyboard pilots): keeps the ball centred in the air, damps yaw on the ground
-    if (this.autoRudder && yawT === 0) {
-      const d = ac.derived || {};
+    if ((this.autoRudder || this.assist !== "off") && yawT === 0) {
       const yawRate = ac.w ? ac.w.z : 0;
       if (this.hdgRef == null || !d.onGround || (d.gs || 0) < 2) this.hdgRef = d.hdg;
       const herr = ((this.hdgRef - (d.hdg || 0) + 540) % 360) - 180;

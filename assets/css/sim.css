@@ -155,3 +155,18 @@ kbd { font: 600 12px/1 var(--f-mono); padding: 4px 6px; border-radius: 5px; back
   .sim-top .brand span { display: none; }
   .wb { grid-template-columns: 1fr; }
 }
+
+/* control position indicator */
+.ctl { position: fixed; z-index: 14; right: var(--gutter-r); bottom: calc(var(--panel-h, 0px) + 12px); display: grid; grid-template-columns: 76px 12px; grid-template-rows: 76px 14px auto; gap: 6px; padding: 10px; border-radius: 10px; background: rgba(5, 8, 12, .62); border: 1px solid rgba(255, 255, 255, .12); backdrop-filter: blur(6px); pointer-events: none; }
+.ctl-stick { position: relative; width: 76px; height: 76px; border-radius: 6px; background: linear-gradient(rgba(255,255,255,.18), rgba(255,255,255,.18)) center / 1px 100% no-repeat, linear-gradient(rgba(255,255,255,.18), rgba(255,255,255,.18)) center / 100% 1px no-repeat; border: 1px solid rgba(255,255,255,.18); }
+.ctl-dot { position: absolute; left: 50%; top: 50%; width: 12px; height: 12px; margin: -6px 0 0 -6px; border-radius: 50%; background: #fff; box-shadow: 0 0 0 3px rgba(230, 75, 208, .45); }
+.ctl-thr { position: relative; width: 12px; height: 76px; border-radius: 3px; background: rgba(255,255,255,.12); overflow: hidden; }
+.ctl-thr span { position: absolute; left: 0; right: 0; bottom: 0; background: var(--green); }
+.ctl-rud { grid-column: 1; position: relative; height: 14px; border-radius: 3px; background: rgba(255,255,255,.12); }
+.ctl-rud::before { content: ""; position: absolute; left: 50%; top: 2px; bottom: 2px; width: 1px; background: rgba(255,255,255,.3); }
+.ctl-rud span { position: absolute; left: 50%; top: 2px; width: 8px; height: 10px; margin-left: -4px; border-radius: 2px; background: #fff; }
+.ctl-txt { grid-column: 1 / -1; font: 600 10px/1.2 var(--f-mono); letter-spacing: .08em; color: rgba(255,255,255,.75); white-space: nowrap; }
+.yoke { position: fixed; z-index: 13; left: 50%; top: calc((100vh - var(--panel-h, 0px)) / 2); width: 0; height: 0; pointer-events: none; }
+.yoke::before { content: ""; position: absolute; left: -26px; top: -26px; width: 52px; height: 52px; border-radius: 50%; border: 1.5px dashed rgba(255,255,255,.55); }
+.yoke span { position: absolute; left: -5px; top: -5px; width: 10px; height: 10px; border-radius: 50%; background: #fff; box-shadow: 0 0 0 3px rgba(230, 75, 208, .5); }
+@media (max-width: 720px) { .ctl { display: none; } }
