@@ -136,7 +136,7 @@ for (const bank of [45, 60]) {
 // 8. Hands-off full-power climb, no rudder: how fast does it roll off?
 {
   const a = new Aircraft(env); a.reset({ x: 0, z: 0, hdg: 90, onGround: false, altFt: 2000, kias: 75, pitch: 7 });
-  a.ctl.throttle = 1; a.ctl.trim = 0.35;
+  a.ctl.throttle = 1; a.ctl.trim = 0.15;
   fly(a, 30, (ac) => { ac.ctl.elevator = 0; ac.ctl.aileron = 0; ac.ctl.rudder = 0; });
   log("Hands-off climb 30 s: bank / hdg change", `${a.derived.bank.toFixed(1)} / ${((a.derived.hdg - 90 + 540) % 360 - 180).toFixed(0)}`, "drifts left slowly");
 }

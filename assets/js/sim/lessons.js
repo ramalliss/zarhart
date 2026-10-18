@@ -13,13 +13,14 @@ const end = (ap, id) => { for (const r of ap.runways) for (const e of r.ends) if
 function onFinal(ap, id, distNm, kias = 70, flaps = 20) {
   const e = end(ap, id); const h = e.hdg * DEG; const fx = Math.sin(h), fz = -Math.cos(h);
   const d = distNm * NM;
-  return { x: e.x - fx * d, z: e.z - fz * d, hdg: e.hdg, onGround: false, altFt: ap.elevFt + Math.tan(2.75 * DEG) * (d + 225) / FT, kias, flaps, pitch: -1 };
+  return { x: e.x - fx * d, z: e.z - fz * d, hdg: e.hdg, onGround: false, altFt: ap.elevFt + Math.tan(3 * DEG) * (d + 225) / FT, kias, flaps, pitch: -1 };
 }
 const onRunwaySurface = (ap, x, z) => ap.runways.some((r) => rectDist(x, z, r) <= 0);
 const distFromThreshold = (e, x, z) => { const h = e.hdg * DEG; return (x - e.x) * Math.sin(h) + (z - e.z) * -Math.cos(h); };
 const centerOffset = (e, x, z) => { const h = e.hdg * DEG; return (x - e.x) * Math.cos(h) + (z - e.z) * Math.sin(h); };
 const nmTo = (sim, x, z) => Math.hypot(sim.ac.pos.x - x, sim.ac.pos.z - z) / NM;
 const landedOn = (sim, ap, id) => { const td = sim.lastTouchdown; if (!td || td.used) return false; if (!onRunwaySurface(ap, td.x, td.z)) return false; if (id) { const e = end(ap, id); if (Math.abs(wrap180(sim.d.hdg - e.hdg)) > 40) return false; } return true; };
+const offRunway = (ap) => (sim) => { const td = sim.lastTouchdown; return td && !td.used && !onRunwaySurface(ap, td.x, td.z) ? "Touched down off the runway." : null; };
 function grade(fpm) { return fpm < 200 ? "Smooth" : fpm < 400 ? "Good" : fpm < 650 ? "Firm" : "Hard"; }
 function touchdownReport(sim, ap, id) {
   const td = sim.lastTouchdown; if (!td) return "No touchdown recorded.";
@@ -38,7 +39,7 @@ export const LESSONS = [
       { text: "Release the parking brake (Shift+B), full throttle, rotate at 55 KIAS", check: (sim) => !sim.d.onGround && sim.d.agl > 30 },
       { text: "Climb at Vy 74 KIAS to pattern altitude", check(sim, ls, dt) { const pa = KZAR.elevFt + 1000; ls.vyT = (ls.vyT || 0) + dt; if (Math.abs(sim.d.ias - 74) < 6) ls.vyOk = (ls.vyOk || 0) + dt; return sim.d.altInd > pa - 80; }, result: (ls) => `Vy held ${Math.round(100 * (ls.vyOk || 0) / (ls.vyT || 1))}% of the climb.` },
       { text: "Fly downwind (heading 090) at pattern altitude ±100 ft for 20 s", check(sim, ls, dt) { const pa = KZAR.elevFt + 1000; if (Math.abs(wrap180(sim.d.hdg - 90)) < 25 && Math.abs(sim.d.altInd - pa) < 100) ls.dw = (ls.dw || 0) + dt; return (ls.dw || 0) > 20; } },
-      { text: "Turn base and final, land on runway 27", check: (sim) => landedOn(sim, KZAR, "27"), fail: (sim) => sim.lastTouchdown && !sim.lastTouchdown.used && !onRunwaySurface(KZAR, sim.lastTouchdown.x, sim.lastTouchdown.z) ? "Touched down off the runway." : null },
+      { text: "Turn base and final, land on runway 27", check: (sim) => landedOn(sim, KZAR, "27"), fail: offRunway(KZAR) },
       { text: "Slow to taxi speed on the runway", check: (sim) => sim.d.onGround && sim.d.gs < 8, result: (ls, sim) => touchdownReport(sim, KZAR, "27") },
     ],
   },
@@ -50,7 +51,7 @@ export const LESSONS = [
     setup(sim) { sim.setWeather(PRESETS.clear); sim.setTime(20.0); sim.spawn(onFinal(KZAR, "27", 3, 70, 20)); sim.ac.ctl.throttle = 0.3; sim.ac.ctl.trim = 0.35; sim.ac.elec.lights.landing = true; },
     objectives: [
       { text: "Keep red over white until 200 ft AGL", check(sim, ls, dt) { const [nearW, farW] = sim.vasi("KZAR", "27"); ls.tot = (ls.tot || 0) + dt; if (nearW && !farW) ls.on = (ls.on || 0) + dt; else if (!nearW && !farW) ls.low = (ls.low || 0) + dt; return sim.d.agl < 200; }, result: (ls) => `On the glidepath ${Math.round(100 * (ls.on || 0) / (ls.tot || 1))}% of the time${ls.low > 3 ? ` (too low for ${Math.round(ls.low)} s: red over red)` : ""}.` },
-      { text: "Land on runway 27 beyond the VASI bars", check: (sim) => landedOn(sim, KZAR, "27"), fail: (sim) => sim.lastTouchdown && !sim.lastTouchdown.used && !onRunwaySurface(KZAR, sim.lastTouchdown.x, sim.lastTouchdown.z) ? "Touched down off the runway." : null },
+      { text: "Land on runway 27 beyond the VASI bars", check: (sim) => landedOn(sim, KZAR, "27"), fail: offRunway(KZAR) },
       { text: "Slow to taxi speed", check: (sim) => sim.d.onGround && sim.d.gs < 8, result: (ls, sim) => touchdownReport(sim, KZAR, "27") },
     ],
   },
@@ -74,9 +75,9 @@ export const LESSONS = [
     setup(sim) { sim.setWeather(PRESETS.clear); sim.setTime(13); sim.spawn({ x: 6000, z: 12000, hdg: 180, onGround: false, altFt: 4800, kias: 72, flaps: 30 }); sim.ac.ctl.throttle = 0.04; sim.ac.ctl.trim = 0.5; sim.ac.eng.carbHeat = true; },
     objectives: [
       { text: "Hold altitude with back pressure until the stall horn sounds", check(sim, ls) { if (sim.d.stallWarn) { ls.warn = sim.d.ias; return true; } } },
-      { text: "Keep raising the nose until the stall breaks", check(sim, ls) { if (sim.d.stalled) { ls.s1 = { ias: sim.d.ias, aoa: sim.d.aoa, alt: sim.d.altInd }; ls.minAlt = sim.d.altInd; return true; } } },
-      { text: "Recover: nose down, full power, wings level, flaps 20, climb", check(sim, ls) { ls.minAlt = Math.min(ls.minAlt, sim.d.altInd); return !sim.d.stalled && sim.d.ias > 60 && sim.d.vsi > 100; }, result: (ls) => `Stall wings-level at ${Math.round(ls.s1.ias)} KIAS, ${ls.s1.aoa.toFixed(1)}° AoA. Altitude lost: ${Math.round(ls.s1.alt - ls.minAlt)} ft.` },
-      { text: "Now stall again in a 30° bank (then recover)", check(sim, ls) { if (sim.d.stalled && Math.abs(sim.d.bank) > 22) { ls.s2 = { ias: sim.d.ias, aoa: sim.d.aoa }; return true; } }, result: (ls) => ls.s2 ? `Banked stall at ${Math.round(ls.s2.ias)} KIAS (+${Math.round(ls.s2.ias - ls.s1.ias)} kt) and ${ls.s2.aoa.toFixed(1)}° AoA: same critical angle, higher speed.` : "" },
+      { text: "Keep raising the nose until the stall breaks", check(sim, ls) { if (sim.d.stalled) { ls.s1 = { ias: sim.d.ias, aoa: sim.d.aoa, alt: sim.d.altInd, g: sim.d.g }; ls.minAlt = sim.d.altInd; return true; } } },
+      { text: "Recover: nose down, full power, wings level, flaps 20, climb", check(sim, ls) { ls.minAlt = Math.min(ls.minAlt, sim.d.altInd); return !sim.d.stalled && sim.d.ias > 60 && sim.d.vsi > 100; }, result: (ls) => `Stall wings-level at ${Math.round(ls.s1.ias)} KIAS (${ls.s1.g.toFixed(2)} G), ${ls.s1.aoa.toFixed(1)}° angle of attack. Altitude lost in the recovery: ${Math.round(ls.s1.alt - ls.minAlt)} ft.` },
+      { text: "Flaps 30, idle, roll into a 30° bank and hold altitude until it stalls again", check(sim, ls) { if (sim.d.stalled && Math.abs(sim.d.bank) > 22) { ls.s2 = { ias: sim.d.ias, aoa: sim.d.aoa, g: sim.d.g }; return true; } }, result: (ls) => { if (!ls.s2) return ""; const dv = Math.round(ls.s2.ias - ls.s1.ias); const base = `Banked stall at ${Math.round(ls.s2.ias)} KIAS (${ls.s2.g.toFixed(2)} G), ${ls.s2.aoa.toFixed(1)}° angle of attack: the same critical angle.`; return ls.s2.g > ls.s1.g + 0.08 ? `${base} ${dv >= 0 ? "+" + dv : dv} kt faster because the load factor was higher (stall speed × √G).` : `${base} Your load factor was only ${ls.s2.g.toFixed(2)} G because the nose dropped. Hold altitude in the bank (about 1.15 G at 30°) and the stall comes about 7% faster.`; } },
     ],
   },
   {
@@ -87,7 +88,7 @@ export const LESSONS = [
     setup(sim) { sim.setWeather({ ...PRESETS.clear, windDir: 40, windKt: 3 }); sim.setTime(9); sim.spawn({ ...Z19.spawn.rwy04, onGround: true, engineRunning: true }); sim.ac.parkingBrake = false; sim.ac.flapsSet = 10; sim.ac.flaps = 10; sim.radio.com1 = Z19.freqs.ctaf; },
     objectives: [
       { text: "Full power and back pressure: get the nosewheel off the grass", check: (sim) => !sim.ac.contact[0] && (sim.ac.contact[1] || sim.ac.contact[2]) && sim.d.gs > 10 },
-      { text: "Lift off as slowly as possible", check(sim, ls) { if (!sim.d.onGround && sim.d.agl > 2) { ls.lo = sim.d.ias; return true; } }, result: (ls) => `Lifted off at ${Math.round(ls.lo)} KIAS (aim for below 50).` },
+      { text: "Lift off as slowly as possible", check(sim, ls, dt) { if (!sim.d.onGround) { ls.lo ??= sim.d.ias; ls.air = (ls.air || 0) + dt; return ls.air > 1 || sim.d.agl > 4; } ls.air = 0; }, result: (ls) => `Lifted off at ${Math.round(ls.lo)} KIAS. A good soft-field liftoff is close to the stall speed: about 45–50 KIAS here.` },
       { text: "Stay below 30 ft AGL (in ground effect) until 59 KIAS", check: (sim) => sim.d.ias >= 59 && sim.d.agl < 40, fail: (sim) => sim.d.agl > 45 && sim.d.ias < 55 ? "Climbed out of ground effect too slowly." : null },
       { text: "Climb at Vy to 1,000 ft AGL", check: (sim) => sim.d.agl > 1000 },
     ],
@@ -109,12 +110,13 @@ export const LESSONS = [
     summary: "Fly checkpoint to checkpoint by looking outside: the radio masts, Highway 32, then Earhart Municipal. Make your CTAF call about 10 NM out.",
     exam: ["t57", "e62", "e56", "e57", "t1", "e10"],
     tips: ["Hold a heading and check off each landmark against the clock.", "Under scattered clouds at 5,000 ft MSL, stay at or below 4,500 ft (500 ft below the clouds in Class E).", "KAME: CTAF 122.8. Runway 36 is left traffic, runway 18 is right traffic (see the segmented circle)."],
-    setup(sim) { sim.setWeather({ ...PRESETS.scattered, windDir: 340, windKt: 8, gustKt: 0 }); sim.setTime(12); sim.spawn({ x: 1500, z: -600, hdg: 70, onGround: false, altFt: 3500, kias: 100 }); sim.ac.ctl.throttle = 0.66; sim.radio.com1 = 121.9; sim.radio.com1s = KAME.freqs.ctaf; sim.setRoute([{ x: 1500, z: -600 }, { x: 7150, z: -2380, id: "MASTS" }, { x: 8970, z: 6940, id: "HWY 32" }, { x: KAME.x, z: KAME.z, id: "KAME" }]); },
+    setup(sim) { sim.setWeather({ ...PRESETS.scattered, windDir: 340, windKt: 8, gustKt: 0 }); sim.setTime(12); sim.spawn({ x: -4000, z: -3000, hdg: 88, onGround: false, altFt: 3500, kias: 100 }); sim.ac.ctl.throttle = 0.66; sim.radio.com1 = 121.9; sim.radio.com1s = KAME.freqs.ctaf; sim.setRoute([{ x: -4000, z: -3000 }, { x: 7150, z: -2380, id: "MASTS" }, { x: 8970, z: 6940, id: "HWY 32" }, { x: KAME.x, z: KAME.z, id: "KAME" }]); },
+    tick(sim, ls) { if (nmTo(sim, 7150, -2380) < 1.0) ls.cp1 = true; if (nmTo(sim, 8970, 6940) < 1.2) ls.cp2 = true; },
     objectives: [
-      { text: "Checkpoint 1: pass the radio masts (stay clear: 1,150 ft MSL)", check: (sim) => nmTo(sim, 7150, -2380) < 1.0 },
-      { text: "Checkpoint 2: Highway 32, south of the masts", check: (sim) => nmTo(sim, 8970, 6940) < 1.2 },
-      { text: "Tune 122.8 and self-announce ~10 NM out (Radio panel → Announce)", check: (sim) => sim.flags.inboundCallKAME },
-      { text: "Land at Earhart Municipal (KAME)", check: (sim) => landedOn(sim, KAME), result: (ls, sim) => { const id = Math.abs(wrap180(sim.d.hdg - 0)) < 90 ? "36" : "18"; return touchdownReport(sim, KAME, id); } },
+      { text: "Tune 122.8 and self-announce about 10 NM from KAME (Radio → Self-announce)", check: (sim) => sim.flags.inboundCallKAME },
+      { text: "Checkpoint 1: pass the radio masts (stay clear: 1,150 ft MSL)", check: (sim, ls) => ls.cp1 },
+      { text: "Checkpoint 2: Highway 32, south of the masts", check: (sim, ls) => ls.cp2 },
+      { text: "Land at Earhart Municipal (KAME)", check: (sim) => landedOn(sim, KAME), fail: offRunway(KAME), result: (ls, sim) => { const id = Math.abs(wrap180(sim.d.hdg - 0)) < 90 ? "36" : "18"; return touchdownReport(sim, KAME, id); } },
     ],
   },
   {
@@ -126,7 +128,7 @@ export const LESSONS = [
     objectives: [
       { text: "Make COM1 the KAME CTAF, 122.8 (click the COM1 box)", check: (sim) => Math.abs(sim.radio.com1 - 122.8) < 0.01 },
       { text: "Click the mic 7 times within 5 seconds (Space)", check: (sim) => sim.pcl.level === 3 },
-      { text: "Land on runway 18 (right traffic)", check: (sim) => landedOn(sim, KAME), result: (ls, sim) => touchdownReport(sim, KAME, "18") },
+      { text: "Land on runway 18 (right traffic)", check: (sim) => landedOn(sim, KAME), fail: offRunway(KAME), result: (ls, sim) => touchdownReport(sim, KAME, "18") },
     ],
   },
   {
@@ -161,7 +163,7 @@ export const LESSONS = [
     tips: ["Wing low into the wind (left), opposite rudder to keep the nose on the centreline.", "Add half the gust factor to your approach speed.", "Touch down on the upwind main wheel first, and keep the aileron into the wind as you slow."],
     setup(sim) { sim.setWeather(PRESETS.crosswind); sim.setTime(14); sim.spawn(onFinal(KZAR, "27", 3.5, 72, 20)); sim.ac.ctl.throttle = 0.32; sim.ac.ctl.trim = 0.32; },
     objectives: [
-      { text: "Land on runway 27 aligned (nose within 5°) and near the centreline", check(sim, ls) { if (landedOn(sim, KZAR, "27")) { const td = sim.lastTouchdown; ls.align = Math.abs(wrap180(sim.d.hdg - 270)); ls.off = Math.abs(centerOffset(end(KZAR, "27"), td.x, td.z)); return true; } }, result: (ls, sim) => `${touchdownReport(sim, KZAR, "27")} Nose ${ls.align.toFixed(0)}° off the runway heading at touchdown.` },
+      { text: "Land on runway 27 aligned (nose within 5°) and near the centreline", fail: offRunway(KZAR), check(sim, ls) { if (landedOn(sim, KZAR, "27")) { const td = sim.lastTouchdown; ls.align = Math.abs(wrap180(sim.d.hdg - 270)); ls.off = Math.abs(centerOffset(end(KZAR, "27"), td.x, td.z)); return true; } }, result: (ls, sim) => `${touchdownReport(sim, KZAR, "27")} Nose ${ls.align.toFixed(0)}° off the runway heading at touchdown.` },
       { text: "Slow to taxi speed and keep it on the runway", check: (sim) => sim.d.onGround && sim.d.gs < 8 && onRunwaySurface(KZAR, sim.ac.pos.x, sim.ac.pos.z) },
     ],
   },
@@ -179,7 +181,7 @@ export const LESSONS = [
     cleanup(sim, ls) { wakeCleanup(sim, ls); },
     objectives: [
       { text: "Stay at or above the jet's flight path on final", check(sim, ls, dt) { ls.below = ls.below || 0; if (ls.jetPathBelow) ls.below += dt; return sim.d.agl < 150; }, result: (ls) => ls.below > 2 ? `You flew below the jet's path for ${Math.round(ls.below)} s: that's where its vortices sink.` : "You stayed above the jet's path." },
-      { text: "Touch down beyond the jet's touchdown point", check(sim, ls) { if (landedOn(sim, KZAR, "27")) { const e = end(KZAR, "27"); ls.myTd = distFromThreshold(e, sim.lastTouchdown.x, sim.lastTouchdown.z); return true; } }, result: (ls) => `Jet touched down ${Math.round(ls.jetTd / FT)} ft past the threshold. You touched down at ${Math.round(ls.myTd / FT)} ft: ${ls.myTd > ls.jetTd ? "beyond it. Correct." : "before it. That's inside its wake."}` },
+      { text: "Touch down beyond the jet's touchdown point", fail: (sim, ls) => { const off = offRunway(KZAR)(sim); if (off) return off; const td = sim.lastTouchdown; if (td && !td.used && onRunwaySurface(KZAR, td.x, td.z)) { const dd = distFromThreshold(end(KZAR, "27"), td.x, td.z); if (dd < ls.jetTd) return `Touched down ${Math.round(dd / FT)} ft past the threshold, before the jet's touchdown point (${Math.round(ls.jetTd / FT)} ft): that's inside its wake. Aim beyond its touchdown point.`; } return null; }, check(sim, ls) { if (landedOn(sim, KZAR, "27")) { const e = end(KZAR, "27"); ls.myTd = distFromThreshold(e, sim.lastTouchdown.x, sim.lastTouchdown.z); return true; } }, result: (ls) => `Jet touched down ${Math.round(ls.jetTd / FT)} ft past the threshold. You touched down at ${Math.round(ls.myTd / FT)} ft: ${ls.myTd > ls.jetTd ? "beyond it. Correct." : "before it. That's inside its wake."}` },
       { text: "Slow to taxi speed", check: (sim) => sim.d.onGround && sim.d.gs < 8 },
     ],
   },
@@ -191,8 +193,9 @@ export const LESSONS = [
     setup(sim, ls) { sim.setWeather(PRESETS.clear); sim.setTime(15.5); sim.spawn({ x: 9500, z: -1800, hdg: 270, onGround: false, altFt: 1600, kias: 95 }); sim.ac.ctl.throttle = 0.6; sim.radio.failed = true; ls.phase = "inbound"; },
     tick(sim, ls) {
       const dnm = nmTo(sim, 0, 0);
-      if (ls.phase === "inbound" && dnm < 3.2) { ls.phase = "red"; ls.redT = sim.t; sim.lightGun = { color: "red", flash: false, text: "Steady red: give way to other aircraft and continue circling" }; }
-      if (ls.phase === "red" && sim.t - ls.redT > 45) { ls.phase = "flashgreen"; sim.lightGun = { color: "green", flash: true, text: "Flashing green: return for landing" }; }
+      if (ls.phase === "inbound" && dnm < 3.2) { ls.phase = "red"; ls.redT = sim.t; ls.turned = 0; ls.prevHdg = sim.d.hdg; sim.lightGun = { color: "red", flash: false, text: "Steady red: give way to other aircraft and continue circling" }; }
+      if (ls.phase === "red") { ls.turned += Math.abs(wrap180(sim.d.hdg - ls.prevHdg)); ls.prevHdg = sim.d.hdg; }
+      if (ls.phase === "red" && (ls.turned > 300 || sim.t - ls.redT > 180)) { ls.phase = "flashgreen"; sim.lightGun = { color: "green", flash: true, text: "Flashing green: return for landing" }; }
       const e = end(KZAR, "27"); const onFin = Math.abs(centerOffset(e, sim.ac.pos.x, sim.ac.pos.z)) < 250 && distFromThreshold(e, sim.ac.pos.x, sim.ac.pos.z) < 0 && distFromThreshold(e, sim.ac.pos.x, sim.ac.pos.z) > -3500 && Math.abs(wrap180(sim.d.hdg - 270)) < 30;
       if ((ls.phase === "flashgreen") && onFin) { ls.phase = "green"; sim.lightGun = { color: "green", flash: false, text: "Steady green: cleared to land" }; }
       if (ls.phase === "landed" && sim.d.gs < 20) { ls.phase = "taxi"; sim.lightGun = { color: "green", flash: true, text: "Flashing green (on the ground): cleared to taxi" }; }
@@ -200,8 +203,8 @@ export const LESSONS = [
     cleanup(sim) { sim.radio.failed = false; sim.lightGun = null; },
     objectives: [
       { text: "Squawk 7600 (lost communications)", check: (sim) => sim.ac.xpdr.code === "7600" },
-      { text: "Approach Zarhart and watch the tower for a light signal", check: (sim, ls) => ls.phase !== "inbound" },
-      { text: "Don't land until you see a steady green", check(sim, ls) { if (landedOn(sim, KZAR, "27") && ls.phase === "green") { ls.phase = "landed"; return true; } }, fail: (sim, ls) => sim.lastTouchdown && !sim.lastTouchdown.used && ls.phase !== "green" ? "Landed without a steady green: no clearance." : null },
+      { text: "Approach Zarhart and watch the tower for a light signal (steady red: circle)", check: (sim, ls) => ls.phase !== "inbound" && ls.phase !== "red", fail: (sim, ls) => sim.lastTouchdown && !sim.lastTouchdown.used ? "Landed under a steady red: give way and keep circling until you get a green." : null },
+      { text: "Don't land until you see a steady green", check(sim, ls) { if (landedOn(sim, KZAR, "27") && ls.phase === "green") { ls.phase = "landed"; return true; } }, fail: (sim, ls) => sim.lastTouchdown && !sim.lastTouchdown.used ? (ls.phase !== "green" ? "Landed without a steady green: no clearance." : offRunway(KZAR)(sim)) : null },
       { text: "Flashing green: cleared to taxi. Slow down and exit the runway", check: (sim) => sim.d.onGround && sim.d.gs < 10 && !onRunwaySurface(KZAR, sim.ac.pos.x, sim.ac.pos.z) },
     ],
   },

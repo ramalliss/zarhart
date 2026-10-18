@@ -343,7 +343,7 @@ function buildAirports(lightsTex, renderer) {
       for (const endId of r.vasi || []) {
         const e = r.ends.find((q) => q.id === endId); const hd = e.hdg * DEG; const fx = Math.sin(hd), fz = -Math.cos(hd); const lx = -fz * -1, lz = fx * -1; // left of landing direction
         const lft = [-Math.cos(hd), -Math.sin(hd)];
-        for (const [dist, ang] of [[150, 2.5], [300, 3.0]]) {
+        for (const [dist, ang] of [[150, 2.75], [300, 3.25]]) { // beams bracket a 3° glidepath aimed between the bars
           const bx = e.x + fx * dist + lft[0] * (r.wid / 2 + 15), bz = e.z + fz * dist + lft[1] * (r.wid / 2 + 15);
           const geo = new THREE.BufferGeometry(); const p = [], c = [];
           for (let k = 0; k < 3; k++) { p.push(bx + lft[0] * k * 6, y + 0.9, bz + lft[1] * k * 6); c.push(1, 1, 1); }
@@ -645,4 +645,6 @@ export class World {
     if (this.ap.lights.gun) { const g = state.lightGun; this.ap.lights.gun.visible = !!g && (g.flash ? (t % 1) < 0.5 : true); if (g) { const c = this.ap.lights.gun.geometry.attributes.color; c.setXYZ(0, g.color === "red" ? 1 : g.color === "white" ? 1 : 0.1, g.color === "green" || g.color === "white" ? 1 : 0.1, g.color === "white" ? 1 : 0.15); c.needsUpdate = true; } }
   }
   vasiState(apId, endId) { return this.ap.lights.vasi.filter((v) => v.ap === apId && v.end === endId).map((v) => v.lastWhite); }
+  /** VASI bar colours as seen from a given eye position: [nearWhite, farWhite] */
+  vasiAt(apId, endId, eye) { return this.ap.lights.vasi.filter((v) => v.ap === apId && v.end === endId).map((v) => Math.atan2(eye.y - v.y, Math.hypot(eye.x - v.x, eye.z - v.z)) / DEG > v.ang); }
 }

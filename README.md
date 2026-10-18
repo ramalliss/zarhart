@@ -27,6 +27,15 @@ python tools/serve.py        # http://localhost:8765 (no-cache dev server)
 node tools/test-fdm.mjs      # headless flight-model checks against C172 book numbers
 ```
 
+To flight-test the lessons end to end, open `/sim/` on the dev server and run this in the browser console:
+
+```js
+const T = await import('/tools/test-pilot.js');
+await T.runLesson('pattern'); // or vasi, steep, stall, softfield, vor, xc, night, enginefail, carbice, crosswind, wake, nordo
+```
+
+A scripted pilot flies the lesson through `window.__zarhart.step()` (physics, monitors and lesson checks, without rendering) and returns each objective's state, the debrief and any failure.
+
 It's a static site with no build step. Three.js 0.160 loads from jsDelivr through an import map.
 
 ## Layout

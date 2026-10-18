@@ -51,7 +51,7 @@ const sim = {
   radio: { com1: 118.3, com1s: 127.85, nav1: 113.9, nav1s: 116.4, failed: false, log: [] },
   flags: {}, pcl: { level: 0, until: 0, clicks: [] }, route: null, gpsWp: null, gpsFrom: null,
   lastTouchdown: null, lightGun: null, showG: false, view: "cockpit", vor1: null,
-  say, spawn, setRoute, vasi: (ap, endId) => world.vasiState(ap, endId),
+  say, spawn, setRoute, vasi: (ap, endId) => world.vasiAt(ap, endId, { x: ac.pos.x, y: ac.pos.y + 0.6, z: ac.pos.z }),
   setWeather(p) { weather.set(p); ac.inst.kollsman = weather.qnhInHg; if (world.clouds) world.clouds.build(weather.cloudLayersMsl()); },
   setTime(h) { weather.hour = h; },
 };
@@ -537,21 +537,23 @@ const act = {
 /* ---------------- main loop ---------------- */
 let sectionalBase = null, last = performance.now(), panelT = 0, hudT = 0, monT = 0;
 function frame(now) { tick(now); requestAnimationFrame(frame); }
+/** One simulation step: controls, physics, events, monitors, lessons. `pilot` (tests) replaces keyboard input. */
+function stepSim(dt, pilot) {
+  if (pilot) pilot(ac, ac.derived, sim, dt); else input.apply(ac, dt);
+  ac.step(dt);
+  if (!Number.isFinite(ac.pos.x + ac.pos.y + ac.pos.z + ac.vel.x + ac.q.w)) { say("Flight model reset after a numerical error.", "warn"); spawn(sim.lastSpawn); }
+  sim.d = ac.derived;
+  sim.t += dt;
+  sim.vor1 = ac.powered && ac.elec.avionics ? vor(ac.pos, sim.radio.nav1, ac.inst.obs) : { ok: false };
+  handleEvents();
+  monT += dt; if (monT > 0.2) { monitors(monT); monT = 0; }
+  lessons.update(dt);
+}
 function tick(now) {
   const dt = Math.max(0, Math.min(0.05, (now - last) / 1000)); last = Math.max(last, now);
-  if (sim.ready && !sim.paused) {
-    input.apply(ac, dt);
-    ac.step(dt);
-    if (!Number.isFinite(ac.pos.x + ac.pos.y + ac.pos.z + ac.vel.x + ac.q.w)) { say("Flight model reset after a numerical error.", "warn"); spawn(sim.lastSpawn); }
-    sim.d = ac.derived;
-    sim.t += dt;
-    handleEvents();
-    monT += dt; if (monT > 0.2) { monitors(monT); monT = 0; }
-    lessons.update(dt);
-  }
+  if (sim.ready && !sim.paused) stepSim(dt);
   if (sim.ready) {
     const d = sim.d = ac.derived;
-    sim.vor1 = ac.powered && ac.elec.avionics ? vor(ac.pos, sim.radio.nav1, ac.inst.obs) : { ok: false };
     plane.position.set(ac.pos.x, ac.pos.y, ac.pos.z); plane.quaternion.set(ac.q.x, ac.q.y, ac.q.z, ac.q.w);
     animateAirplane(plane, ac, sim.t, sim.paused ? 0 : dt);
     updateCamera(dt);
@@ -590,5 +592,9 @@ async function boot() {
   }
   requestAnimationFrame(frame);
 }
-window.__zarhart = { sim, ac, weather, world, lessons, camera, panel, settings, frame: (ms) => tick(ms), keys: input.keys };
+window.__zarhart = {
+  sim, ac, weather, world, lessons, camera, panel, settings, keys: input.keys, frame: (ms) => tick(ms), radioCall, pttClick,
+  /** headless stepping for tests: advance `secs` of sim time at 30 Hz without rendering; pilot(ac, d, sim, dt) flies */
+  step(secs, pilot) { for (let i = 0, n = Math.round(secs * 30); i < n; i++) { if (ac.crashed || lessons.done) break; stepSim(1 / 30, pilot); } return ac.derived; },
+};
 boot();
