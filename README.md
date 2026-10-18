@@ -2,6 +2,8 @@
 
 **Learn to fly in your browser.** Zarhart is a free, open-source flight simulator and FAA Private Pilot (PAR) written-test prep site, named for **Zara Rutherford** (youngest woman to fly solo around the world, 2022) and **Amelia Earhart** (first woman to fly solo across the Atlantic, 1932).
 
+Created by **Sophia Ramalli**, a student pilot who built it while studying for the FAA written test.
+
 **Live site:** https://ramalliss.github.io/zarhart/
 
 | | |

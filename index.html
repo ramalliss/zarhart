@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Zarhart · Learn to fly in your browser</title>
+<meta name="author" content="Sophia Ramalli">
 <meta name="description" content="Zarhart is a free, open-source flight simulator and FAA Private Pilot written-test prep site. Fly exam-linked lessons in a C172-class airplane, then study with flashcards and timed practice exams.">
 <meta property="og:title" content="Zarhart: learn to fly in your browser">
 <meta property="og:description" content="Free flight simulator + FAA Private Pilot written-test prep. Named for Zara Rutherford and Amelia Earhart.">
@@ -58,6 +59,18 @@ section.band { padding-block: 88px 0; }
 .path p { color: var(--muted); }
 .path .cost { font: 600 12.5px var(--f-mono); color: var(--cyan); }
 
+.about { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 28px; align-items: start; padding: 32px; border-radius: 20px; background: var(--panel); border: 1px solid var(--line); }
+.badge { width: 132px; height: 132px; border-radius: 50%; position: relative; overflow: hidden; border: 4px solid #e8eef5; box-shadow: 0 0 0 6px var(--panel-2); }
+.badge::before { content: ""; position: absolute; inset: -20%; background: linear-gradient(180deg, #2f7fd0 0 52%, #fff 52% 53.5%, #8a5a2b 53.5%); transform: rotate(-12deg); }
+.badge span { position: absolute; inset: 0; display: grid; place-items: center; font: 800 46px/1 var(--f-display); letter-spacing: .04em; color: #fff; text-shadow: 0 2px 10px rgba(0,0,0,.45); }
+.about h2 { font-size: clamp(40px, 6vw, 64px); margin: 4px 0 6px; }
+.about .role { font: 600 13px var(--f-mono); letter-spacing: .1em; text-transform: uppercase; color: var(--magenta); }
+.about .bio { display: grid; gap: 12px; color: #c9d3de; max-width: 64ch; margin-top: 14px; }
+.cert { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px; margin-top: 20px; background: var(--line); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; max-width: 640px; }
+.cert div { background: var(--bg-2); padding: 10px 12px; display: grid; gap: 4px; }
+.cert dt { font: 600 10.5px var(--f-mono); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+.cert dd { margin: 0; font: 600 15px var(--f-body); }
+@media (max-width: 640px) { .about { grid-template-columns: minmax(0, 1fr); padding: 24px; } .badge { width: 104px; height: 104px; } .badge span { font-size: 36px; } .cert { grid-template-columns: minmax(0, 1fr); } }
 .endcta { margin-top: 88px; padding: 40px; border-radius: 20px; background: radial-gradient(ellipse at 20% 0%, rgba(47,127,208,.35), transparent 60%), var(--panel); border: 1px solid var(--line-2); display: grid; gap: 16px; }
 .endcta h2 { max-width: 18ch; }
 
@@ -68,7 +81,7 @@ section.band { padding-block: 88px 0; }
 <body>
 <header class="topnav"><div class="wrap">
   <a class="brand" href="./"><img src="assets/img/favicon.svg" alt="" width="28" height="28"><span>ZARHART</span></a>
-  <nav aria-label="Main"><a href="sim/">Fly</a><a href="prep/">Study</a><a href="#path">Path</a><a href="https://github.com/ramalliss/zarhart" target="_blank" rel="noopener">GitHub</a></nav>
+  <nav aria-label="Main"><a href="sim/">Fly</a><a href="prep/">Study</a><a href="#path">Path</a><a href="#about">About</a><a href="https://github.com/ramalliss/zarhart" target="_blank" rel="noopener">GitHub</a></nav>
 </div></header>
 
 <header class="hero">
@@ -120,6 +133,23 @@ section.band { padding-block: 88px 0; }
     </ol>
   </section>
 
+  <section class="band" id="about" aria-labelledby="abouth">
+    <div class="about">
+      <div class="badge" aria-hidden="true"><span>SR</span></div>
+      <div>
+        <p class="eyebrow">Created by</p>
+        <h2 id="abouth">Sophia Ramalli</h2>
+        <p class="role">Student pilot · Builder of Zarhart</p>
+        <div class="bio">
+          <p>Hi, I'm Sophia. I'm a student pilot working toward my Private Pilot certificate, and I built Zarhart while studying for the FAA written test.</p>
+          <p>I wanted one place where I could fly a maneuver, see the airport signs and lights for myself, and then drill the exact questions they show up in. So I put a flight simulator, my study questions and the free resources I was using into one site, and named it after Amelia Earhart and Zara Rutherford.</p>
+          <p>Zarhart is free and open source. If it helps you pass your written test, I'd love to hear about it on <a href="https://github.com/ramalliss/zarhart" target="_blank" rel="noopener">GitHub</a>.</p>
+        </div>
+        <dl class="cert"><div><dt>Status</dt><dd>Student pilot</dd></div><div><dt>Working toward</dt><dd>Private Pilot · Airplane</dd></div><div><dt>Built</dt><dd>Zarhart, 2026</dd></div></dl>
+      </div>
+    </div>
+  </section>
+
   <section class="endcta">
     <p class="eyebrow">Cleared for takeoff</p>
     <h2>Fly a pattern now. Study the question it teaches tonight.</h2>
@@ -128,7 +158,7 @@ section.band { padding-block: 88px 0; }
 </main>
 
 <footer class="site"><div class="wrap">
-  <div class="row"><b>Zarhart</b><span>Free and open source (MIT)</span><a href="https://github.com/ramalliss/zarhart">Source on GitHub</a><a href="sim/">Fly</a><a href="prep/">Study</a></div>
+  <div class="row"><b>Zarhart</b><span>Created by <a href="#about">Sophia Ramalli</a></span><span>Free and open source (MIT)</span><a href="https://github.com/ramalliss/zarhart">Source on GitHub</a><a href="sim/">Fly</a><a href="prep/">Study</a></div>
   <p>Study aid only. Not FAA-approved training and not for real-world navigation. Not affiliated with Sporty's, King Schools, FLY8MA, Laminar Research, Microsoft or the FlightGear project. Practice questions are written from public FAA references.</p>
 </div></footer>
 
