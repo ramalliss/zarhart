@@ -609,7 +609,7 @@
     "3 times within 3 seconds"
    ],
    "why": "7 clicks = high, 5 = medium, 3 = low, all within 5 seconds. The AIM says to key 7 times first, then step down. The lights stay on about 15 minutes.",
-   "ref": "AIM 2-1-9",
+   "ref": "AIM 2-1-8",
    "note": "Your Sporty's wording may differ. The 7/5/3 rule is what's tested."
   },
   {
@@ -2007,7 +2007,7 @@
     "Alternating red and white"
    ],
    "why": "Taxiway edge lights are blue, taxiway centerline lights are green, and lead-off lights alternate green and yellow.",
-   "ref": "AIM 2-1-6"
+   "ref": "AIM 2-1-5"
   },
   {
    "id": "p7",

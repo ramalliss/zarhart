@@ -1,0 +1,6 @@
+# Crawlers only read robots.txt at the root of a domain. On ramalliss.github.io/zarhart/ this file is
+# ignored (submit the sitemap in Google Search Console instead); it takes effect if the site moves to its own domain.
+User-agent: *
+Allow: /
+
+Sitemap: https://ramalliss.github.io/zarhart/sitemap.xml
