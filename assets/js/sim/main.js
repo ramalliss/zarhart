@@ -550,6 +550,12 @@ const act = {
   mfdRange: (dir) => { const rs = [2, 4, 8, 12, 20]; const i = rs.indexOf(sim.mfdRange || 8); sim.mfdRange = rs[Math.max(0, Math.min(rs.length - 1, i - dir))]; },
 };
 
+function panelState() {
+  const d = ac.derived; const g = sim.gpsWp ? gps(ac.pos, sim.gpsWp, sim.gpsFrom) : null;
+  const ete = g && d.gs > 20 ? (() => { const m = g.dist / d.gs * 60; return `${Math.floor(m)}:${String(Math.round((m % 1) * 60)).padStart(2, "0")}`; })() : "";
+  return { ac, d, vor1: sim.vor1, gps: g, ete, radio: sim.radio, base: sectionalBase, route: sim.route, mfdRange: sim.mfdRange, wind: { dir: weather.windDir, kt: weather.windKt }, act };
+}
+
 /* ---------------- main loop ---------------- */
 let sectionalBase = null, last = performance.now(), panelT = 0, hudT = 0, monT = 0;
 function frame(now) { tick(now); requestAnimationFrame(frame); }
@@ -581,9 +587,7 @@ function tick(now) {
     renderer.render(scene, camera);
     panelT += dt; if (settings.panel !== "off" && sim.view === "cockpit" && panelT > 1 / 40) {
       panelT = 0;
-      const g = sim.gpsWp ? gps(ac.pos, sim.gpsWp, sim.gpsFrom) : null;
-      const ete = g && d.gs > 20 ? (() => { const m = g.dist / d.gs * 60; return `${Math.floor(m)}:${String(Math.round((m % 1) * 60)).padStart(2, "0")}`; })() : "";
-      panel.draw({ ac, d, vor1: sim.vor1, gps: g, ete, radio: sim.radio, base: sectionalBase, route: sim.route, mfdRange: sim.mfdRange, wind: { dir: weather.windDir, kt: weather.windKt }, act });
+      panel.draw(panelState());
     }
     updateControlIndicator();
     hudT += dt; if (hudT > 0.12) { hudT = 0; hudUpdate(); }
@@ -612,7 +616,7 @@ async function boot() {
   requestAnimationFrame(frame);
 }
 window.__zarhart = {
-  sim, ac, weather, world, lessons, camera, panel, settings, keys: input.keys, frame: (ms) => tick(ms), radioCall, pttClick, renderer, scene, plane, cockpit, camState, layout,
+  sim, ac, weather, world, lessons, camera, panel, settings, keys: input.keys, frame: (ms) => tick(ms), radioCall, pttClick, renderer, scene, plane, cockpit, camState, layout, panelState, updateCamera,
   /** headless stepping for tests: advance `secs` of sim time at 30 Hz without rendering; pilot(ac, d, sim, dt) flies */
   step(secs, pilot) { for (let i = 0, n = Math.round(secs * 30); i < n; i++) { if (ac.crashed || lessons.done) break; stepSim(1 / 30, pilot); } return ac.derived; },
 };

@@ -20,7 +20,7 @@ Created by **Sophia Ramalli**, a student pilot who built it while studying for t
 
 ## Controls
 
-`↑/↓` pitch · `←/→` roll · `Q/E` rudder · `R/F` throttle · `[ ]` flaps · `T/G` trim · `B` brakes · `Shift+B` parking brake · `H` carb heat · `C` view · `I` panel · `M` map · `K` checklist · `Space` mic click · `P` pause. Gamepads, joysticks and touch work too. Auto-rudder is on by default; turn it off in Settings to practise coordination.
+`↑/↓` pitch · `←/→` roll · `Q/E` rudder · `R/F` throttle · `[ ]` flaps · `T/G` trim · `B` brakes · `Shift+B` parking brake · `H` carb heat · `C` view · `I` panel · `M` map · `K` checklist · `U` flight assist · `Space` mic click · `P` pause. Gamepads, joysticks and touch work too. Flight assist starts in **Assisted** (let go of the controls and the airplane holds its pitch and bank, with auto-trim and auto-rudder); `U` switches to **Auto-rudder** only or full **Manual** to practise coordination.
 
 ## Run locally
 
@@ -46,6 +46,8 @@ It's a static site with no build step. Three.js 0.160 loads from jsDelivr throug
 index.html               landing page
 sim/                     simulator page
 prep/                    written-test prep
+pricing/                 plans and pricing (prices and checkout links in its CONFIG block)
+assets/img/shots/        product shots rendered in the simulator
 assets/js/sim/           fdm.js (flight model), world-data.js, world3d.js, plane3d.js, panel.js, map.js,
                          nav.js, weather.js, input.js, audio.js, checklists.js, lessons.js, main.js
 assets/js/prep/prep.js   prep app

@@ -7,7 +7,7 @@ const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 const V = C172.V;
 const MONO = '"IBM Plex Mono", ui-monospace, Consolas, monospace';
 const SANS = '"Barlow", "Arial Narrow", system-ui, sans-serif';
-const COND = '"Saira Condensed", "Arial Narrow", sans-serif';
+const COND = '"Barlow", "Arial Narrow", sans-serif';
 const P = (cx, cy, r, a) => [cx + Math.sin(a * DEG) * r, cy - Math.cos(a * DEG) * r];
 const wrap = (a) => ((a % 360) + 360) % 360;
 

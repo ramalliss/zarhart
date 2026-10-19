@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Pricing · Zarhart</title>
+<meta name="author" content="Sophia Ramalli">
+<meta name="description" content="Zarhart plans: the flight simulator, 13 lessons and 175 FAA Private Pilot practice questions are free. The Written Test Pass Pack adds printable reference cards, checklists and an exam-day plan.">
+<meta name="theme-color" content="#050607">
+<link rel="icon" href="../assets/img/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Michroma&display=swap">
+<link rel="stylesheet" href="../assets/css/site.css">
+<style>
+.phead { padding-block: 72px 48px; display: grid; gap: 20px; justify-items: start; }
+.phead .lede { max-width: 58ch; }
+
+.billing { display: inline-flex; border: 1px solid var(--line-2); padding: 3px; gap: 3px; }
+.billing button { font: 500 12px/1 var(--f-body); letter-spacing: .14em; text-transform: uppercase; padding: 10px 14px; background: none; border: 0; color: var(--muted); cursor: pointer; }
+.billing button[aria-pressed="true"] { background: #fff; color: #050607; }
+.billing small { font: 500 11px var(--f-mono); letter-spacing: 0; text-transform: none; margin-left: 6px; color: var(--magenta); }
+.billing button[aria-pressed="true"] small { color: #9b1f86; }
+
+.tiers { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); margin-top: 28px; }
+.tier { position: relative; padding: 56px 26px 36px; display: flex; flex-direction: column; gap: 16px; border-left: 1px solid var(--line); }
+.tier:first-child { border-left: 0; padding-left: 0; }
+.tier.featured { background: linear-gradient(180deg, rgba(230, 75, 208, .07), transparent 40%); box-shadow: inset 0 2px 0 var(--magenta); }
+.tier h2 { font-size: 22px; letter-spacing: .06em; }
+.tier .for { color: var(--muted); font-size: 15px; min-height: 3.2em; }
+.price { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.price b { font: 300 52px/1 var(--f-display); letter-spacing: -.01em; }
+.price span { font: 500 12px var(--f-mono); color: var(--muted); }
+.price .alt { flex-basis: 100%; }
+.tier ul { list-style: none; margin: 4px 0 0; padding: 0; display: grid; gap: 10px; font-size: 15px; color: #D5DAE0; border-top: 1px solid var(--line); padding-top: 18px; }
+.tier li { position: relative; padding-left: 22px; }
+.tier li::before { content: ""; position: absolute; left: 0; top: .45em; width: 9px; height: 5px; border-left: 1.5px solid var(--muted); border-bottom: 1.5px solid var(--muted); transform: rotate(-45deg); }
+.tier li.planned { color: var(--muted); }
+.tier li.planned::before { border: 0; width: 8px; height: 1.5px; top: .7em; background: var(--dim); transform: none; }
+.tier .go { margin-top: auto; display: grid; gap: 10px; padding-top: 10px; }
+.tier .go .btn { width: 100%; }
+.tier .state { font: 500 12px/1.5 var(--f-mono); color: var(--dim); }
+.badge { position: absolute; top: 18px; left: 26px; font: 500 11px/1 var(--f-body); letter-spacing: .18em; text-transform: uppercase; color: var(--magenta); border: 1px solid rgba(230, 75, 208, .5); padding: 6px 8px; }
+
+.legend { margin-top: 16px; font-size: 14px; color: var(--dim); display: flex; gap: 22px; flex-wrap: wrap; }
+.legend span { display: inline-flex; align-items: center; gap: 8px; }
+.legend i { display: inline-block; width: 8px; height: 1.5px; background: var(--dim); }
+
+.faq { margin-top: 120px; display: grid; grid-template-columns: minmax(0, 4fr) minmax(0, 8fr); gap: clamp(28px, 5vw, 80px); }
+.faq dl { margin: 0; border-top: 1px solid var(--line); }
+.faq details { border-bottom: 1px solid var(--line); }
+.faq summary { cursor: pointer; list-style: none; display: flex; justify-content: space-between; gap: 16px; padding: 22px 0; font: 500 19px/1.35 var(--f-body); }
+.faq summary::-webkit-details-marker { display: none; }
+.faq summary::after { content: "+"; font: 400 20px/1 var(--f-mono); color: var(--dim); }
+.faq details[open] summary::after { content: "−"; color: var(--magenta); }
+.faq details p { color: var(--muted); padding: 0 0 22px; max-width: 70ch; }
+
+@media (max-width: 1080px) {
+  .tiers { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .tier:nth-child(odd) { border-left: 0; padding-left: 0; }
+  .tier:nth-child(n+3) { border-top: 1px solid var(--line); }
+  .tier.featured { padding-left: 26px; }
+}
+@media (max-width: 640px) {
+  .phead { padding-block: 48px 32px; }
+  .tiers { grid-template-columns: minmax(0, 1fr); }
+  .tier, .tier:nth-child(odd) { border-left: 0; padding: 30px 0 32px; }
+  .tier.featured { padding-top: 56px; }
+  .badge { left: var(--gutter); }
+  .tier + .tier { border-top: 1px solid var(--line); }
+  .tier.featured { padding-inline: var(--gutter) var(--gutter-r); margin-inline: calc(-1 * var(--gutter)) calc(-1 * var(--gutter-r)); }
+  .tier .for { min-height: 0; }
+  .faq { grid-template-columns: minmax(0, 1fr); margin-top: 88px; }
+}
+</style>
+</head>
+<body>
+<header class="topnav"><div class="wrap">
+  <a class="brand" href="../" aria-label="Zarhart home"><img src="../assets/img/favicon.svg" alt="" width="26" height="26"><span>ZARHART</span></a>
+  <nav aria-label="Main"><a href="../sim/">Fly</a><a href="../prep/">Study</a><a href="./" aria-current="page">Pricing</a><a class="opt" href="../#about">About</a></nav>
+  <a class="btn sm navcta" href="../sim/">Launch sim</a>
+</div></header>
+
+<main class="wrap">
+  <section class="phead" aria-labelledby="pt">
+    <p class="eyebrow">Plans and pricing</p>
+    <h1 id="pt">Free to fly. Pay only for the extras.</h1>
+    <p class="lede">The simulator, all 13 lessons and the full question bank are free, with no account. The paid plans add printable study material and, later, more to fly.</p>
+    <div class="billing" role="group" aria-label="Pro billing period">
+      <button type="button" data-bill="month" aria-pressed="false">Monthly</button>
+      <button type="button" data-bill="year" aria-pressed="true">Yearly<small id="save"></small></button>
+    </div>
+  </section>
+
+  <section class="tiers" aria-label="Plans">
+    <article class="tier" id="t-free">
+      <h2>Free</h2>
+      <p class="for">Everything you need to learn and practise for the written test.</p>
+      <p class="price"><b>$0</b><span>no account</span></p>
+      <ul>
+        <li>The full simulator: C172-class flight model, steam and glass cockpits</li>
+        <li>All 13 lessons with live objectives and debriefs</li>
+        <li>175 practice questions with explanations</li>
+        <li>Study guide, flashcards, quizzes and a timed 60-question practice exam</li>
+        <li>Quizlet export</li>
+      </ul>
+      <div class="go"><a class="btn" href="../sim/">Launch the simulator</a></div>
+    </article>
+
+    <article class="tier featured" id="t-pass">
+      <span class="badge">For test week</span>
+      <h2>Pass Pack</h2>
+      <p class="for">Everything to know cold, on paper, for the week of your knowledge test.</p>
+      <p class="price"><b data-price="pass">$14.99</b><span>one time</span></p>
+      <ul>
+        <li>10 quick-reference cards: VFR minimums, airspace, signs, lighting, light-gun signals and more</li>
+        <li>15 normal and emergency checklists for the C172-class trainer</li>
+        <li>An exam-day plan: endorsement, FTN, PSI, what to bring</li>
+        <li>175 printable flashcards with explanations</li>
+        <li>Everything in Free</li>
+      </ul>
+      <div class="go" data-go="pass"></div>
+    </article>
+
+    <article class="tier" id="t-pro">
+      <h2>Pro</h2>
+      <p class="for">For the whole road from written test to checkride.</p>
+      <p class="price"><b data-price="pro">$29.99</b><span data-per="pro">per year</span><span class="alt" data-alt="pro"></span></p>
+      <ul>
+        <li>Everything in the Pass Pack</li>
+        <li class="planned">Scenario packs: short- and soft-field landings, slow flight, ground reference, night cross-country</li>
+        <li class="planned">Adaptive practice that drills your weakest ACS areas</li>
+        <li class="planned">More airports and scenery</li>
+        <li class="planned">Progress saved across your devices</li>
+      </ul>
+      <div class="go" data-go="pro"></div>
+    </article>
+
+    <article class="tier" id="t-schools">
+      <h2>Schools &amp; CFIs</h2>
+      <p class="for">For flight schools, instructors and ground-school classes.</p>
+      <p class="price"><b>Custom</b><span>per class</span></p>
+      <ul>
+        <li>Pass Pack or Pro for every student in a class</li>
+        <li class="planned">Assign lessons and see class progress</li>
+        <li class="planned">Help setting up a classroom or sim lab</li>
+      </ul>
+      <div class="go" data-go="schools"></div>
+    </article>
+  </section>
+  <p class="legend"><span><i></i>Planned: not available yet</span><span>Prices in US dollars. Taxes may apply.</span></p>
+
+  <section class="faq" aria-labelledby="faqh">
+    <div><p class="eyebrow">Questions</p><h2 id="faqh" style="margin-top:16px">Before you buy.</h2></div>
+    <div>
+      <details><summary>Is the simulator really free?</summary><p>Yes. Flying, all 13 lessons, the 175 practice questions, flashcards, quizzes and the practice exam are free and need no account. The paid plans add printable study material and future content; they don't lock anything that's free today.</p></details>
+      <details><summary>What's the difference between the Pass Pack and Pro?</summary><p>The Pass Pack is a one-time purchase of printable reference cards, checklists, an exam-day plan and flashcards. Pro is a subscription that includes the Pass Pack and adds new scenario packs, adaptive practice and more scenery as they're released.</p></details>
+      <details><summary>Where can I buy?</summary><p>Purchases are coming to the Zarhart app for iPhone and Android first, through the App Store and Google Play. Buying on the website is coming soon. Until a plan shows a buy button, it isn't on sale yet.</p></details>
+      <details><summary>Is Zarhart FAA-approved?</summary><p>No. Zarhart is a study aid. It isn't FAA-approved training, and time in it can't be logged. You still need an endorsement from a flight instructor or a home-study course before you take the knowledge test.</p></details>
+      <details><summary>How do refunds work?</summary><p>Purchases in the app are handled by Apple or Google, and refunds follow their policies. If something doesn't work, open an issue on <a href="https://github.com/ramalliss/zarhart/issues" target="_blank" rel="noopener">GitHub</a>.</p></details>
+      <details><summary>What do you do with my data?</summary><p>Your progress stays on your device. Read the <a href="../privacy/">privacy policy</a> for the details.</p></details>
+    </div>
+  </section>
+</main>
+
+<footer class="site"><div class="wrap">
+  <div class="fgrid">
+    <div class="about-co"><a class="brand" href="../"><img src="../assets/img/favicon.svg" alt="" width="26" height="26"><span>ZARHART</span></a><p>A flight simulator and FAA Private Pilot written-test prep, in your browser.</p></div>
+    <div><h4>Product</h4><ul><li><a href="../sim/">Fly</a></li><li><a href="../prep/">Study</a></li><li><a href="#t-pass">Pass Pack</a></li><li><a href="./">Pricing</a></li></ul></div>
+    <div><h4>Learn</h4><ul><li><a href="../#lessons">Lessons</a></li><li><a href="../#path">Path to the test</a></li><li><a href="https://github.com/ramalliss/zarhart">Source on GitHub</a></li></ul></div>
+    <div><h4>Zarhart</h4><ul><li><a href="../#about">About</a></li><li><a href="../privacy/">Privacy</a></li></ul></div>
+  </div>
+  <div class="row"><span>© 2026 Zarhart</span><span>Created by <a href="../#about">Sophia Ramalli</a></span><span>Open source (MIT)</span></div>
+  <p class="fine">Study aid only. Not FAA-approved training and not for real-world navigation. Not affiliated with or endorsed by the FAA.</p>
+</div></footer>
+
+<script type="module">
+// Prices and checkout links. Leave a link empty and that plan shows "Coming soon" instead of a buy button.
+// In the mobile app the same plans are the store products zarhart_pass_pack, zarhart_pro_monthly and zarhart_pro_yearly.
+const CONFIG = {
+  pass: { price: "$14.99", checkout: "" },
+  proMonthly: { price: "$4.99", checkout: "" },
+  proYearly: { price: "$29.99", checkout: "" },
+  schoolsContact: "", // e.g. "mailto:schools@yourdomain"
+};
+
+const soon = (label = "Coming soon") => `<button class="btn" type="button" disabled>${label}</button>`;
+const buy = (href, label) => `<a class="btn primary" href="${href}" rel="noopener">${label}</a>`;
+const num = (s) => parseFloat(String(s).replace(/[^0-9.]/g, "")) || 0;
+
+document.querySelector('[data-price="pass"]').textContent = CONFIG.pass.price;
+document.querySelector('[data-go="pass"]').innerHTML =
+  CONFIG.pass.checkout ? buy(CONFIG.pass.checkout, `Buy for ${CONFIG.pass.price}`) : soon("Checkout coming soon");
+document.querySelector('[data-go="schools"]').innerHTML = CONFIG.schoolsContact
+  ? `<a class="btn" href="${CONFIG.schoolsContact}">Contact us</a>` : soon();
+
+const save = Math.round(100 * (1 - num(CONFIG.proYearly.price) / (12 * num(CONFIG.proMonthly.price))));
+document.getElementById("save").textContent = save > 0 ? `save ${save}%` : "";
+function setBilling(period) {
+  const yearly = period === "year";
+  for (const b of document.querySelectorAll("[data-bill]")) b.setAttribute("aria-pressed", String(b.dataset.bill === period));
+  const plan = yearly ? CONFIG.proYearly : CONFIG.proMonthly;
+  document.querySelector('[data-price="pro"]').textContent = plan.price;
+  document.querySelector('[data-per="pro"]').textContent = yearly ? "per year" : "per month";
+  document.querySelector('[data-alt="pro"]').textContent = yearly ? `or ${CONFIG.proMonthly.price} a month` : `or ${CONFIG.proYearly.price} a year`;
+  document.querySelector('[data-go="pro"]').innerHTML = plan.checkout ? buy(plan.checkout, "Subscribe") : soon();
+}
+for (const b of document.querySelectorAll("[data-bill]")) b.addEventListener("click", () => setBilling(b.dataset.bill));
+setBilling("year");
+</script>
+</body>
+</html>

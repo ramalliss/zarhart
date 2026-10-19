@@ -169,7 +169,7 @@ function buildWater() {
     pts.push(new THREE.Vector2(LAKE.x + u * c - v * s, -(LAKE.z + u * s + v * c)));
   }
   const shape = new THREE.Shape(pts);
-  const water = new THREE.Mesh(new THREE.ShapeGeometry(shape, 1), new THREE.MeshPhongMaterial({ color: 0x2a5872, specular: 0x9fc4dd, shininess: 90, transparent: true, opacity: 0.93 }));
+  const water = new THREE.Mesh(new THREE.ShapeGeometry(shape, 1), new THREE.MeshStandardMaterial({ color: 0x24506a, roughness: 0.12, metalness: 0.0, transparent: true, opacity: 0.95 }));
   water.rotation.x = -Math.PI / 2; water.position.y = WATER;
   g.add(water);
   g.add(ribbon(RIVER.pts, 48, 0x2b5670, 0.9, 60, { phong: true }));
@@ -196,7 +196,7 @@ function ribbon(pts, width, color, lift, step, opt = {}) {
   });
   const geo = new THREE.BufferGeometry();
   geo.setAttribute("position", new THREE.Float32BufferAttribute(verts, 3)); geo.setIndex(idx); geo.computeVertexNormals();
-  const mat = opt.phong ? new THREE.MeshPhongMaterial({ color, specular: 0x88aacc, shininess: 60, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -2 })
+  const mat = opt.phong ? new THREE.MeshStandardMaterial({ color, roughness: 0.18, metalness: 0.0, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -2 })
     : new THREE.MeshLambertMaterial({ color, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -2 });
   return new THREE.Mesh(geo, mat);
 }
