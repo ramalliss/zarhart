@@ -146,9 +146,11 @@ kbd { font: 600 12px/1 var(--f-mono); padding: 4px 6px; border-radius: 3px; back
 .thr input { writing-mode: vertical-lr; direction: rtl; height: 120px; accent-color: var(--magenta); }
 
 @media (max-width: 720px) {
-  .vfr { top: auto; bottom: calc(var(--panel-h, 0px) + 146px); right: var(--gutter-r); max-width: 210px; font-size: 12px; }
+  .vfr { top: auto; bottom: calc(var(--panel-h, 0px) + 156px); right: var(--gutter-r); max-width: min(210px, calc(100vw - 180px)); font-size: 12px; }
   #toasts { top: calc(env(safe-area-inset-top, 0px) + 168px); }
-  .gmeter { top: calc(env(safe-area-inset-top, 0px) + 118px); }
+  /* bottom left, above the touch stick: the collapsed lesson box covers the top of the screen */
+  .gmeter { top: auto; right: auto; left: var(--gutter); bottom: calc(var(--panel-h, 0px) + 156px); padding: 6px 10px; font-size: 11px; }
+  .gmeter b { font-size: 22px; }
   .lightgun { top: calc(env(safe-area-inset-top, 0px) + 180px); width: calc(100vw - 32px); }
   .obj.min { width: calc(100vw - 32px); }
   .obj { width: min(300px, calc(100vw - 32px)); font-size: 13px; }
