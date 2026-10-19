@@ -108,7 +108,9 @@ input[type="checkbox"] { accent-color: var(--magenta); }
 .mini span { display: block; height: 100%; background: var(--green); }
 .report { overflow-x: auto; }
 
-.examintro { display: grid; gap: 18px; justify-items: start; padding: clamp(24px, 3vw, 40px); background: var(--panel); border: 1px solid var(--line); max-width: 780px; }
+/* #exStage keeps this class while the exam and the report render inside it, so only the start button is left-aligned */
+.examintro { display: grid; gap: 18px; padding: clamp(24px, 3vw, 40px); background: var(--panel); border: 1px solid var(--line); max-width: 780px; }
+.examintro > .btn { justify-self: start; }
 .examintro h2 { font-size: clamp(28px, 3.4vw, 40px); }
 .rules { color: var(--muted); margin: 0; padding-left: 20px; }
 .examhead { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; font: 13px var(--f-mono); color: var(--muted); }
