@@ -145,7 +145,7 @@
     "During each annual and 100-hour inspection",
     "Every 24 calendar months"
    ],
-   "why": "14 CFR 91.207. Remember '1 hour or 50%.' Don't confuse it with the 12-month ELT inspection. You missed this rule twice (Q3 and Q20).",
+   "why": "14 CFR 91.207. Remember '1 hour or 50%.' Don't confuse it with the 12-month ELT inspection.",
    "ref": "14 CFR 91.207"
   },
   {
@@ -406,7 +406,7 @@
     "Every 12 calendar months",
     "After 30 minutes of cumulative use"
    ],
-   "why": "Same rule as Q3 (91.207). '12 months' is the ELT inspection interval, not the battery rule.",
+   "why": "Same rule as the ELT battery question (91.207). '12 months' is the ELT inspection interval, not the battery rule.",
    "ref": "14 CFR 91.207"
   },
   {
@@ -781,7 +781,7 @@
     "peripheral vision, scanning small sectors",
     "one continuous sweep from wingtip to wingtip"
    ],
-   "why": "Step about 10° at a time and pause about 1 second on each area, because the center of the eye sees detail best. At night, do the opposite and use off-center viewing (Q8).",
+   "why": "Step about 10° at a time and pause about 1 second on each area, because the center of the eye sees detail best. At night, do the opposite and use off-center viewing.",
    "ref": "AIM 8-1-6"
   },
   {
@@ -798,7 +798,7 @@
     "1,200 ft AGL (3,331 ft MSL)",
     "At the surface"
    ],
-   "why": "Magenta vignette = 700 AGL. Blue vignette = 1,200 AGL. Dashed magenta = surface. Add the AGL height to field elevation to get MSL. Online versions of this Sandpoint question ask for the floor of controlled airspace (2,831 MSL). Yours may ask something else.",
+   "why": "Magenta vignette = 700 AGL. Blue vignette = 1,200 AGL. Dashed magenta = surface. Add the AGL height to field elevation to get MSL. Online versions of this Sandpoint question ask for the floor of controlled airspace (2,831 MSL). The version on your test may ask something else.",
    "ref": "Aeronautical Chart User's Guide",
    "note": "Figure question. Redo it in Sporty's with Download All Figures."
   },
@@ -1434,7 +1434,7 @@
     "Lower temperature and higher pressure",
     "Lower humidity and lower elevation"
    ],
-   "why": "High density altitude means poor performance (Q2).",
+   "why": "High density altitude means poor performance: a longer takeoff roll and a weaker climb.",
    "ref": "PHAK ch. 11"
   },
   {
