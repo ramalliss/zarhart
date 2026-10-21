@@ -12,6 +12,7 @@ import { Panel } from "./panel.js";
 import { buildSectionalBase, drawMap } from "./map.js";
 import { CHECKLISTS, suggestChecklist } from "./checklists.js";
 import { LESSONS, LessonRunner } from "./lessons.js";
+import { VR, VR_CONTROLS } from "./vr.js";
 
 const $ = (s, r = document) => r.querySelector(s);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -78,6 +79,13 @@ const shadow = buildShadow(); scene.add(shadow);
 const cockpit = buildCockpit(); scene.add(cockpit);
 const cockpitProp = new THREE.Mesh(new THREE.CircleGeometry(0.98, 32), new THREE.MeshBasicMaterial({ color: 0x9aa3ad, transparent: true, opacity: 0.035, side: THREE.DoubleSide, depthWrite: false }));
 cockpitProp.position.set(0, -0.08, -2.34); cockpit.add(cockpitProp);
+const vr = new VR({
+  renderer, scene, camera, cockpit, input,
+  panelMode: () => settings.panel, panelState: () => panelState(), controls: () => ac.ctl,
+  hud: () => ({ lesson: lessons.status(), stall: ac.derived.stallWarn, lightGun: sim.lightGun, paused: sim.paused, crashed: !$("#crash").hidden ? $("#crashReason").textContent : "" }),
+  keys: { flapsDown: () => keymap["]"](), flapsUp: () => keymap["["](), mic: () => pttClick(), assist: () => keymap.u(), pause: () => togglePause(), retry: () => retry() },
+  onChange: (on) => vrChanged(on),
+});
 function addParked() {
   const colors = [0x2f7fd0, 0xff9a1f, 0x5be38a, 0xd23a2a, 0x3fd8f2];
   let k = 0;
@@ -108,6 +116,7 @@ function updateCamera(dt) {
   plane.visible = sim.view !== "cockpit"; cockpit.visible = sim.view === "cockpit";
   cockpit.position.set(p.x, p.y, p.z); cockpit.quaternion.copy(aq);
   cockpitProp.visible = ac.eng.rpm > 400;
+  if (vr.active) { plane.visible = false; cockpit.visible = true; vr.place(ac.pos, aq); camState.reset = false; return; }
   if (sim.view === "cockpit") {
     const hfov = 78 + camState.fovZoom; camera.fov = Math.max(30, Math.min(70, 2 * Math.atan(Math.tan(hfov * DEG / 2) / camera.aspect) / DEG));
     const eye = new THREE.Vector3(-0.32, 0.62, -0.42).applyQuaternion(aq);
@@ -142,6 +151,7 @@ function updateCamera(dt) {
 /* ---------------- HUD helpers ---------------- */
 const toasts = $("#toasts");
 function say(text, kind = "info", ms = 5200) {
+  vr.message(text, kind);
   const el = document.createElement("div"); el.className = `toast ${kind}`; el.textContent = text; toasts.prepend(el);
   while (toasts.children.length > 4) toasts.lastChild.remove();
   setTimeout(() => { el.classList.add("out"); setTimeout(() => el.remove(), 400); }, ms);
@@ -434,6 +444,7 @@ function renderDrawer() {
   } else if (n === "help") {
     const k = (keys, what) => `<li><span class="keys">${keys.map((x) => `<kbd>${esc(x)}</kbd>`).join(" ")}</span><span>${esc(what)}</span></li>`;
     B.innerHTML = `<ul class="keylist">${k(["↑", "W"], "Nose down")}${k(["↓", "S"], "Nose up")}${k(["←", "→", "A", "D"], "Roll (ailerons)")}${k(["Q", "E"], "Rudder / nosewheel steering")}${k(["R", "F"], "Throttle up / down (Shift = full / idle)")}${k(["[", "]"], "Flaps up / down a notch")}${k(["T", "G"], "Trim nose up / down")}${k(["B"], "Brakes (with rudder for differential)")}${k(["Shift+B"], "Parking brake")}${k(["H"], "Carburetor heat")}${k(["L"], "Landing light")}${k(["O"], "Set the heading indicator to the compass")}${k(["Space"], "Click the mic (pilot-controlled lighting)")}${k(["N"], "Swap NAV1")}${k(["C"], "Change view: cockpit, chase, orbit, tower")}${k(["I"], "Panel: six-pack, glass, hidden")}${k(["M"], "Map")}${k(["K"], "Checklist")}${k(["Y"], "Mouse yoke on/off")}${k(["U"], "Flight assist: Assisted → Auto-rudder → Manual")}${k(["P", "Esc"], "Pause")}</ul>
+      <h3 class="dsub">VR headset (Meta Quest)</h3><ul class="keylist">${VR_CONTROLS.map(([c, what]) => `<li><span class="keys"><kbd>${esc(c)}</kbd></span><span>${esc(what)}</span></li>`).join("")}</ul>
       <p class="dnote">Mouse: drag to look around (cockpit) or orbit (outside views). Scroll to zoom. Double-click to recentre. Scroll over panel knobs (Kollsman, OBS, heading bug, attitude indicator) to set them. Click the HI knob to align it with the compass.</p>`;
   }
 }
@@ -530,6 +541,23 @@ $("#startLesson").addEventListener("click", () => { startFlying(); lessons.start
 $("#startPick").addEventListener("click", () => { startFlying(); sim.paused = true; openDrawer("lessons"); $("#paused").hidden = false; });
 $("#startFree").addEventListener("click", () => { startFlying(); freeFlight("kzar27", "scattered", 13); });
 $("#crashRetry").addEventListener("click", retry);
+/* ---------------- VR ---------------- */
+let viewBeforeVR = "cockpit";
+function enterVR() {
+  closeDrawer(); hideCrash(); $("#paused").hidden = true; sim.paused = false;
+  viewBeforeVR = sim.view; sim.view = "cockpit";
+  vr.enter().catch((err) => { sim.view = viewBeforeVR; say(`Couldn't start VR: ${err.message || err}`, "warn", 8000); });
+}
+function vrChanged(on) {
+  $("#vrBtn").textContent = on ? "Exit VR" : "VR"; $("#vrBtn").setAttribute("aria-pressed", String(on));
+  if (!on) { sim.view = viewBeforeVR; camState.reset = true; layout(); say("Back on the screen.", "info", 2000); }
+}
+$("#vrBtn").addEventListener("click", () => { if (vr.active) vr.end(); else enterVR(); });
+$("#startVR").addEventListener("click", () => {
+  startFlying();
+  if (new URLSearchParams(location.search).get("lesson")) lessons.start(startLessonId); else freeFlight("kzar27", "scattered", 13);
+  enterVR();
+});
 $("#crashLessons").addEventListener("click", () => { hideCrash(); openDrawer("lessons"); });
 $("#resume").addEventListener("click", () => { sim.paused = false; $("#paused").hidden = true; });
 input.on("onPad", (id) => say(`Controller connected: ${id.slice(0, 40)}`, "good"));
@@ -558,7 +586,7 @@ function panelState() {
 
 /* ---------------- main loop ---------------- */
 let sectionalBase = null, last = performance.now(), panelT = 0, hudT = 0, monT = 0;
-function frame(now) { tick(now); requestAnimationFrame(frame); }
+const headPos = new THREE.Vector3();
 /** One simulation step: controls, physics, events, monitors, lessons. `pilot` (tests) replaces keyboard input. */
 function stepSim(dt, pilot) {
   if (pilot) pilot(ac, ac.derived, sim, dt); else input.apply(ac, dt);
@@ -573,6 +601,7 @@ function stepSim(dt, pilot) {
 }
 function tick(now) {
   const dt = Math.max(0, Math.min(0.05, (now - last) / 1000)); last = Math.max(last, now);
+  if (vr.active) vr.poll();
   if (sim.ready && !sim.paused) stepSim(dt);
   if (sim.ready) {
     const d = sim.d = ac.derived;
@@ -581,11 +610,13 @@ function tick(now) {
     { const pp = plane.userData.parts, cp = cockpit.userData.ext?.userData.parts; if (cp) for (const k of ["ailL", "ailR", "flapL", "flapR"]) cp[k].rotation.x = pp[k].rotation.x; }
     { const gh = groundAt(ac.pos.x, ac.pos.z).h, agl = ac.pos.y - gh; shadow.position.set(ac.pos.x, gh + 0.06, ac.pos.z); shadow.rotation.y = -ac.derived.hdg * DEG; shadow.material.opacity = Math.max(0, 1 - agl / 160) * (world.night ? 0.25 : 0.85); shadow.visible = shadow.material.opacity > 0.02; }
     updateCamera(dt);
-    const probe = world.clouds.probe(camera.position.x, camera.position.y, camera.position.z);
+    const eye = vr.active ? vr.headWorld(headPos) : camera.position;
+    const probe = world.clouds.probe(eye.x, eye.y, eye.z);
     world.setEnvironment({ hour: weather.hour, visSM: weather.visSM, inCloud: probe.inside });
-    world.update(sim.t, camera.position, { pclLevel: sim.pcl.level, windDir: weather.windDir, windKt: weather.windKt, lightGun: sim.lightGun, beaconDay: weather.visSM < 3 || weather.clouds.some((c) => (c.cover === "BKN" || c.cover === "OVC") && c.baseFt < 1000) });
+    world.update(sim.t, eye, { pclLevel: sim.pcl.level, windDir: weather.windDir, windKt: weather.windKt, lightGun: sim.lightGun, beaconDay: weather.visSM < 3 || weather.clouds.some((c) => (c.cover === "BKN" || c.cover === "OVC") && c.baseFt < 1000) });
     renderer.render(scene, camera);
-    panelT += dt; if (settings.panel !== "off" && sim.view === "cockpit" && panelT > 1 / 40) {
+    if (vr.active) vr.update(dt);
+    panelT += dt; if (!vr.active && settings.panel !== "off" && sim.view === "cockpit" && panelT > 1 / 40) {
       panelT = 0;
       panel.draw(panelState());
     }
@@ -610,13 +641,14 @@ async function boot() {
     $("#loading").hidden = true; $("#startChoices").hidden = false;
     const p = new URLSearchParams(location.search).get("lesson");
     if (p && LESSONS.some((l) => l.id === p)) { startLessonId = p; $("#startLesson").textContent = `Start lesson: ${LESSONS.find((l) => l.id === p).title}`; }
+    vr.check().then((ok) => { $("#startVR").hidden = $("#vrBtn").hidden = !ok; });
   } catch (err) {
     console.error(err); prog.textContent = "Zarhart couldn't start: " + err.message + ". Try another browser with WebGL turned on.";
   }
-  requestAnimationFrame(frame);
+  renderer.setAnimationLoop(tick);
 }
 window.__zarhart = {
-  sim, ac, weather, world, lessons, camera, panel, settings, keys: input.keys, frame: (ms) => tick(ms), radioCall, pttClick, renderer, scene, plane, cockpit, camState, layout, panelState, updateCamera,
+  sim, ac, weather, world, lessons, camera, panel, settings, keys: input.keys, frame: (ms) => tick(ms), radioCall, pttClick, renderer, scene, plane, cockpit, camState, layout, panelState, updateCamera, vr,
   /** headless stepping for tests: advance `secs` of sim time at 30 Hz without rendering; pilot(ac, d, sim, dt) flies */
   step(secs, pilot) { for (let i = 0, n = Math.round(secs * 30); i < n; i++) { if (ac.crashed || lessons.done) break; stepSim(1 / 30, pilot); } return ac.derived; },
 };

@@ -285,8 +285,8 @@ export function buildCockpit() {
   const g = new THREE.Group();
   const dash = new THREE.MeshLambertMaterial({ color: 0x15191e });
   const frame = new THREE.MeshLambertMaterial({ color: 0xd9dbdf });
-  const glare = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.08, 0.5), dash); glare.position.set(0, 0.2, -1.05); g.add(glare);
-  const face = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.75, 0.06), dash); face.position.set(0, -0.18, -1.28); g.add(face);
+  const glare = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.08, 0.5), dash); glare.position.set(0, 0.2, -1.05); glare.name = "glare"; g.add(glare);
+  const face = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.75, 0.06), dash); face.position.set(0, -0.18, -1.28); face.name = "dash"; g.add(face);
   for (const sx of [-1, 1]) {
     const post = new THREE.Mesh(new THREE.BoxGeometry(0.045, 0.95, 0.07), new THREE.MeshLambertMaterial({ color: 0x8b9097 })); post.position.set(sx * 0.66, 0.62, -1.08); post.rotation.x = -0.62; post.rotation.z = sx * 0.06; g.add(post);
     const door = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.06, 1.6), frame); door.position.set(sx * 0.66, 0.98, -0.25); g.add(door);

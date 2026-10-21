@@ -22,6 +22,14 @@ Created by **Sophia Ramalli**, a student pilot who built it while studying for t
 
 `↑/↓` pitch · `←/→` roll · `Q/E` rudder · `R/F` throttle · `[ ]` flaps · `T/G` trim · `B` brakes · `Shift+B` parking brake · `H` carb heat · `C` view · `I` panel · `M` map · `K` checklist · `U` flight assist · `Space` mic click · `P` pause. Gamepads, joysticks and touch work too. Flight assist starts in **Assisted** (let go of the controls and the airplane holds its pitch and bank, with auto-trim and auto-rudder); `U` switches to **Auto-rudder** only or full **Manual** to practise coordination.
 
+## VR (Meta Quest)
+
+Open the simulator in the Quest's built-in browser and tap **Fly in VR** (or **VR** in the toolbar). It's a seated cockpit view through WebXR: the instruments are on the dashboard, lesson objectives and radio calls are on a strip on the glareshield, and the controllers fly the airplane:
+
+Right stick: pitch and roll · Left stick: throttle (up/down) and rudder (left/right) · Right trigger: brakes · A / B: flaps down / up · X: mic click · Y: recenter your view · Right stick press: flight assist · Left stick press: pause.
+
+WebXR needs HTTPS, so test VR on the live site rather than the local dev server. The VR button only appears in browsers that support immersive VR.
+
 ## Run locally
 
 ```bash

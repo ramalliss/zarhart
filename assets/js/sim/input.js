@@ -15,6 +15,7 @@ export class Input {
     this.touch = { active: false, x: 0, y: 0, throttle: null };
     this.handlers = {}; // one-shot actions: name -> fn
     this.pad = null; this.padThrottle = null;
+    this.xr = null; // VR controller state, written by vr.js each frame
     addEventListener("keydown", (e) => {
       if (e.target.closest && e.target.closest("input, select, textarea")) return;
       const k = e.key.length === 1 ? e.key.toLowerCase() : e.key;
@@ -66,6 +67,9 @@ export class Input {
         if (gp.axes.length > 5) yawT = dz(gp.axes[5]); else if (gp.axes.length > 3) yawT = dz(gp.axes[3]);
       }
     }
+    // VR controllers: right stick flies, left stick is rudder (and throttle, below)
+    const xr = this.xr?.active ? this.xr : null;
+    if (xr && (xr.roll || xr.pitch || xr.yaw)) { usingAnalog = true; rollT = xr.roll; pitchT = this.invert ? -xr.pitch : xr.pitch; yawT = xr.yaw; }
     // mouse yoke (dead zone around the reticle at screen centre)
     if (this.mouseYoke && !usingAnalog && pitchT === 0 && rollT === 0) {
       const dzm = (v) => (Math.abs(v) < 0.06 ? 0 : (v - Math.sign(v) * 0.06) / 0.94);
@@ -115,9 +119,10 @@ export class Input {
     if (this.held("r", "PageUp", "+", "=")) c.throttle = clamp(c.throttle + 0.45 * dt, 0, 1);
     if (this.held("f", "PageDown", "-")) c.throttle = clamp(c.throttle - 0.45 * dt, 0, 1);
     if (this.touch.throttle != null) c.throttle = this.touch.throttle;
+    if (xr?.thr) c.throttle = clamp(c.throttle + xr.thr * 0.5 * dt, 0, 1);
     if (this.held("t", "Home")) c.trim = clamp(c.trim + 0.22 * dt, -1, 1);
     if (this.held("g", "End")) c.trim = clamp(c.trim - 0.22 * dt, -1, 1);
-    const b = this.held("b") ? 1 : 0;
+    const b = Math.max(this.held("b") ? 1 : 0, xr ? xr.brake : 0);
     c.brake = b; c.brakeL = this.held(",") ? 1 : 0; c.brakeR = this.held(".") ? 1 : 0;
     if (b && Math.abs(c.rudder) > 0.2) { c.brakeL = c.rudder < 0 ? 1 : 0.3; c.brakeR = c.rudder > 0 ? 1 : 0.3; c.brake = 0; }
   }
