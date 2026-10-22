@@ -208,7 +208,111 @@ export const LESSONS = [
       { text: "Flashing green: cleared to taxi. Slow down and exit the runway", check: (sim) => sim.d.onGround && sim.d.gs < 10 && !onRunwaySurface(KZAR, sim.ac.pos.x, sim.ac.pos.z) },
     ],
   },
+  /* ---------------- Pro lessons (free preview until Zarhart Pro launches) ---------------- */
+  {
+    id: "shortfield", pro: true, title: "Short-field approach and landing", tag: "Takeoffs & landings", time: "4 min", level: 3,
+    summary: "Runway 27 with 50-ft trees before the threshold. Full flaps, 60 KIAS, clear the trees, touch down on the orange aiming point and stop as short as you can.",
+    exam: ["t35", "t39", "e34"],
+    tips: ["Flaps 30 and 60 KIAS on final; the ACS allows +10/−5 kt. A steeper, slower approach clears the trees and still lands short.", "Aim at the orange bar 500 ft past the threshold. The ACS standard is on it or within 100 ft beyond it.", "Extra speed means floating in ground effect and using up runway. Once down: flaps up, full back elevator, maximum braking."],
+    setup(sim, ls) { sim.setWeather({ ...PRESETS.clear, windDir: 270, windKt: 5, gustKt: 0 }); sim.setTime(9.5); sim.spawn(onFinal(KZAR, "27", 1.7, 66, 20)); sim.ac.ctl.throttle = 0.3; sim.ac.ctl.trim = 0.4; shortSetup(sim, ls); },
+    tick(sim, ls) { shortTick(sim, ls); },
+    cleanup(sim, ls) { removeProps(sim, ls); },
+    objectives: [
+      { text: "Flaps 30 and a stable 60 KIAS (55–70) on final", check(sim, ls, dt) { ls.stab = sim.ac.flapsSet >= 30 && sim.d.ias >= 55 && sim.d.ias <= 70 ? (ls.stab || 0) + dt : 0; return ls.stab > 4; }, fail: (sim, ls) => (ls.passed ? "You reached the trees before you were stable at 60 KIAS with full flaps. Configure early on a short-field approach." : null) },
+      { text: "Clear the 50-ft trees before the runway", check: (sim, ls) => ls.cleared, fail: (sim, ls) => (ls.hitTrees ? "Too low over the trees: on a real short field you would have hit them. Fly a steeper approach and aim past the threshold." : null), result: (ls) => `Cleared the treetops by ${Math.round(ls.clearance / FT)} ft.` },
+      { text: "Touch down on the orange aiming point, 500 ft past the threshold", fail: offRunway(KZAR), check(sim, ls) { if (landedOn(sim, KZAR, "27")) { const td = sim.lastTouchdown; ls.td = { x: td.x, z: td.z }; ls.tdS = distFromThreshold(end(KZAR, "27"), td.x, td.z); return true; } }, result: (ls, sim) => { const off = Math.round((ls.tdS - AIM_M) / FT); const grade = off >= 0 && off <= 100 ? "on the point: that meets the ACS standard (on it or within 100 ft beyond)" : off < 0 ? `${-off} ft short of the point (the ACS standard is on it or within 100 ft beyond)` : `${off} ft beyond the point (the ACS standard is within 100 ft)`; return `${touchdownReport(sim, KZAR, "27")} You touched down ${grade}.`; } },
+      { text: "Stop as short as you can: flaps up, full back elevator, brakes", check: (sim) => sim.d.onGround && sim.d.gs < 2, result: (ls, sim) => `Landing roll: ${Math.round(Math.hypot(sim.ac.pos.x - ls.td.x, sim.ac.pos.z - ls.td.z) / FT)} ft from touchdown to stop.` },
+    ],
+  },
+  {
+    id: "slowflight", pro: true, title: "Slow flight", tag: "Slow flight & stalls", time: "5 min", level: 2,
+    summary: "Fly at the edge of a stall without stalling: full flaps, just above the stall horn, holding altitude. Then turn and climb. Here the nose controls airspeed and power controls altitude.",
+    exam: ["t24", "p36", "e39", "t58"],
+    tips: ["Power back and hold altitude as you slow; flaps 30 below 85 KIAS. Add power at about 52 KIAS to stop the descent.", "Behind the power curve, power holds altitude and the nose holds airspeed. Expect lots of right rudder at high power and a high angle of attack (P-factor).", "ACS: altitude ±100 ft, heading ±10°, airspeed +10/−0 kt, and no stall warning. Keep turns shallow: the stall speed rises with bank."],
+    setup(sim, ls) { sim.setWeather(PRESETS.clear); sim.setTime(14); sim.spawn({ x: 3000, z: 14000, hdg: 0, onGround: false, altFt: 4000, kias: 90 }); sim.ac.ctl.throttle = 0.6; sim.ac.ctl.trim = 0.05; },
+    tick(sim, ls, dt) {
+      ls.alt0 ??= sim.d.altTrue;
+      const slow = sim.d.ias < 62; if (!slow || ls.recovering) return;
+      ls.slowT = (ls.slowT || 0) + dt; if (sim.d.stallWarn) ls.horn = (ls.horn || 0) + dt;
+      if (!ls.climbing) ls.altDev = Math.max(ls.altDev || 0, Math.abs(sim.d.altTrue - ls.alt0));
+    },
+    objectives: [
+      { text: "Flaps 30 and slow to just above the stall horn (about 50 KIAS), holding altitude", check(sim, ls, dt) { const ok = sim.ac.flapsSet >= 30 && sim.d.ias < 56 && !sim.d.stallWarn && Math.abs(sim.d.altTrue - ls.alt0) < 100; ls.s1 = ok ? (ls.s1 || 0) + dt : 0; return ls.s1 > 10; }, fail: slowStall },
+      { text: "Turn left 90° with 10–15° of bank, no stall horn", check(sim, ls) { ls.h0 ??= sim.d.hdg; ls.turn = wrap180(ls.h0 - sim.d.hdg); return ls.turn >= 80 && Math.abs(sim.d.bank) < 8; }, fail: slowStall },
+      { text: "Climb 200 ft at slow-flight speed: add power, keep the airspeed", check(sim, ls) { ls.a3 ??= sim.d.altTrue; ls.climbing = true; return sim.d.altTrue >= ls.a3 + 200 && sim.d.ias < 62; }, fail: slowStall, result: (ls) => `In slow flight for ${Math.round(ls.slowT || 0)} s. Stall horn: ${(ls.horn || 0).toFixed(1)} s (the ACS standard is none). Largest altitude change while holding altitude: ${Math.round(ls.altDev || 0)} ft (ACS ±100 ft).` },
+      { text: "Recover: full power, lower the nose, flaps up in stages, accelerate to 80 KIAS", check(sim, ls) { ls.recovering = true; return sim.ac.flapsSet === 0 && sim.d.ias > 78; } },
+    ],
+  },
+  {
+    id: "turnspoint", pro: true, title: "Turns around a point", tag: "Ground reference maneuvers", time: "6 min", level: 3,
+    summary: "Circle the red barn twice at 800 ft above the ground, keeping the same distance from it in a 12-knot wind: steepest bank downwind, shallowest upwind.",
+    exam: ["t56", "p34", "t57"],
+    tips: ["Enter downwind, about ¼ mile from the barn. Downwind your groundspeed is highest, so you need the steepest bank there (no more than 45°).", "Upwind you're slowest over the ground: shallowest bank. Crosswind legs need a wind correction angle toward the point or away from it.", "ACS: altitude ±100 ft, airspeed ±10 kt. Look outside, not at the instruments, and pick an emergency landing field before you start."],
+    setup(sim, ls) {
+      sim.setWeather({ ...PRESETS.clear, windDir: 270, windKt: 12, gustKt: 0 }); sim.setTime(11);
+      const P = BARN; ls.agl = 800; ls.targetFt = heightAt(P.x, P.z) / FT + ls.agl;
+      sim.spawn({ x: P.x, z: P.z + 430, hdg: 90, onGround: false, altFt: ls.targetFt, kias: 90 }); sim.ac.ctl.throttle = 0.6; sim.ac.ctl.trim = 0.05;
+      barnSetup(sim, ls);
+    },
+    tick(sim, ls) {
+      const dx = sim.ac.pos.x - BARN.x, dz = sim.ac.pos.z - BARN.z;
+      ls.r = Math.hypot(dx, dz); const a = Math.atan2(dx, -dz) / DEG;
+      if (ls.prevA != null && ls.counting) ls.turned = (ls.turned || 0) - wrap180(a - ls.prevA);
+      ls.prevA = a;
+      if (ls.counting && (ls.turned || 0) < 720) {
+        ls.rMin = Math.min(ls.rMin ?? Infinity, ls.r); ls.rMax = Math.max(ls.rMax ?? 0, ls.r);
+        ls.altDev = Math.max(ls.altDev || 0, Math.abs(sim.d.altTrue - ls.targetFt)); ls.bankMax = Math.max(ls.bankMax || 0, Math.abs(sim.d.bank));
+      }
+    },
+    cleanup(sim, ls) { removeProps(sim, ls); },
+    objectives: [
+      { text: "Enter downwind, the barn on your left about ¼ mile away, at 800 ft above the ground", check(sim, ls, dt) { const ok = ls.r > 200 && ls.r < 800 && Math.abs(sim.d.altTrue - ls.targetFt) < 150; ls.e = ok ? (ls.e || 0) + dt : 0; if (ls.e > 3) { ls.counting = true; return true; } } },
+      { text: "Fly two full turns around the barn at a constant radius", check: (sim, ls) => (ls.turned || 0) >= 720, fail: (sim, ls) => (ls.r > 1800 ? "You flew too far from the barn. Keep it off your left wingtip and adjust the bank for the wind." : null), result: (ls) => `Distance from the barn: ${Math.round(ls.rMin / FT).toLocaleString()} to ${Math.round(ls.rMax / FT).toLocaleString()} ft (keep it as constant as you can). Altitude within ${Math.round(ls.altDev)} ft (ACS ±100). Steepest bank ${Math.round(ls.bankMax)}° (no more than 45°).` },
+      { text: "Roll out on the entry heading, 090 (±10°)", check: (sim) => Math.abs(sim.d.bank) < 6 && Math.abs(wrap180(sim.d.hdg - 90)) < 10 },
+    ],
+  },
 ];
+
+/* ---- short-field landing: a 50-ft tree line before runway 27 and an orange aiming bar ---- */
+const AIM_M = 500 * FT, TREES_S = -250, TREE_H = 50 * FT;
+function shortSetup(sim, ls) {
+  const e = end(KZAR, "27"); const h = e.hdg * DEG; const fx = Math.sin(h), fz = -Math.cos(h), px = Math.cos(h), pz = Math.sin(h);
+  const g = new THREE.Group(); const leaf = new THREE.MeshLambertMaterial({ color: 0x2f5a2a }), trunk = new THREE.MeshLambertMaterial({ color: 0x5a3d22 });
+  for (let c = -80; c <= 80; c += 9) {
+    const x = e.x + fx * TREES_S + px * c, z = e.z + fz * TREES_S + pz * c, y = heightAt(x, z);
+    const t = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.7, 4, 6), trunk); t.position.set(x, y + 2, z); g.add(t);
+    const k = new THREE.Mesh(new THREE.ConeGeometry(4.2, TREE_H - 3, 8), leaf); k.position.set(x, y + 3 + (TREE_H - 3) / 2, z); g.add(k);
+  }
+  const bar = new THREE.Mesh(new THREE.PlaneGeometry(30, 4), new THREE.MeshBasicMaterial({ color: 0xff7a1a, polygonOffset: true, polygonOffsetFactor: -4 }));
+  bar.rotation.x = -Math.PI / 2; bar.rotation.z = -h; bar.position.set(e.x + fx * AIM_M, KZAR.elev + 0.08, e.z + fz * AIM_M); g.add(bar);
+  for (const s of [-1, 1]) { const cone = new THREE.Mesh(new THREE.ConeGeometry(0.6, 1.4, 10), new THREE.MeshLambertMaterial({ color: 0xff7a1a })); cone.position.set(e.x + fx * AIM_M + px * s * 19, KZAR.elev + 0.7, e.z + fz * AIM_M + pz * s * 19); g.add(cone); }
+  sim.scene.add(g); ls.props = g; ls.e = e;
+}
+function shortTick(sim, ls) {
+  if (ls.passed) return;
+  const s = distFromThreshold(ls.e, sim.ac.pos.x, sim.ac.pos.z);
+  if (s < TREES_S) return;
+  ls.passed = true;
+  const wheels = sim.ac.pos.y - 1.2, ground = heightAt(sim.ac.pos.x, sim.ac.pos.z);
+  ls.clearance = wheels - (ground + TREE_H);
+  if (ls.clearance < 0 && Math.abs(centerOffset(ls.e, sim.ac.pos.x, sim.ac.pos.z)) < 90) ls.hitTrees = true; else ls.cleared = true;
+}
+function removeProps(sim, ls) { if (ls.props) sim.scene.remove(ls.props); ls.props = null; }
+function slowStall(sim) { return sim.d.stalled ? "The wing stalled. In slow flight, lower the nose slightly or add power as soon as the stall horn sounds." : null; }
+
+/* ---- turns around a point: a red barn and silo in the fields west of the river ---- */
+const BARN = { x: -1500, z: 8000 };
+function barnSetup(sim, ls) {
+  const g = new THREE.Group(); const y = heightAt(BARN.x, BARN.z);
+  const red = new THREE.MeshLambertMaterial({ color: 0xa3261e }), roof = new THREE.MeshLambertMaterial({ color: 0x3b3f45 }), white = new THREE.MeshLambertMaterial({ color: 0xe8e8e2 });
+  const body = new THREE.Mesh(new THREE.BoxGeometry(14, 8, 22), red); body.position.set(BARN.x, y + 4, BARN.z); g.add(body);
+  for (const s of [-1, 1]) { const slope = new THREE.Mesh(new THREE.BoxGeometry(8.6, 0.35, 23), roof); slope.rotation.z = -s * 0.62; slope.position.set(BARN.x + s * 3.5, y + 10.4, BARN.z); g.add(slope); } // gable roof
+  const gable = new THREE.Shape([new THREE.Vector2(-7, 0), new THREE.Vector2(7, 0), new THREE.Vector2(0, 4.9)]);
+  for (const s of [-1, 1]) { const end = new THREE.Mesh(new THREE.ShapeGeometry(gable), red); end.position.set(BARN.x, y + 8, BARN.z + s * 11.01); if (s < 0) end.rotation.y = Math.PI; g.add(end); }
+  const silo = new THREE.Mesh(new THREE.CylinderGeometry(3, 3, 18, 16), white); silo.position.set(BARN.x + 11, y + 9, BARN.z - 4); g.add(silo);
+  const dome = new THREE.Mesh(new THREE.SphereGeometry(3, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshLambertMaterial({ color: 0x9aa3ad })); dome.position.set(BARN.x + 11, y + 18, BARN.z - 4); g.add(dome);
+  sim.scene.add(g); ls.props = g;
+}
 
 function steep(sim, ls, dt, dir) {
   const k = dir < 0 ? 1 : 2;

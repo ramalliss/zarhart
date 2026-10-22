@@ -329,7 +329,10 @@ function renderDrawer() {
   const B = drawerBody;
   if (n === "lessons") {
     B.innerHTML = `<p class="dnote">Every lesson links to the written-test questions it teaches. Click a question code to open it in Prep.</p>
-      <div class="lesson-list">${LESSONS.map((l) => `<article class="lesson"><div class="lhead"><span class="ltag">${esc(l.tag)}</span><span class="ltime">${l.time}</span></div><h3>${esc(l.title)}</h3><p>${esc(l.summary)}</p><div class="lfoot"><span class="exams">${l.exam.map(examLink).join("")}</span><button class="sbtn primary" data-lesson="${l.id}">Fly</button></div></article>`).join("")}</div>
+      <div class="lesson-list">${LESSONS.filter((l) => !l.pro).map(lessonCard).join("")}</div>
+      <h3 class="dsub">Pro lessons <span class="pro">Free preview</span></h3>
+      <p class="dnote">Checkride maneuvers from the Private Pilot ACS. They'll be part of Zarhart Pro; fly them free while Pro is in the works.</p>
+      <div class="lesson-list">${LESSONS.filter((l) => l.pro).map(lessonCard).join("")}</div>
       <h3 class="dsub">Free flight</h3>
       <div class="form"><label>Start <select id="ffStart"><option value="kzarRamp">Zarhart ramp: cold & dark (use the checklists)</option><option value="kzar27">Zarhart runway 27, engine running</option><option value="kzar09">Zarhart runway 09</option><option value="kame36">Earhart Municipal runway 36</option><option value="z19">Electra Field grass 04</option><option value="air">Airborne over the valley, 3,500 ft</option></select></label>
       <label>Weather <select id="ffWx">${Object.entries(PRESETS).map(([k, p]) => `<option value="${k}">${esc(p.label)}</option>`).join("")}</select></label>
@@ -447,6 +450,9 @@ function renderDrawer() {
       <h3 class="dsub">VR headset (Meta Quest)</h3><ul class="keylist">${VR_CONTROLS.map(([c, what]) => `<li><span class="keys"><kbd>${esc(c)}</kbd></span><span>${esc(what)}</span></li>`).join("")}</ul>
       <p class="dnote">Mouse: drag to look around (cockpit) or orbit (outside views). Scroll to zoom. Double-click to recentre. Scroll over panel knobs (Kollsman, OBS, heading bug, attitude indicator) to set them. Click the HI knob to align it with the compass.</p>`;
   }
+}
+function lessonCard(l) {
+  return `<article class="lesson"><div class="lhead"><span class="ltag">${esc(l.tag)}</span><span class="ltime">${l.pro ? '<span class="pro">Pro</span> ' : ""}${l.time}</span></div><h3>${esc(l.title)}</h3><p>${esc(l.summary)}</p><div class="lfoot"><span class="exams">${l.exam.map(examLink).join("")}</span><button class="sbtn primary" data-lesson="${l.id}">Fly</button></div></article>`;
 }
 function fmtHour(h) { const hh = Math.floor(h), mm = Math.round((h - hh) * 60); return `${String(hh).padStart(2, "0")}:${String(mm % 60).padStart(2, "0")} local`; }
 function densAltAtField() { const t = weather.state; const elev = KZAR.elevFt; const pa = elev + (29.92 - weather.qnhInHg) * 1000; const isa = 15 - 1.98 * pa / 1000; return pa + 120 * (weather.tempC - isa); }

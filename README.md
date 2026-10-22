@@ -8,7 +8,7 @@ Created by **Sophia Ramalli**, a student pilot who built it while studying for t
 
 | | |
 |---|---|
-| **Fly** (`/sim/`) | A Cessna 172N-class flight model checked against book numbers, the Zarhart Valley (three airports, two VORs, Class D airspace, landmarks for pilotage), six-pack and G1000-style glass instruments, a sectional-style map, radios with ATIS and simple ATC, pilot-controlled lighting, light-gun signals, a VFR minimums monitor, checklists, failures, weather, weight & balance, and 13 lessons linked to written-test questions. |
+| **Fly** (`/sim/`) | A Cessna 172N-class flight model checked against book numbers, the Zarhart Valley (three airports, two VORs, Class D airspace, landmarks for pilotage), six-pack and G1000-style glass instruments, a sectional-style map, radios with ATIS and simple ATC, pilot-controlled lighting, light-gun signals, a VFR minimums monitor, checklists, failures, weather, weight & balance, and 13 lessons linked to written-test questions, plus three Pro lessons from the Private Pilot ACS (short-field landing, slow flight, turns around a point), free while Pro is in the works. |
 | **Study** (`/prep/`) | 175 practice questions with explanations, a study guide by topic (ACS area, PHAK chapter, simulator lesson), flashcards, quizzes, a timed 60-question practice exam with a topic report, and Quizlet export. |
 | **Path** (`/#path`) | The free route to the written test: FLY8MA ground school → FAA PHAK → Sporty's and King Schools practice tests → endorsement → FTN in IACRA → book with PSI. |
 
@@ -41,7 +41,7 @@ To flight-test the lessons end to end, open `/sim/` on the dev server and run th
 
 ```js
 const T = await import('/tools/test-pilot.js');
-await T.runLesson('pattern'); // or vasi, steep, stall, softfield, vor, xc, night, enginefail, carbice, crosswind, wake, nordo
+await T.runLesson('pattern'); // or vasi, steep, stall, softfield, vor, xc, night, enginefail, carbice, crosswind, wake, nordo, shortfield, slowflight, turnspoint
 ```
 
 A scripted pilot flies the lesson through `window.__zarhart.step()` (physics, monitors and lesson checks, without rendering) and returns each objective's state, the debrief and any failure.

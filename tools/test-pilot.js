@@ -218,6 +218,43 @@ export const PILOTS = {
   },
 };
 
+/* ---------------- Pro lessons ---------------- */
+PILOTS.shortfield = (z) => { const apx = new AP(); const land = landing(KZAR, endOf(KZAR, "27"), { vref: 60, flaps: 30, aim: 165 }); return (ac, d, sim, dt) => land(ac, d, sim, dt, apx); };
+
+PILOTS.slowflight = (z) => {
+  const apx = new AP(); let alt0 = null, h0 = null;
+  // slow flight: pitch for airspeed, power for altitude
+  const slow = (ac, d, dt, kias, bank, climb) => {
+    const pitchCmd = clamp(4 + (d.ias - kias) * 0.9, -2, 15);
+    apx.attitude(ac, d, pitchCmd, bank, dt);
+    if (climb) { ac.ctl.throttle = 1; return; }
+    const vsCmd = clamp((alt0 - d.altTrue) * 3, -300, 300); const e = (vsCmd - d.vsTrue) / 100;
+    apx.thrS = clamp((apx.thrS || 0) + e * dt * 0.05, -0.5, 0.5);
+    ac.ctl.throttle = d.ias > kias + 12 ? 0.05 : clamp(0.5 + 0.06 * e + apx.thrS, 0, 1);
+  };
+  return (ac, d, sim, dt) => {
+    alt0 ??= d.altTrue; const idx = z.lessons.idx;
+    if (idx <= 0) { if (d.ias < 84) ac.flapsSet = Math.min(30, (ac.flapsSet || 0) + 10); slow(ac, d, dt, 53, apx.bankFor(d, 0, 10), false); return; }
+    if (idx === 1) { h0 ??= d.hdg; const turned = wrap180(h0 - d.hdg); slow(ac, d, dt, 53, turned < 82 ? -12 : 0, false); return; }
+    if (idx === 2) { slow(ac, d, dt, 55, 0, true); return; }
+    ac.ctl.throttle = 1; apx.attitude(ac, d, d.ias < 60 ? 4 : 1, 0, dt);
+    if (d.ias > 60 && ac.flapsSet > 20) ac.flapsSet = 20; else if (d.ias > 66 && ac.flapsSet > 10) ac.flapsSet = 10; else if (d.ias > 72) ac.flapsSet = 0;
+  };
+};
+
+PILOTS.turnspoint = (z) => {
+  const apx = new AP(); const B = { x: -1500, z: 8000 }; const R = 430;
+  return (ac, d, sim, dt) => {
+    const ls = z.lessons.ls; const tgt = ls.targetFt; const idx = z.lessons.idx;
+    if (idx >= 2) { apx.cruise(ac, d, tgt, 90, 90, dt, 30); return; }
+    const dx = ac.pos.x - B.x, dz = ac.pos.z - B.z; const r = Math.hypot(dx, dz); const a = Math.atan2(dx, -dz) / DEG;
+    const trackCmd = a - 90 - clamp((r - R) * 0.12, -35, 35); // counter-clockwise around the barn, pulled back onto the circle
+    const gs = d.gs * 0.5144; const ff = -Math.atan((gs * gs) / (9.81 * R)) / DEG;
+    const bank = clamp(ff + 1.3 * wrap180(trackCmd - d.track), -45, 45);
+    apx.vs(ac, d, clamp((tgt - d.altTrue) * 4, -400, 400), 3, bank, dt); apx.speed(ac, d, 90, 0.62, dt);
+  };
+};
+
 /** Run one lesson end to end. Returns a summary. */
 export async function runLesson(id, { maxSecs = 900, log = false } = {}) {
   const z = window.__zarhart; z.waitReal = 0;
