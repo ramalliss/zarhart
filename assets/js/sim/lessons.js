@@ -271,6 +271,84 @@ export const LESSONS = [
       { text: "Roll out on the entry heading, 090 (±10°)", check: (sim) => Math.abs(sim.d.bank) < 6 && Math.abs(wrap180(sim.d.hdg - 90)) < 10 },
     ],
   },
+  {
+    id: "sturns", pro: true, title: "S-turns across a road", tag: "Ground reference maneuvers", time: "5 min", level: 3,
+    summary: "A straight country road runs north–south across a 12-knot west wind. Cross it at 90°, fly a half circle on each side and cross again wings level, keeping both halves the same size.",
+    exam: ["p34", "t57"],
+    tips: ["Enter downwind at 800 ft above the ground, crossing the road at 90°. Your groundspeed is highest downwind, so start with the steepest bank (no more than 45°).", "Shallow the bank as you turn into the wind, then roll wings level exactly as you cross the road, and reverse the turn.", "ACS: altitude ±100 ft, airspeed ±10 kt, cross the road wings level and perpendicular."],
+    setup(sim, ls) {
+      sim.setWeather({ ...PRESETS.clear, windDir: 270, windKt: 12, gustKt: 0 }); sim.setTime(10.5);
+      ls.targetFt = heightAt(ROAD.x, ROAD.z0) / FT + 800;
+      sim.spawn({ x: ROAD.x - 1500, z: ROAD.z0, hdg: 90, onGround: false, altFt: ls.targetFt, kias: 90 }); sim.ac.ctl.throttle = 0.6; sim.ac.ctl.trim = 0.05;
+      roadSetup(sim, ls);
+    },
+    tick(sim, ls) {
+      const side = Math.sign(sim.ac.pos.x - ROAD.x);
+      if (ls.side && side && side !== ls.side) ls.cross = { hdg: sim.d.hdg, bank: Math.abs(sim.d.bank), altErr: Math.abs(sim.d.altTrue - ls.targetFt) };
+      if (side) ls.side = side;
+      if (ls.counting) {
+        const off = Math.abs(sim.ac.pos.x - ROAD.x);
+        if (side > 0) ls.east = Math.max(ls.east || 0, off); else ls.west = Math.max(ls.west || 0, off);
+        ls.altDev = Math.max(ls.altDev || 0, Math.abs(sim.d.altTrue - ls.targetFt)); ls.bankMax = Math.max(ls.bankMax || 0, Math.abs(sim.d.bank));
+      }
+    },
+    cleanup(sim, ls) { removeProps(sim, ls); },
+    objectives: [
+      { text: "Cross the road at 90°, heading east (downwind), wings level, 800 ft above the ground", check(sim, ls) { const c = takeCross(ls); if (c && Math.abs(wrap180(c.hdg - 90)) < 20 && c.bank < 15 && c.altErr < 150) { ls.counting = true; return true; } } },
+      { text: "Turn left: a half circle on the east side, then cross the road again wings level, heading west", check(sim, ls) { const c = takeCross(ls); if (c) { ls.c2 = c; return true; } }, fail: (sim, ls) => sTurnFail(sim, ls, 270, "c2") },
+      { text: "Turn right: a matching half circle on the west side, then cross wings level, heading east", check(sim, ls) { const c = takeCross(ls); if (c) { ls.c3 = c; return true; } }, fail: (sim, ls) => sTurnFail(sim, ls, 90, "c3"), result: (ls) => `Half circles reached ${Math.round(ls.east / FT).toLocaleString()} ft east and ${Math.round(ls.west / FT).toLocaleString()} ft west of the road (make them match). Bank as you crossed: ${Math.round(ls.c2.bank)}° and ${Math.round(ls.c3.bank)}° (aim for wings level). Altitude within ${Math.round(ls.altDev)} ft (ACS ±100). Steepest bank ${Math.round(ls.bankMax)}° (no more than 45°).` },
+    ],
+  },
+  {
+    id: "rectangle", pro: true, title: "Rectangular course", tag: "Ground reference maneuvers", time: "6 min", level: 3,
+    summary: "Fly a left-hand circuit around a rectangular field at 800 ft above the ground, about ¼ mile outside its edges, in a 12-knot west wind. Crab on the crosswind legs so your track stays parallel to the field.",
+    exam: ["t56", "p34"],
+    tips: ["It's a traffic pattern without the runway: the same crab angles and the same uneven turns.", "Downwind to base the groundspeed is high, so turn steeper; the turns onto and off the upwind leg are less than 90° and shallower.", "ACS: altitude ±100 ft, airspeed ±10 kt, a uniform distance from the field, and no more than 45° of bank."],
+    setup(sim, ls) {
+      sim.setWeather({ ...PRESETS.clear, windDir: 270, windKt: 12, gustKt: 0 }); sim.setTime(15);
+      ls.targetFt = heightAt(FIELD.x, FIELD.z) / FT + 800;
+      sim.spawn({ x: FIELD.x - 500, z: FIELD.z + FIELD.hz + 460, hdg: 90, onGround: false, altFt: ls.targetFt, kias: 90 }); sim.ac.ctl.throttle = 0.6; sim.ac.ctl.trim = 0.05;
+      fieldSetup(sim, ls);
+    },
+    tick(sim, ls) {
+      const x = sim.ac.pos.x - FIELD.x, z = sim.ac.pos.z - FIELD.z;
+      const dx = Math.max(Math.abs(x) - FIELD.hx, 0), dz = Math.max(Math.abs(z) - FIELD.hz, 0);
+      ls.dist = Math.hypot(dx, dz);
+      ls.leg = dx > 0 && dz > 0 ? "corner" : z > FIELD.hz ? "south" : z < -FIELD.hz ? "north" : x > FIELD.hx ? "east" : x < -FIELD.hx ? "west" : "over";
+      if (ls.prevHdg != null && ls.counting) ls.turned = (ls.turned || 0) - wrap180(sim.d.hdg - ls.prevHdg);
+      ls.prevHdg = sim.d.hdg;
+      if (ls.counting && (ls.turned || 0) < 360) {
+        if (ls.leg !== "corner" && ls.leg !== "over") { ls.dMin = Math.min(ls.dMin ?? Infinity, ls.dist); ls.dMax = Math.max(ls.dMax ?? 0, ls.dist); }
+        if (ls.leg === "east" || ls.leg === "west") { const crab = Math.abs(wrap180(sim.d.hdg - sim.d.track)); ls[`crab_${ls.leg}`] = Math.max(ls[`crab_${ls.leg}`] || 0, crab); }
+        ls.altDev = Math.max(ls.altDev || 0, Math.abs(sim.d.altTrue - ls.targetFt)); ls.bankMax = Math.max(ls.bankMax || 0, Math.abs(sim.d.bank));
+      }
+    },
+    cleanup(sim, ls) { removeProps(sim, ls); },
+    objectives: [
+      { text: "Downwind leg: fly east along the south side of the field, about ¼ mile out", check(sim, ls, dt) { const ok = ls.leg === "south" && ls.dist > 250 && ls.dist < 700 && Math.abs(sim.d.altTrue - ls.targetFt) < 150; ls.ok1 = ok ? (ls.ok1 || 0) + dt : 0; if (ls.ok1 > 6) { ls.counting = true; return true; } } },
+      { text: "Fly the whole rectangle: turn left at each corner and crab into the wind on the crosswind legs", check: (sim, ls) => (ls.turned || 0) >= 330 && ls.leg === "south" && Math.abs(wrap180(sim.d.hdg - 90)) < 15 && Math.abs(sim.d.bank) < 10, fail: (sim, ls) => (ls.dist > 2000 ? "You flew too far from the field. Keep its edge about ¼ mile off your left side." : null), result: (ls) => `Distance from the field on the straight legs: ${Math.round(ls.dMin / FT).toLocaleString()} to ${Math.round(ls.dMax / FT).toLocaleString()} ft (keep it uniform). Crab angle on the crosswind legs: ${Math.round(ls.crab_east || 0)}° on the east side, ${Math.round(ls.crab_west || 0)}° on the west side. Altitude within ${Math.round(ls.altDev)} ft (ACS ±100). Steepest bank ${Math.round(ls.bankMax)}°.` },
+    ],
+  },
+  {
+    id: "nightxc", pro: true, title: "Night cross-country: KAME → KZAR", tag: "Night operations", time: "10 min", level: 3,
+    summary: "After dark, fly from Earhart Municipal back to Zarhart Field. Position lights on, navigate with the ZRH VOR, call the tower before its Class D, then find the field by its beacon and land on runway 27.",
+    exam: ["e14", "p10", "e49", "e67"],
+    tips: ["Position lights are required from sunset to sunrise (14 CFR 91.209), and VFR at night needs 45 minutes of fuel reserve instead of 30 (91.151).", "Find an airport at night by its rotating beacon: white and green for a civil land airport. Runway edge lights are white; the threshold shows green toward you.", "Zarhart's Class D starts about 4 NM out. Establish two-way radio communication before you enter: call about 10 NM out."],
+    setup(sim, ls) {
+      sim.setWeather({ ...PRESETS.clear, windDir: 260, windKt: 6, gustKt: 0 }); sim.setTime(21.5);
+      sim.spawn({ x: 20000, z: 12000, hdg: 315, onGround: false, altFt: 3500, kias: 100 }); sim.ac.ctl.throttle = 0.62;
+      sim.ac.elec.lights.nav = false; sim.ac.elec.lights.landing = false; sim.ac.elec.lights.beacon = true;
+      sim.radio.com1 = KAME.freqs.ctaf; sim.radio.com1s = KZAR.freqs.twr; sim.radio.nav1 = 116.4; sim.radio.nav1s = 113.9;
+      sim.setRoute([{ x: 20000, z: 12000 }, { x: ZRH.x, z: ZRH.z, id: "ZRH" }, { x: KZAR.x, z: KZAR.z, id: "KZAR" }]);
+    },
+    tick(sim, ls) { if (ls.callNm == null && sim.flags.dContact) ls.callNm = nmTo(sim, KZAR.x, KZAR.z); },
+    objectives: [
+      { text: "Turn on the position (nav) lights: required from sunset to sunrise (Aircraft → Lights)", check: (sim) => sim.ac.elec.lights.nav },
+      { text: "Tune NAV1 to ZRH 113.90 and turn the OBS until the needle centers with a TO flag", check: (sim) => Math.abs(sim.radio.nav1 - 113.9) < 0.01 && sim.vor1?.ok && sim.vor1.toFrom === "TO" && Math.abs(sim.vor1.cdi) < 0.5 },
+      { text: "Call Zarhart Tower about 10 NM out, before its Class D (COM1 118.30, Radio → Inbound call)", check: (sim) => sim.flags.dContact, fail: (sim) => (!sim.flags.dContact && nmTo(sim, KZAR.x, KZAR.z) < 4.25 ? "You reached Zarhart's Class D without two-way radio communication. Call the tower before you enter (14 CFR 91.129)." : null), result: (ls) => `Called the tower ${ls.callNm.toFixed(1)} NM out.` },
+      { text: "Find the field by its white-and-green beacon and land on runway 27", check: (sim) => landedOn(sim, KZAR, "27"), fail: offRunway(KZAR), result: (ls, sim) => touchdownReport(sim, KZAR, "27") },
+    ],
+  },
 ];
 
 /* ---- short-field landing: a 50-ft tree line before runway 27 and an orange aiming bar ---- */
@@ -301,7 +379,7 @@ function removeProps(sim, ls) { if (ls.props) sim.scene.remove(ls.props); ls.pro
 function slowStall(sim) { return sim.d.stalled ? "The wing stalled. In slow flight, lower the nose slightly or add power as soon as the stall horn sounds." : null; }
 
 /* ---- turns around a point: a red barn and silo in the fields west of the river ---- */
-const BARN = { x: -1500, z: 8000 };
+const BARN = { x: -1500, z: 9300 }; // circles stay outside Zarhart's Class D (7.8 km)
 function barnSetup(sim, ls) {
   const g = new THREE.Group(); const y = heightAt(BARN.x, BARN.z);
   const red = new THREE.MeshLambertMaterial({ color: 0xa3261e }), roof = new THREE.MeshLambertMaterial({ color: 0x3b3f45 }), white = new THREE.MeshLambertMaterial({ color: 0xe8e8e2 });
@@ -379,6 +457,48 @@ function wakeTick(sim, ls, dt) {
 function wakeCleanup(sim, ls) {
   if (ls.jetMesh) sim.scene.remove(ls.jetMesh); if (ls.vPts) sim.scene.remove(ls.vPts);
   sim.weather.extraWind = sim.weather.extraWind.filter((f) => f !== ls.windFn); sim.ac.extMoment.x = 0;
+}
+
+/* ---- ground reference props: a north–south road for S-turns and a rectangular field ---- */
+const ROAD = { x: 6000, z0: 15000, z1: 8500, z2: 19500 }; // z0: where you first cross it
+const FIELD = { x: -1000, z: 13500, hx: 700, hz: 450 }; // centre and half-sizes, metres
+/** a flat strip along the ground from (x1,z1) to (x2,z2), in short segments that follow the terrain */
+function strip(g, x1, z1, x2, z2, w, mat, seg = 50) {
+  const len = Math.hypot(x2 - x1, z2 - z1), n = Math.max(1, Math.ceil(len / seg)), ang = Math.atan2(x2 - x1, z2 - z1);
+  const geo = new THREE.PlaneGeometry(w, len / n + 0.6);
+  for (let i = 0; i < n; i++) {
+    const t = (i + 0.5) / n, x = x1 + (x2 - x1) * t, z = z1 + (z2 - z1) * t;
+    const m = new THREE.Mesh(geo, mat); m.rotation.order = "YXZ"; m.rotation.set(-Math.PI / 2, ang, 0); m.position.set(x, heightAt(x, z) + 0.6, z); g.add(m);
+  }
+}
+/** a 1 px line draped along the corners: a narrow strip breaks up into dashes from a mile away, a line doesn't */
+function drape(g, corners, color, seg = 40) {
+  const pts = [];
+  for (let i = 0; i < corners.length - 1; i++) {
+    const [x1, z1] = corners[i], [x2, z2] = corners[i + 1], n = Math.max(1, Math.ceil(Math.hypot(x2 - x1, z2 - z1) / seg));
+    for (let k = i ? 1 : 0; k <= n; k++) { const x = x1 + (x2 - x1) * k / n, z = z1 + (z2 - z1) * k / n; pts.push(new THREE.Vector3(x, heightAt(x, z) + 1.2, z)); }
+  }
+  g.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineBasicMaterial({ color })));
+}
+function roadSetup(sim, ls) {
+  const g = new THREE.Group();
+  strip(g, ROAD.x, ROAD.z1, ROAD.x, ROAD.z2, 12, new THREE.MeshLambertMaterial({ color: 0x5c5f63, polygonOffset: true, polygonOffsetFactor: -4 }));
+  drape(g, [[ROAD.x, ROAD.z1], [ROAD.x, ROAD.z2]], 0x7c7f83);
+  sim.scene.add(g); ls.props = g;
+}
+function fieldSetup(sim, ls) {
+  const g = new THREE.Group(); const mat = new THREE.MeshLambertMaterial({ color: 0xd6cda8, polygonOffset: true, polygonOffsetFactor: -4 });
+  const x0 = FIELD.x - FIELD.hx, x1 = FIELD.x + FIELD.hx, z0 = FIELD.z - FIELD.hz, z1 = FIELD.z + FIELD.hz;
+  strip(g, x0, z1, x1, z1, 8, mat); strip(g, x1, z1, x1, z0, 8, mat); strip(g, x1, z0, x0, z0, 8, mat); strip(g, x0, z0, x0, z1, 8, mat);
+  drape(g, [[x0, z1], [x1, z1], [x1, z0], [x0, z0], [x0, z1]], 0xd6cda8);
+  sim.scene.add(g); ls.props = g;
+}
+/** the last road crossing (heading, bank, altitude error), used once */
+function takeCross(ls) { const c = ls.cross; ls.cross = null; return c; }
+function sTurnFail(sim, ls, want, key) {
+  if (ls.cross && Math.abs(wrap180(ls.cross.hdg - want)) > 30) return `You crossed the road heading ${String(Math.round(ls.cross.hdg)).padStart(3, "0")}°. Cross it at 90°, heading ${String(want).padStart(3, "0")}°, after a full half circle.`;
+  if (Math.abs(sim.ac.pos.x - ROAD.x) > 2500) return "You flew too far from the road. Each half circle should be only about ¼ mile across.";
+  return null;
 }
 
 /* ---------------- runner ---------------- */

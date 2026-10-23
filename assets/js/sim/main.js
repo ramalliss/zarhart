@@ -331,7 +331,7 @@ function renderDrawer() {
     B.innerHTML = `<p class="dnote">Every lesson links to the written-test questions it teaches. Click a question code to open it in Prep.</p>
       <div class="lesson-list">${LESSONS.filter((l) => !l.pro).map(lessonCard).join("")}</div>
       <h3 class="dsub">Pro lessons <span class="pro">Free preview</span></h3>
-      <p class="dnote">Checkride maneuvers from the Private Pilot ACS. They'll be part of Zarhart Pro; fly them free while Pro is in the works.</p>
+      <p class="dnote">Checkride maneuvers and a night cross-country from the Private Pilot ACS. They'll be part of Zarhart Pro; fly them free while Pro is in the works.</p>
       <div class="lesson-list">${LESSONS.filter((l) => l.pro).map(lessonCard).join("")}</div>
       <h3 class="dsub">Free flight</h3>
       <div class="form"><label>Start <select id="ffStart"><option value="kzarRamp">Zarhart ramp: cold & dark (use the checklists)</option><option value="kzar27">Zarhart runway 27, engine running</option><option value="kzar09">Zarhart runway 09</option><option value="kame36">Earhart Municipal runway 36</option><option value="z19">Electra Field grass 04</option><option value="air">Airborne over the valley, 3,500 ft</option></select></label>

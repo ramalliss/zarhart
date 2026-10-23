@@ -243,7 +243,7 @@ PILOTS.slowflight = (z) => {
 };
 
 PILOTS.turnspoint = (z) => {
-  const apx = new AP(); const B = { x: -1500, z: 8000 }; const R = 430;
+  const apx = new AP(); const B = { x: -1500, z: 9300 }; const R = 430;
   return (ac, d, sim, dt) => {
     const ls = z.lessons.ls; const tgt = ls.targetFt; const idx = z.lessons.idx;
     if (idx >= 2) { apx.cruise(ac, d, tgt, 90, 90, dt, 30); return; }
@@ -252,6 +252,63 @@ PILOTS.turnspoint = (z) => {
     const gs = d.gs * 0.5144; const ff = -Math.atan((gs * gs) / (9.81 * R)) / DEG;
     const bank = clamp(ff + 1.3 * wrap180(trackCmd - d.track), -45, 45);
     apx.vs(ac, d, clamp((tgt - d.altTrue) * 4, -400, 400), 3, bank, dt); apx.speed(ac, d, 90, 0.62, dt);
+  };
+};
+
+/** fly a circle of radius R around (cx, cz): dir -1 = left (counter-clockwise), +1 = right */
+function circleBank(ac, d, cx, cz, R, dir) {
+  const dx = ac.pos.x - cx, dz = ac.pos.z - cz; const r = Math.hypot(dx, dz); const a = Math.atan2(dx, -dz) / DEG;
+  const trackCmd = a + dir * 90 + dir * clamp((r - R) * 0.12, -35, 35);
+  const gs = d.gs * 0.5144; const ff = dir * Math.atan((gs * gs) / (9.81 * R)) / DEG;
+  return clamp(ff + 1.3 * wrap180(trackCmd - d.track), -45, 45);
+}
+
+PILOTS.sturns = (z) => {
+  const apx = new AP(); const RX = 6000, R = 430; let z0 = null;
+  return (ac, d, sim, dt) => {
+    const ls = z.lessons.ls, idx = z.lessons.idx, tgt = ls.targetFt;
+    let bank;
+    if (idx === 0) bank = apx.bankFor(d, 90, 20);
+    else {
+      z0 ??= ac.pos.z + 0; // first crossing point (roughly)
+      const near = Math.abs(ac.pos.x - RX) < 45; // roll wings level over the road
+      if (idx === 1) bank = near && ac.pos.z < z0 - R ? 0 : circleBank(ac, d, RX, z0 - R, R, -1);
+      else bank = near && ac.pos.z < z0 - 3 * R ? 0 : circleBank(ac, d, RX, z0 - 3 * R, R, 1);
+    }
+    apx.vs(ac, d, clamp((tgt - d.altTrue) * 4, -400, 400), 3, bank, dt); apx.speed(ac, d, 90, 0.62, dt);
+  };
+};
+
+PILOTS.rectangle = (z) => {
+  const apx = new AP(); const F = { x: -1000, z: 13500, hx: 700, hz: 450 }, off = 460;
+  // the circuit, counter-clockwise from the south-west corner: south (east-bound), east, north, west
+  const x0 = F.x - F.hx - off, x1 = F.x + F.hx + off, zN = F.z - F.hz - off, zS = F.z + F.hz + off;
+  const pts = [[x0, zS], [x1, zS], [x1, zN], [x0, zN]];
+  const segs = pts.map((p, i) => { const q = pts[(i + 1) % 4]; return { p, q, len: Math.hypot(q[0] - p[0], q[1] - p[1]) }; });
+  const P = segs.reduce((s, g) => s + g.len, 0);
+  const at = (s) => { s = ((s % P) + P) % P; for (const g of segs) { if (s <= g.len) { const t = s / g.len; return [g.p[0] + (g.q[0] - g.p[0]) * t, g.p[1] + (g.q[1] - g.p[1]) * t]; } s -= g.len; } return pts[0]; };
+  return (ac, d, sim, dt) => {
+    const ls = z.lessons.ls; let best = Infinity, bs = 0, acc = 0;
+    for (const g of segs) { const vx = g.q[0] - g.p[0], vz = g.q[1] - g.p[1]; const t = clamp(((ac.pos.x - g.p[0]) * vx + (ac.pos.z - g.p[1]) * vz) / (g.len * g.len), 0, 1); const px = g.p[0] + vx * t, pz = g.p[1] + vz * t; const dd = Math.hypot(ac.pos.x - px, ac.pos.z - pz); if (dd < best) { best = dd; bs = acc + t * g.len; } acc += g.len; }
+    const [tx, tz] = at(bs + 420);
+    const trackCmd = brg(ac.pos.x, ac.pos.z, tx, tz);
+    const bank = clamp(1.4 * wrap180(trackCmd - d.track), -40, 40);
+    apx.vs(ac, d, clamp((ls.targetFt - d.altTrue) * 4, -400, 400), 3, bank, dt); apx.speed(ac, d, 90, 0.62, dt);
+  };
+};
+
+PILOTS.nightxc = (z) => {
+  const apx = new AP(); const e27 = endOf(KZAR, "27"); const n = NAVAIDS[0]; let land = null, called = false;
+  return (ac, d, sim, dt) => {
+    ac.elec.lights.nav = true;
+    if (Math.abs(sim.radio.nav1 - 113.9) > 0.01) [sim.radio.nav1, sim.radio.nav1s] = [sim.radio.nav1s, sim.radio.nav1];
+    if (z.lessons.idx <= 1) ac.inst.obs = Math.round(brg(ac.pos.x, ac.pos.z, n.x, n.z));
+    const dK = Math.hypot(ac.pos.x - KZAR.x, ac.pos.z - KZAR.z) / NM;
+    if (!called && dK < 11 && z.lessons.idx === 2) { called = true; if (Math.abs(sim.radio.com1 - 118.3) > 0.01) [sim.radio.com1, sim.radio.com1s] = [sim.radio.com1s, sim.radio.com1]; z.radioCall("inbound"); z.waitReal = 2200; }
+    if (land) return land(ac, d, sim, dt, apx);
+    const tx = e27.x + 3200, tz = e27.z;
+    if (Math.hypot(ac.pos.x - tx, ac.pos.z - tz) < 700) { land = landing(KZAR, e27, { vref: 65 }); return; }
+    apx.cruise(ac, d, dK > 6 ? 3500 : KZAR.elevFt + 1000, 95, brg(ac.pos.x, ac.pos.z, tx, tz), dt);
   };
 };
 
