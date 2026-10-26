@@ -53,7 +53,7 @@ const sim = {
   radio: { com1: 118.3, com1s: 127.85, nav1: 113.9, nav1s: 116.4, failed: false, log: [] },
   flags: {}, pcl: { level: 0, until: 0, clicks: [] }, route: null, gpsWp: null, gpsFrom: null,
   lastTouchdown: null, lightGun: null, showG: false, view: "cockpit", vor1: null,
-  say, spawn, setRoute, vasi: (ap, endId) => world.vasiAt(ap, endId, { x: ac.pos.x, y: ac.pos.y + 0.6, z: ac.pos.z }),
+  say, radioLog, callsign: SHORT, spawn, setRoute, vasi: (ap, endId) => world.vasiAt(ap, endId, { x: ac.pos.x, y: ac.pos.y + 0.6, z: ac.pos.z }),
   setWeather(p) { weather.set(p); ac.inst.kollsman = weather.qnhInHg; if (world.clouds) world.clouds.build(weather.cloudLayersMsl()); },
   setTime(h) { weather.hour = h; },
 };
@@ -331,7 +331,7 @@ function renderDrawer() {
     B.innerHTML = `<p class="dnote">Every lesson links to the written-test questions it teaches. Click a question code to open it in Prep.</p>
       <div class="lesson-list">${LESSONS.filter((l) => !l.pro).map(lessonCard).join("")}</div>
       <h3 class="dsub">Pro lessons <span class="pro">Free preview</span></h3>
-      <p class="dnote">Checkride maneuvers and a night cross-country from the Private Pilot ACS. They'll be part of Zarhart Pro; fly them free while Pro is in the works.</p>
+      <p class="dnote">Checkride maneuvers, emergencies and a night cross-country from the Private Pilot ACS. They'll be part of Zarhart Pro; fly them free while Pro is in the works.</p>
       <div class="lesson-list">${LESSONS.filter((l) => l.pro).map(lessonCard).join("")}</div>
       <h3 class="dsub">Free flight</h3>
       <div class="form"><label>Start <select id="ffStart"><option value="kzarRamp">Zarhart ramp: cold & dark (use the checklists)</option><option value="kzar27">Zarhart runway 27, engine running</option><option value="kzar09">Zarhart runway 09</option><option value="kame36">Earhart Municipal runway 36</option><option value="z19">Electra Field grass 04</option><option value="air">Airborne over the valley, 3,500 ft</option></select></label>
@@ -484,14 +484,16 @@ function renderObjectives() {
   el.hidden = false;
   if (lessons.lesson !== renderObjectives.last) { renderObjectives.last = lessons.lesson; el.classList.toggle("min", innerWidth < 720); }
   el.innerHTML = `<div class="ohead"><span class="ltag">Lesson</span><button class="xbtn" id="oMin" aria-label="Collapse">–</button></div><h3>${esc(st.title)}</h3>
-    <ol class="objs">${st.objectives.map((o) => `<li class="${o.state}">${esc(o.text)}</li>`).join("")}</ol>
+    <ol class="objs">${st.objectives.map((o) => `<li class="${o.state}">${o.state === "now" && st.ask ? `<div>${esc(o.text)}${askForm(st.ask)}</div>` : esc(o.text)}</li>`).join("")}</ol>
     ${st.done ? `<div class="result ${st.failed ? "bad" : "good"}"><b>${st.failed ? "Lesson ended" : "Lesson complete"}</b>${st.failed ? `<p>${esc(st.failed)}</p>` : ""}${st.results.map((r) => `<p>${esc(r)}</p>`).join("")}</div>` : ""}
     <details ${st.done ? "" : "open"}><summary>Tips</summary><ul class="tips">${st.tips.map((t) => `<li>${esc(t)}</li>`).join("")}</ul></details>
     <div class="ofoot"><span class="exams">Exam: ${st.exam.map(examLink).join("")}</span><span><button class="sbtn" id="oRestart">Restart</button> <button class="sbtn" id="oExit">Exit</button></span></div>`;
   $("#oRestart").onclick = () => { lessons.start(st.id); sim.paused = false; };
   $("#oExit").onclick = () => { lessons.stop(); renderObjectives(); };
   $("#oMin").onclick = () => el.classList.toggle("min");
+  const form = $("#oAsk"); if (form) form.onsubmit = (e) => { e.preventDefault(); lessons.answer(Object.fromEntries(st.ask.map((f) => [f.key, +form.elements[f.key].value]))); };
 }
+const askForm = (ask) => `<form class="oask" id="oAsk">${ask.map((f) => `<label>${esc(f.label)}<span><input name="${f.key}" type="number" inputmode="decimal" step="any" min="0" required>${esc(f.unit)}</span></label>`).join("")}<button class="sbtn">Enter</button></form>`;
 let lastObjKey = "";
 function hudUpdate() {
   const d = ac.derived;
@@ -515,6 +517,7 @@ function hudUpdate() {
   const lg = $("#lightgun"); lg.hidden = !sim.lightGun; if (sim.lightGun) lg.innerHTML = `<span class="dot ${sim.lightGun.color} ${sim.lightGun.flash ? "flash" : ""}"></span>${esc(sim.lightGun.text)}`;
   // objectives
   const st = lessons.status(); const key = st ? JSON.stringify([st.objectives.map((o) => o.state), st.done, st.results.length]) : "";
+  if (st?.ask && vr.active) lessons.answer({ skipped: true }); // no keyboard in the headset
   if (key !== lastObjKey) { lastObjKey = key; renderObjectives(); }
   if (openDrawerName === "check") renderDrawer();
   if (openDrawerName === "map") drawBigMap();

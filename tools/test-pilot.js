@@ -312,6 +312,58 @@ PILOTS.nightxc = (z) => {
   };
 };
 
+PILOTS.slip = (z) => {
+  const apx = new AP(); const e27 = endOf(KZAR, "27"); const tan3 = Math.tan(3 * DEG); let land = null, ci = 0;
+  return (ac, d, sim, dt) => {
+    if (land) return land(ac, d, sim, dt, apx);
+    ac.ctl.throttle = 0; ac.flapsSet = 0; ac.eng.carbHeat = true;
+    const { s, c } = rwyFrame(e27, ac.pos.x, ac.pos.z); const h = ac.pos.y - 1.22 - KZAR.elev;
+    if (h < Math.max(0, (210 - s) * tan3) + 15 || h < 70) { land = landing(KZAR, e27, { vref: 65, flaps: 0, aim: 210 }); return; }
+    // forward slip: full right rudder, left bank holds the centreline, pitch holds 65 KIAS
+    const lat = ac.vel.x * Math.cos(e27.hdg * DEG) + ac.vel.z * Math.sin(e27.hdg * DEG); ci = clamp(ci + c * dt, -400, 400);
+    const bank = clamp(-0.06 * c - 3 * lat - 0.01 * ci, -30, 30);
+    apx.attitude(ac, d, clamp(-4 + (d.ias - 65) * 0.8, -14, 6), bank, dt, 1);
+    ac.ctl.aileron = clamp(0.12 * (bank - d.bank) - 0.3, -1, 1); // full rudder needs a lot of opposite aileron
+  };
+};
+
+PILOTS.goaround = (z) => {
+  const apx = new AP(); const e27 = endOf(KZAR, "27"); const land = landing(KZAR, e27, { vref: 65 }); let t = 0;
+  return (ac, d, sim, dt) => {
+    const ls = z.lessons.ls; if (ls.called == null) return land(ac, d, sim, dt, apx);
+    t += dt; ac.ctl.throttle = 1; ac.eng.carbHeat = false; ac.ctl.brake = 0;
+    if (ac.flapsSet > 20) ac.flapsSet = 20;
+    if (ac.flapsSet === 20 && t > 4 && d.ias > 62 && d.vsTrue > 0) { ac.flapsSet = 10; t = 0; }
+    if (ac.flapsSet === 10 && t > 4 && d.ias > 66) ac.flapsSet = 0;
+    const { c } = rwyFrame(e27, ac.pos.x, ac.pos.z);
+    const pitch = ac.flapsSet > 0 ? clamp(6 + (d.ias - 65) * 0.5, 2, 10) : clamp(7 + (d.ias - 74) * 0.6, 3, 12);
+    apx.attitude(ac, d, pitch, apx.bankFor(d, 270 + clamp((130 - c) * 0.1, -20, 20), 15), dt);
+  };
+};
+
+PILOTS.emerdesc = (z) => {
+  const apx = new AP();
+  return (ac, d, sim, dt) => {
+    const idx = z.lessons.idx, ls = z.lessons.ls; ac.elec.master = false;
+    if (idx <= 1 || (idx === 2 && d.altInd > ls.levelFt + 350)) { ac.ctl.throttle = 0; ac.eng.carbHeat = true; apx.attitude(ac, d, clamp(-6 + (d.ias - 120) * 0.5, -25, 5), -40, dt); return; }
+    ac.eng.carbHeat = false;
+    const hdg = idx < 3 ? d.hdg : brg(ac.pos.x, ac.pos.z, Z19.x, Z19.z) + wrap180(d.hdg - d.track);
+    apx.cruise(ac, d, ls.levelFt + (d.altTrue - d.altInd), 100, hdg, dt);
+  };
+};
+
+PILOTS.diversion = (z) => {
+  const apx = new AP(); let est = false;
+  return (ac, d, sim, dt) => {
+    const idx = z.lessons.idx;
+    if (idx >= 1) { ac.elec.lights.landing = false; ac.elec.lights.strobe = false; }
+    const toK = brg(ac.pos.x, ac.pos.z, KAME.x, KAME.z), dK = Math.hypot(ac.pos.x - KAME.x, ac.pos.z - KAME.z) / NM;
+    if (idx === 3 && !est) { est = true; const min = dK / d.gs * 60; z.lessons.answer({ hdg: Math.round(d.hdg), min: Math.round(min), gal: +(min * 8.8 / 60).toFixed(1) }); }
+    if (idx === 4 && !sim.flags.inboundCall) { if (Math.abs(sim.radio.com1 - 122.8) > 0.01) [sim.radio.com1, sim.radio.com1s] = [sim.radio.com1s, sim.radio.com1]; z.radioCall("inbound"); }
+    apx.cruise(ac, d, 4500 + (d.altTrue - d.altInd), 100, idx < 2 ? 180 : toK + wrap180(d.hdg - d.track), dt);
+  };
+};
+
 /** Run one lesson end to end. Returns a summary. */
 export async function runLesson(id, { maxSecs = 900, log = false } = {}) {
   const z = window.__zarhart; z.waitReal = 0;

@@ -43,6 +43,11 @@
 .objs li.done { color: var(--muted); }
 .objs li.done::before { content: "✓"; color: #08130c; background: var(--green); border-color: var(--green); }
 .objs li.failed::before { content: "✕"; background: var(--red); border-color: var(--red); color: #fff; }
+.oask { margin-top: 10px; display: flex; flex-wrap: wrap; align-items: end; gap: 8px; }
+.oask label { display: grid; gap: 4px; font-size: 12px; color: var(--muted); }
+.oask label span { display: flex; align-items: center; gap: 4px; color: var(--text); }
+.oask input { width: 64px; padding: 8px; border-radius: 3px; border: 1px solid var(--line-2); background: var(--panel-2); color: var(--text); font: 500 14px var(--f-mono); }
+.oask input:focus { outline: 2px solid var(--magenta); outline-offset: 1px; }
 .obj details { margin-top: 10px; } .obj summary { cursor: pointer; color: var(--text); font-weight: 500; }
 .tips { padding-left: 18px; margin: 6px 0 0; color: var(--muted); display: grid; gap: 4px; }
 .result { margin-top: 10px; padding: 10px 12px; border-radius: 3px; background: var(--panel-2); border-left: 4px solid var(--green); display: grid; gap: 4px; }

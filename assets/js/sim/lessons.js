@@ -4,6 +4,7 @@ import { AIRPORTS, NAVAIDS, rectDist, heightAt } from "./world-data.js";
 import { FT, KT } from "./fdm.js";
 import { PRESETS } from "./weather.js";
 import { wrap180 } from "./nav.js";
+import { buildAirplane } from "./plane3d.js";
 
 const DEG = Math.PI / 180, NM = 1852;
 const [KZAR, KAME, Z19] = AIRPORTS;
@@ -349,6 +350,118 @@ export const LESSONS = [
       { text: "Find the field by its white-and-green beacon and land on runway 27", check: (sim) => landedOn(sim, KZAR, "27"), fail: offRunway(KZAR), result: (ls, sim) => touchdownReport(sim, KZAR, "27") },
     ],
   },
+  {
+    id: "slip", pro: true, title: "Forward slip to a landing", tag: "Takeoffs & landings", time: "4 min", level: 3,
+    summary: "Short final to runway 27 with the flaps up, and you're twice as high as you should be. Power to idle and slip: left wing down, right rudder. Lose the height without gaining speed, straighten out before the flare and land just past the orange bar.",
+    exam: ["e40", "t23"],
+    tips: ["Lower the upwind wing (the wind is from 230°, so the left) and hold opposite rudder (E): the nose points right of the runway. Use the bank to stay over the centreline and the rudder to set how fast you come down.", "Pitch for 65 KIAS the whole way. To come out of the slip, level the wings and center the rudder together, at least 100 ft above the runway, then keep just enough left wing down for the crosswind.", "Some 172s carry a placard, 'Avoid slips with flaps extended', so this lesson keeps the flaps up. ACS: touch down on the point or within 400 ft beyond it, with no drift and the nose along the centreline."],
+    setup(sim, ls) {
+      sim.setWeather({ ...PRESETS.clear, windDir: 230, windKt: 8, gustKt: 0 }); sim.setTime(16.5);
+      const sp = onFinal(KZAR, "27", 1.4, 65, 0); sp.altFt = KZAR.elevFt + 1000; sim.spawn(sp); // the 3° path is about 480 ft here
+      sim.ac.ctl.throttle = 0.2; sim.ac.ctl.trim = 0.2; sim.ac.eng.carbHeat = true;
+      ls.e = end(KZAR, "27"); const g = new THREE.Group(); aimBar(g, ls.e, AIM_M); sim.scene.add(g); ls.props = g;
+    },
+    tick(sim, ls, dt) {
+      const d = sim.d, b = d.beta || 0;
+      if (d.onGround) return;
+      if (b < -8) { ls.slipT = (ls.slipT || 0) + dt; ls.sink = (ls.sink || 0) + d.vsTrue * dt; ls.betaMax = Math.max(ls.betaMax || 0, -b); ls.iasMin = Math.min(ls.iasMin ?? 999, d.ias); ls.iasMax = Math.max(ls.iasMax || 0, d.ias); ls.slipping = true; }
+      else if (ls.slipping && Math.abs(b) < 4) { ls.slipping = false; ls.outAgl = d.agl; }
+      ls.wrongT = b > 8 ? (ls.wrongT || 0) + dt : 0;
+      if (ls.wrongT > 3 && !ls.warned) { ls.warned = true; sim.say("That slip has the right wing down. Slip into the wind: left wing down, right rudder.", "tip"); }
+    },
+    cleanup(sim, ls) { removeProps(sim, ls); },
+    objectives: [
+      { text: "Throttle to idle, flaps up, then slip: left wing down, right rudder (E), nose pointed right of the runway", check(sim, ls, dt) { const ok = sim.ac.ctl.throttle < 0.1 && sim.ac.flapsSet === 0 && sim.d.beta < -8; ls.s1 = ok ? (ls.s1 || 0) + dt : 0; return ls.s1 > 4; } },
+      { text: "Hold the slip down to a normal glidepath, then straighten out (wings level, rudder centred) by 100 ft above the ground", check(sim, ls, dt) { const ok = sim.d.agl < 400 && Math.abs(sim.d.beta) < 4; ls.s2 = ok ? (ls.s2 || 0) + dt : 0; return ls.s2 > 2; }, fail: (sim) => (sim.d.agl < 40 && Math.abs(sim.d.beta) > 8 ? "Still slipping in the flare: you'd touch down moving sideways and load the landing gear from the side. Straighten the nose with rudder before the flare." : null), result: (ls) => `Slipped for ${Math.round(ls.slipT || 0)} s at up to ${Math.round(ls.betaMax || 0)}° of sideslip, sinking about ${Math.round(-(ls.sink || 0) / (ls.slipT || 1)).toLocaleString()} fpm (about 600 fpm without the slip). Airspeed ${Math.round(ls.iasMin ?? 0)}–${Math.round(ls.iasMax || 0)} KIAS (aim for 65). Straightened out ${Math.round(ls.outAgl ?? 0)} ft above the ground.` },
+      { text: "Touch down on the orange bar or within 400 ft beyond it, nose along the centreline", fail: offRunway(KZAR), check(sim, ls) { if (landedOn(sim, KZAR, "27")) { const td = sim.lastTouchdown; ls.tdS = distFromThreshold(ls.e, td.x, td.z); ls.align = Math.abs(wrap180(sim.d.hdg - 270)); return true; } }, result: (ls, sim) => { const off = Math.round((ls.tdS - AIM_M) / FT); const where = off >= 0 && off <= 400 ? `${off} ft beyond the bar: that meets the ACS standard (on it or within 400 ft beyond)` : off < 0 ? `${-off} ft short of the bar (the ACS standard is on it or within 400 ft beyond)` : `${off} ft beyond the bar (the ACS standard is within 400 ft)`; return `${touchdownReport(sim, KZAR, "27")} You touched down ${where}, nose ${Math.round(ls.align)}° off the runway heading.`; } },
+      { text: "Slow to taxi speed on the runway", check: (sim) => sim.d.onGround && sim.d.gs < 8 },
+    ],
+  },
+  {
+    id: "goaround", pro: true, title: "Go-around", tag: "Takeoffs & landings", time: "4 min", level: 2,
+    summary: "A normal final to runway 27 with full flaps, until an airplane taxis onto the runway and the tower tells you to go around. Full power, pitch up, clean up the flaps in stages, sidestep the runway and climb at Vy.",
+    exam: ["t16", "t24"],
+    tips: ["Power first: full throttle and carb heat off, pitch up to stop the descent, then flaps to 20 right away. The last 10° of flap is mostly drag.", "Once you're climbing and above 60 KIAS, take the flaps up in stages (10, then 0), letting the nose come down a little each time so the airplane doesn't sink.", "Sidestep to the right of the runway so the traffic stays in view out your left window, and tell the tower you're going around. ACS: Vy +10/−5 kt to a safe altitude."],
+    setup(sim, ls) {
+      sim.setWeather({ ...PRESETS.clear, windDir: 270, windKt: 6, gustKt: 0 }); sim.setTime(10.5);
+      sim.spawn(onFinal(KZAR, "27", 2.2, 65, 30)); sim.ac.ctl.throttle = 0.3; sim.ac.ctl.trim = 0.4; sim.ac.eng.carbHeat = true;
+      sim.radio.com1 = KZAR.freqs.twr; sim.flags.dContact = true; ls.e = end(KZAR, "27");
+      sim.radioLog("Zarhart Tower", `${sim.callsign}, runway 27, cleared to land.`);
+      trafficSetup(sim, ls);
+    },
+    tick(sim, ls, dt) {
+      const d = sim.d, s = distFromThreshold(ls.e, sim.ac.pos.x, sim.ac.pos.z);
+      if (ls.moveT == null && s > -2100) ls.moveT = sim.t;
+      if (ls.moveT != null) trafficTaxi(ls, (sim.t - ls.moveT) / 14);
+      if (ls.called == null && (s > -1700 || d.agl < 320)) { ls.called = sim.t; sim.radioLog("Zarhart Tower", `${sim.callsign}, go around, traffic on the runway.`); }
+      if (ls.called == null) return;
+      ls.minAgl = Math.min(ls.minAgl ?? Infinity, d.agl);
+      if (ls.tPower == null && sim.ac.ctl.throttle > 0.9) ls.tPower = sim.t - ls.called;
+      if (ls.prevFlaps != null && sim.ac.flapsSet < ls.prevFlaps && sim.ac.flapsSet <= 10 && d.ias < 58) ls.earlyFlaps = true;
+      ls.prevFlaps = sim.ac.flapsSet;
+      ls.right = Math.max(ls.right || 0, centerOffset(ls.e, sim.ac.pos.x, sim.ac.pos.z));
+      if (ls.clean) { ls.climbT = (ls.climbT || 0) + dt; if (d.ias >= 69 && d.ias <= 84) ls.vyT = (ls.vyT || 0) + dt; }
+    },
+    cleanup(sim, ls) { removeProps(sim, ls); },
+    objectives: [
+      { text: "Fly a stable final to runway 27, flaps 30 at 65 KIAS, and listen to the tower", check: (sim, ls) => ls.called != null },
+      { text: "Go around: full power, carb heat off, pitch up to climb, flaps 20", check: (sim) => sim.ac.ctl.throttle > 0.9 && !sim.ac.eng.carbHeat && sim.ac.flapsSet <= 20 && sim.d.vsTrue > 150, fail: (sim) => (sim.lastTouchdown && !sim.lastTouchdown.used ? "You landed with traffic on the runway. When the tower says go around, go around: full power right away." : null) },
+      { text: "Climbing above 60 KIAS: flaps to 10, then up", check(sim, ls) { if (sim.ac.flapsSet === 0 && sim.d.vsTrue > 0) { ls.clean = true; ls.cleanAgl = sim.d.agl; return true; } }, result: (ls) => `Full power ${(ls.tPower ?? 0).toFixed(1)} s after the call; the lowest you got was ${Math.round(ls.minAgl)} ft above the ground. Flaps up at ${Math.round(ls.cleanAgl)} ft${ls.earlyFlaps ? ", but you took them up below 58 KIAS: wait for the speed or the airplane sinks" : ""}.` },
+      { text: "Sidestep to the right of the runway and climb at Vy, 74 KIAS (+10/−5), to 1,000 ft above the field", check: (sim) => sim.d.altInd > KZAR.elevFt + 970, result: (ls) => `Vy (69–84 KIAS) ${Math.round(100 * (ls.vyT || 0) / (ls.climbT || 1))}% of the climb. Sidestepped ${Math.round(ls.right / FT)} ft right of the centreline${ls.right < 30 ? ": move further to the side so the traffic below stays in view" : ""}.` },
+    ],
+  },
+  {
+    id: "emerdesc", pro: true, title: "Emergency descent", tag: "Emergencies", time: "4 min", level: 3,
+    summary: "Smoke from behind the panel at 5,500 ft: an electrical fire. Master switch off, then get down fast: idle, 30–45° of bank and a high airspeed. Level off at 2,500 ft and head for the nearest airport.",
+    exam: ["e44", "t34", "e38"],
+    tips: ["Electrical fire in flight (POH): master switch off, all other switches except the ignition off, vents closed, extinguisher if you have one, and land as soon as possible.", "Emergency descent: throttle idle, carb heat on, roll into 30–45° of bank and lower the nose. The bank keeps the load factor positive and lets you see what's below. Stay below Vno (127 KIAS, top of the green arc) unless the air is smooth, and never pass Vne (158, the red line).", "Start the level-off about 10% of your descent rate early: at 2,000 fpm, 200 ft above 2,500. ACS: 30–45° of bank, the right airspeed and configuration, and a smooth recovery."],
+    setup(sim, ls) {
+      sim.setWeather({ ...PRESETS.clear, windDir: 300, windKt: 8, gustKt: 0 }); sim.setTime(13);
+      sim.spawn({ x: -14000, z: 14000, hdg: 0, onGround: false, altFt: 5500, kias: 105 }); sim.ac.ctl.throttle = 0.66; sim.ac.ctl.trim = 0.05;
+      ls.levelFt = 2500;
+    },
+    tick(sim, ls, dt) {
+      if (!ls.desc || ls.level) return;
+      const d = sim.d; ls.descT = (ls.descT || 0) + dt;
+      ls.iasMax = Math.max(ls.iasMax || 0, d.ias); ls.altMin = Math.min(ls.altMin ?? Infinity, d.altInd);
+      if (d.altInd > ls.levelFt + 400) { ls.bankMin = Math.min(ls.bankMin ?? 90, Math.abs(d.bank)); ls.bankMax = Math.max(ls.bankMax || 0, Math.abs(d.bank)); }
+    },
+    objectives: [
+      { text: "Smoke from behind the panel: an electrical fire. Master switch OFF (Aircraft → Switches)", check: (sim) => !sim.ac.elec.master },
+      { text: "Emergency descent: throttle idle, carb heat on, roll into a 30–45° bank and lower the nose", check(sim, ls, dt) { const b = Math.abs(sim.d.bank); const ok = sim.ac.ctl.throttle < 0.1 && sim.ac.eng.carbHeat && b > 28 && b < 48 && sim.d.vsi < -1000; ls.s2 = ok ? (ls.s2 || 0) + dt : 0; if (ls.s2 > 3) { ls.desc = true; ls.alt0 = sim.d.altInd; return true; } }, fail: descentFail },
+      { text: "Descend at 100–127 KIAS in the bank, then roll out and level off at 2,500 ft (±100)", check(sim, ls, dt) { const ok = Math.abs(sim.d.altInd - ls.levelFt) < 100 && Math.abs(sim.d.bank) < 10 && Math.abs(sim.d.vsi) < 400; ls.s3 = ok ? (ls.s3 || 0) + dt : 0; if (ls.s3 > 3) { ls.level = true; return true; } }, fail: (sim, ls) => descentFail(sim) || (sim.d.altInd < ls.levelFt - 300 ? "You descended 300 ft below 2,500. Start the level-off about 10% of the descent rate early." : null), result: (ls) => `Descended ${Math.round(ls.alt0 - ls.levelFt).toLocaleString()} ft in ${Math.round(ls.descT)} s: about ${Math.round((ls.alt0 - ls.levelFt) / ls.descT * 60).toLocaleString()} fpm. Fastest ${Math.round(ls.iasMax)} KIAS (Vno 127, Vne 158). Bank ${Math.round(ls.bankMin)}–${Math.round(ls.bankMax)}° (ACS 30–45°). Lowest altitude ${Math.round(ls.altMin).toLocaleString()} ft.` },
+      { text: "Head for the nearest airport, Electra Field (Z19): roll out on its bearing (±15°)", check(sim, ls, dt) { const ok = Math.abs(wrap180(sim.d.track - bearing(sim, Z19))) < 15 && Math.abs(sim.d.bank) < 10; ls.s4 = ok ? (ls.s4 || 0) + dt : 0; return ls.s4 > 3; }, result: (ls, sim) => `Electra Field is ${nmTo(sim, Z19.x, Z19.z).toFixed(1)} NM ahead: land as soon as possible. With the master off, the radios and transponder are off too; the POH lets you turn it back on only if the fire is out and you need the power.` },
+    ],
+  },
+  {
+    id: "diversion", pro: true, title: "Diversion: alternator failure", tag: "Navigation", time: "6 min", level: 3,
+    summary: "Southbound at 4,500 ft over the farmland south of the valley, the alternator quits. Shed electrical load, divert promptly to the nearest airport, estimate your heading, time and fuel, and hold altitude and heading on the way.",
+    exam: ["p44", "e56", "e57", "e14"],
+    tips: ["Ammeter showing a discharge and the VOLTS light on: the alternator has failed and the battery is carrying everything. Turn off what you don't need (landing light, strobes) and land as soon as practical.", "Divert first, then work it out. Use the map (M) for the course and distance; time = distance ÷ groundspeed × 60 (groundspeed is on the DME box); fuel = time × about 9 gal/hr.", "ACS: divert promptly, make an accurate estimate of heading, groundspeed, time and fuel, and hold altitude ±200 ft and heading ±15°."],
+    setup(sim, ls) {
+      sim.setWeather({ ...PRESETS.clear, windDir: 300, windKt: 10, gustKt: 0 }); sim.setTime(11);
+      sim.spawn({ x: 4000, z: 21000, hdg: 180, onGround: false, altFt: 4500, kias: 100 }); sim.ac.ctl.throttle = 0.66; sim.ac.ctl.trim = 0.05;
+      sim.radio.com1 = 121.5; sim.radio.com1s = KAME.freqs.ctaf;
+    },
+    tick(sim, ls, dt) {
+      const d = sim.d;
+      if (ls.failed == null && sim.t - ls.t0 > 15) { ls.failed = sim.t; sim.ac.failures.alternator = true; sim.say("The ammeter shows a discharge and the VOLTS light is on.", "warn"); }
+      if (ls.failed != null && ls.diverted == null && sim.t - ls.failed > 75 && !ls.hinted) { ls.hinted = true; sim.say(`Hint: the nearest airport is Earhart Municipal (KAME), ${nmTo(sim, KAME.x, KAME.z).toFixed(0)} NM to the northeast.`, "tip"); }
+      if (ls.est && !ls.arrived) {
+        ls.sx = (ls.sx || 0) + Math.sin(d.hdg * DEG) * dt; ls.cx = (ls.cx || 0) + Math.cos(d.hdg * DEG) * dt;
+        ls.altDev = Math.max(ls.altDev || 0, Math.abs(d.altInd - 4500));
+        ls.hdgDev = Math.max(ls.hdgDev || 0, Math.abs(wrap180(d.track - bearing(sim, KAME))));
+      }
+    },
+    objectives: [
+      { text: "Cruise south at 4,500 ft and scan the engine and electrical gauges", check: (sim, ls) => ls.failed != null },
+      { text: "Alternator failure: shed electrical load. Landing light and strobes off (Aircraft → Switches)", check: (sim) => !sim.ac.elec.lights.landing && !sim.ac.elec.lights.strobe },
+      { text: "Divert promptly to the nearest airport: find it on the map (M) and turn toward it", check(sim, ls, dt) { const ok = Math.abs(wrap180(sim.d.track - bearing(sim, KAME))) < 15; ls.s3 = ok ? (ls.s3 || 0) + dt : 0; if (ls.s3 > 3) { ls.diverted = sim.t - ls.failed; return true; } } },
+      { text: "Estimate your heading, time and fuel to Earhart Municipal (KAME) and enter them below", ask: [{ key: "hdg", label: "Heading", unit: "°" }, { key: "min", label: "Time", unit: "min" }, { key: "gal", label: "Fuel", unit: "gal" }], check(sim, ls) { if (ls.answers) { ls.est = { ...ls.answers, t: sim.t, fuel: sim.d.fuelL + sim.d.fuelR }; return true; } } },
+      { text: "Self-announce on the KAME CTAF, 122.8 (Radio → Self-announce)", check: (sim) => sim.flags.inboundCall && Math.abs(sim.radio.com1 - KAME.freqs.ctaf) < 0.01 },
+      { text: "Fly to within 4 NM of KAME at 4,500 ft (±200) and on course (±15°)", check(sim, ls) { if (nmTo(sim, KAME.x, KAME.z) < 4) { ls.arrived = true; return true; } }, result: (ls, sim) => diversionReport(sim, ls) },
+    ],
+  },
 ];
 
 /* ---- short-field landing: a 50-ft tree line before runway 27 and an orange aiming bar ---- */
@@ -361,10 +474,15 @@ function shortSetup(sim, ls) {
     const t = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.7, 4, 6), trunk); t.position.set(x, y + 2, z); g.add(t);
     const k = new THREE.Mesh(new THREE.ConeGeometry(4.2, TREE_H - 3, 8), leaf); k.position.set(x, y + 3 + (TREE_H - 3) / 2, z); g.add(k);
   }
-  const bar = new THREE.Mesh(new THREE.PlaneGeometry(30, 4), new THREE.MeshBasicMaterial({ color: 0xff7a1a, polygonOffset: true, polygonOffsetFactor: -4 }));
-  bar.rotation.x = -Math.PI / 2; bar.rotation.z = -h; bar.position.set(e.x + fx * AIM_M, KZAR.elev + 0.08, e.z + fz * AIM_M); g.add(bar);
-  for (const s of [-1, 1]) { const cone = new THREE.Mesh(new THREE.ConeGeometry(0.6, 1.4, 10), new THREE.MeshLambertMaterial({ color: 0xff7a1a })); cone.position.set(e.x + fx * AIM_M + px * s * 19, KZAR.elev + 0.7, e.z + fz * AIM_M + pz * s * 19); g.add(cone); }
+  aimBar(g, e, AIM_M);
   sim.scene.add(g); ls.props = g; ls.e = e;
+}
+/** an orange bar across the runway `s` metres past the threshold of end `e`, with a cone at each side */
+function aimBar(g, e, s) {
+  const h = e.hdg * DEG; const fx = Math.sin(h), fz = -Math.cos(h), px = Math.cos(h), pz = Math.sin(h);
+  const bar = new THREE.Mesh(new THREE.PlaneGeometry(30, 4), new THREE.MeshBasicMaterial({ color: 0xff7a1a, polygonOffset: true, polygonOffsetFactor: -4 }));
+  bar.rotation.x = -Math.PI / 2; bar.rotation.z = -h; bar.position.set(e.x + fx * s, KZAR.elev + 0.08, e.z + fz * s); g.add(bar);
+  for (const k of [-1, 1]) { const cone = new THREE.Mesh(new THREE.ConeGeometry(0.6, 1.4, 10), new THREE.MeshLambertMaterial({ color: 0xff7a1a })); cone.position.set(e.x + fx * s + px * k * 19, KZAR.elev + 0.7, e.z + fz * s + pz * k * 19); g.add(cone); }
 }
 function shortTick(sim, ls) {
   if (ls.passed) return;
@@ -501,6 +619,36 @@ function sTurnFail(sim, ls, want, key) {
   return null;
 }
 
+/* ---- go-around: a Piper taxis from A6 onto the threshold of runway 27 ---- */
+function trafficSetup(sim, ls) {
+  const p = buildAirplane({ reg: "N4428P", stripe: 0x2f7fd0, simple: true });
+  sim.scene.add(p); ls.props = p; trafficTaxi(ls, 0);
+}
+/** u: 0 holding short on A6, 1 lined up on the runway */
+function trafficTaxi(ls, u) {
+  const p = ls.props; if (!p) return; u = Math.min(1, Math.max(0, u));
+  let x = 745, z = -85, hdg = 180;
+  if (u < 0.6) z = -85 + (u / 0.6) * 70;
+  else { const v = (u - 0.6) / 0.4; hdg = 180 + 90 * v; x = 745 - 30 * v; z = -15 + 15 * v; }
+  p.position.set(x, KZAR.elev + 1.22, z); p.rotation.y = -hdg * DEG;
+}
+
+/* ---- emergency descent and diversion ---- */
+function descentFail(sim) {
+  if (sim.d.ias > 158) return "You passed Vne (158 KIAS, the red line). In an emergency descent, stay below Vno (127) unless the air is smooth.";
+  if (Math.abs(sim.d.bank) > 60) return "More than 60° of bank. Keep it between 30° and 45°: any steeper and the nose drops while the load factor climbs.";
+  return null;
+}
+function bearing(sim, ap) { return (Math.atan2(ap.x - sim.ac.pos.x, -(ap.z - sim.ac.pos.z)) / DEG + 360) % 360; }
+function pad3(h) { return String(Math.round(h) % 360).padStart(3, "0"); }
+function diversionReport(sim, ls) {
+  const e = ls.est, gs = Math.max(30, sim.d.gs), restMin = nmTo(sim, KAME.x, KAME.z) / gs * 60;
+  const min = (sim.t - e.t) / 60 + restMin, gal = e.fuel - (sim.d.fuelL + sim.d.fuelR) + (sim.d.fuelFlow || 9) * restMin / 60;
+  const flown = `heading ${pad3((Math.atan2(ls.sx || 0, ls.cx || 1) / DEG + 360) % 360)}°, ${Math.round(min)} min, ${gal.toFixed(1)} gal`;
+  const lead = `Diverted ${Math.round(ls.diverted)} s after the alternator failed. Altitude within ${Math.round(ls.altDev || 0)} ft (ACS ±200), course within ${Math.round(ls.hdgDev || 0)}° (ACS ±15).`;
+  return e.skipped ? `${lead} Actual, projected to the field: ${flown}.` : `${lead} Your estimate: heading ${pad3(e.hdg)}°, ${e.min} min, ${e.gal} gal. Actual, projected to the field: ${flown}.`;
+}
+
 /* ---------------- runner ---------------- */
 export class LessonRunner {
   constructor(sim) { this.sim = sim; this.lesson = null; }
@@ -528,8 +676,10 @@ export class LessonRunner {
     }
   }
   consumeTouchdown() { if (this.sim.lastTouchdown) this.sim.lastTouchdown.used = true; }
+  /** answers for the current objective's `ask` form, e.g. { hdg: 40, min: 6, gal: 0.9 } (or { skipped: true }) */
+  answer(vals) { if (this.lesson && !this.done) this.ls.answers = vals; }
   status() {
     const L = this.lesson; if (!L) return null;
-    return { id: L.id, title: L.title, exam: L.exam, tips: L.tips, done: this.done, failed: this.failed, results: this.results, objectives: L.objectives.map((o, i) => ({ text: o.text, state: i < this.idx ? "done" : i === this.idx && !this.done ? "now" : this.failed && i === this.idx ? "failed" : "todo" })) };
+    return { id: L.id, title: L.title, exam: L.exam, tips: L.tips, done: this.done, failed: this.failed, results: this.results, ask: this.done ? null : L.objectives[this.idx].ask || null, objectives: L.objectives.map((o, i) => ({ text: o.text, state: i < this.idx ? "done" : i === this.idx && !this.done ? "now" : this.failed && i === this.idx ? "failed" : "todo" })) };
   }
 }

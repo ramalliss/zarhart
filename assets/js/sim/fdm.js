@@ -569,7 +569,7 @@ export class Aircraft {
       pressAlt: altimeterAlt(Pst, 101325) / FT, densAlt: densityAlt(atm.rho) / FT,
       vsi: inst.vsiFpm, vsTrue: this.vel.y / FT * 60,
       tc: inst.tc, ball: inst.ball, g: gLoad,
-      aoa: a.alpha / DEG, aStall: a.aStall / DEG, stallWarn: !this.onGround && a.alpha > a.aStall - 6 * DEG && a.ias > 8 && this.powered,
+      aoa: a.alpha / DEG, beta: a.beta / DEG, aStall: a.aStall / DEG, stallWarn: !this.onGround && a.alpha > a.aStall - 6 * DEG && a.ias > 8 && this.powered,
       stalled: (a.stallFrac || 0) > 0.3 && !this.onGround,
       rpm: this.eng.rpm, fuelL: this.eng.fuelL, fuelR: this.eng.fuelR, fuelFlow: this.eng.fuelFlow,
       oilT: this.eng.oilT, oilP: this.eng.running ? 0.55 + 0.25 * this.eng.rpm / 2700 : 0.02, suction: this.suction || 0,
