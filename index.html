@@ -167,6 +167,9 @@
   .cert div + div { padding-left: 0; border-left: 0; border-top: 1px solid var(--line); }
 }
 </style>
+<link rel="manifest" href="assets/site.webmanifest">
+<link rel="apple-touch-icon" href="assets/img/icons/apple-touch-icon.png">
+<script type="module" src="assets/js/pwa.js"></script>
 </head>
 <body>
 <header class="topnav over" id="nav"><div class="wrap">
@@ -182,7 +185,8 @@
       <p class="eyebrow">Flight simulator · FAA written-test prep</p>
       <h1 id="heroTitle">Learn to fly before you fly.</h1>
       <p class="lede">A C172-class simulator and Private Pilot written-test prep in one place. Fly a maneuver, then study the exact questions it teaches. Free, in your browser.</p>
-      <div class="cta"><a class="btn primary" href="sim/">Launch the simulator</a><a class="btn" href="prep/">Start test prep</a></div>
+      <div class="cta"><a class="btn primary" href="sim/">Launch the simulator</a><a class="btn" href="prep/">Start test prep</a><button class="btn web-only" type="button" data-install hidden>Install the app</button></div>
+      <p class="install-hint web-only" data-install-ios hidden>On iPhone or iPad, put Zarhart on your Home Screen: tap Share, then <b>Add to Home Screen</b>. It opens full screen and works offline.</p>
     </div>
     <p class="caption">Rendered live in the simulator</p>
   </section>

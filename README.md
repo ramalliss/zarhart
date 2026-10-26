@@ -22,6 +22,10 @@ Created by **Sophia Ramalli**, a student pilot who built it while studying for t
 
 `↑/↓` pitch · `←/→` roll · `Q/E` rudder · `R/F` throttle · `[ ]` flaps · `T/G` trim · `B` brakes · `Shift+B` parking brake · `H` carb heat · `C` view · `I` panel · `M` map · `K` checklist · `U` flight assist · `Space` mic click · `P` pause. Gamepads, joysticks and touch work too. Flight assist starts in **Assisted** (let go of the controls and the airplane holds its pitch and bank, with auto-trim and auto-rudder); `U` switches to **Auto-rudder** only or full **Manual** to practise coordination.
 
+## Install it on a phone
+
+The site is an installable web app. On iPhone or iPad, open it in Safari and tap **Share → Add to Home Screen**; on Android or desktop Chrome and Edge, use **Install the app** on the home page (or Install in the browser menu). It opens full screen, and pages you've visited work offline (`sw.js`, network first, so online visitors always get the latest version).
+
 ## VR (Meta Quest)
 
 Open the simulator in the Quest's built-in browser and tap **Fly in VR** (or **VR** in the toolbar). It's a seated cockpit view through WebXR: the instruments are on the dashboard, lesson objectives and radio calls are on a strip on the glareshield, and the controllers fly the airplane:

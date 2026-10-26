@@ -76,6 +76,8 @@ p { margin: 0; }
 .btn.ghost { border-color: transparent; padding-inline: 4px; }
 .btn.ghost:hover { background: transparent; color: #fff; border-color: transparent; text-decoration: underline; text-decoration-color: var(--magenta); text-underline-offset: 6px; }
 .btn.sm { padding: 11px 16px; font-size: 12px; }
+.install-hint { margin-top: 14px; font-size: 14px; color: var(--muted); max-width: 52ch; }
+.install-hint b { color: var(--text); font-weight: 600; }
 .btn small { font: 500 12px var(--f-mono); letter-spacing: 0; text-transform: none; opacity: .8; }
 .btn[disabled], .btn[aria-disabled="true"] { opacity: .45; cursor: not-allowed; background: transparent; color: #fff; border-color: rgba(255, 255, 255, .4); }
 .more { display: inline-flex; align-items: center; gap: 10px; font: 600 13px/1 var(--f-body); letter-spacing: .16em; text-transform: uppercase; color: #fff; text-decoration: none; padding: 6px 0; border-bottom: 1px solid var(--line-2); }

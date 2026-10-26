@@ -1,0 +1,21 @@
+{
+  "name": "Zarhart: Flight Sim & FAA Prep",
+  "short_name": "Zarhart",
+  "description": "A flight simulator and FAA Private Pilot written-test prep. Fly exam-linked lessons and study 175 practice questions.",
+  "id": "../",
+  "start_url": "../",
+  "scope": "../",
+  "display": "standalone",
+  "background_color": "#070b10",
+  "theme_color": "#070b10",
+  "categories": ["education"],
+  "icons": [
+    { "src": "img/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "img/icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "img/icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Fly a lesson", "url": "../sim/", "icons": [{ "src": "img/icons/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Study for the written test", "url": "../prep/", "icons": [{ "src": "img/icons/icon-192.png", "sizes": "192x192" }] }
+  ]
+}
