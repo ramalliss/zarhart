@@ -104,7 +104,8 @@ export function drawMap(g, x, y, w, h, o) {
     if (o.rangeNm <= 30) {
       const longest = Math.max(...ap.runways.map((q) => q.len)) / FT;
       const l1 = `${ap.name.toUpperCase()} (${ap.id})`;
-      const l2 = ap.towered ? `CT – ${ap.freqs.twr} ★  ATIS ${ap.freqs.atis}` : `${ap.freqs.ctaf} ⓒ${ap.freqs.awos ? `  AWOS ${ap.freqs.awos}` : ""}`;
+      const mhz = (f) => (Number.isInteger(f * 10) ? f.toFixed(1) : String(f)); // 123 → "123.0", 122.725 stays
+      const l2 = ap.towered ? `CT – ${mhz(ap.freqs.twr)} ★  ATIS ${mhz(ap.freqs.atis)}` : `${mhz(ap.freqs.ctaf)} ⓒ${ap.freqs.awos ? `  AWOS ${mhz(ap.freqs.awos)}` : ""}`;
       const l3 = `${ap.elevFt}  ${ap.runways.some((q) => q.lights) ? "L" : ""} ${Math.round(longest / 100)}`;
       g.fillStyle = col; g.font = font(12, 700); g.fillText(l1, a + 14, b - 10); g.font = font(11, 600); g.fillText(l2, a + 14, b + 3); g.fillText(l3, a + 14, b + 16);
     }

@@ -699,7 +699,7 @@ export class World {
     if (env.inCloud > 0.05) { const c = new THREE.Color(0xcfd4da).multiplyScalar(0.25 + 0.75 * day); this.scene.fog.color.copy(c); this.scene.fog.near = 2; this.scene.fog.far = 60 + 400 * (1 - env.inCloud); }
     else { this.scene.fog.color.copy(fc); this.scene.fog.near = Math.min(800, visM * 0.05); this.scene.fog.far = visM * 1.25; }
     this.renderer.setClearColor(this.scene.fog.color);
-    this.sky.visible = env.inCloud < 0.5;
+    this.sky.visible = env.inCloud < 0.5 && gloom < 0.5; // under a low overcast in rain there's no blue sky at the horizon, just grey
     this.updateEnvMap(env.hour);
     if (this.clouds) this.clouds.setLight(new THREE.Color().copy(warm).multiplyScalar(0.25 + 0.75 * day).lerp(new THREE.Color(1, 1, 1), 0.4 * day), new THREE.Color(0.55, 0.6, 0.68).multiplyScalar(0.2 + 0.8 * day));
   }

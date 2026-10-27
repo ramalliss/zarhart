@@ -271,13 +271,15 @@ export class Aircraft {
   /* ---- systems helpers ---- */
   emit(type, msg) { this.events.push({ type, msg, t: this.t }); }
 
+  /** best-power mixture setting (0–1) at a density: it drops as density altitude rises */
+  bestMixture(atm = atmosphere(this.pos.y, this.qnh(), this.isaDev())) { return clamp(1 - 0.035 * (densityAlt(atm.rho) / FT / 1000), 0.35, 1); }
+
   enginePower(atm, ias) {
     const e = this.eng, ac = this.ac;
     if (!e.running) return 0;
-    const da = densityAlt(atm.rho);
-    const best = clamp(1 - 0.035 * (da / FT / 1000), 0.35, 1); // best-power mixture setting drops with altitude
+    const best = this.bestMixture(atm);
     const mixDev = e.mixture - best;
-    let mixF = mixDev >= 0 ? 1 - 0.55 * mixDev * mixDev : 1 - 2.2 * mixDev * mixDev;
+    let mixF = mixDev >= 0 ? 1 - 1.2 * mixDev * mixDev : 1 - 2.2 * mixDev * mixDev; // too rich up high costs real power
     if (e.mixture < 0.08 || mixDev < -0.42) mixF = 0;
     const lapse = clamp((atm.sigma - 0.117) / 0.883, 0, 1.2);
     const thr = 0.035 + 0.965 * this.ctl.throttle;

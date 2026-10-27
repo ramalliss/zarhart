@@ -7,7 +7,7 @@ import { wrap180 } from "./nav.js";
 import { buildAirplane } from "./plane3d.js";
 
 const DEG = Math.PI / 180, NM = 1852;
-const [KZAR, KAME, Z19] = AIRPORTS;
+const [KZAR, KAME, Z19, Z40, KSRH] = AIRPORTS;
 const ZRH = NAVAIDS[0];
 const end = (ap, id) => { for (const r of ap.runways) for (const e of r.ends) if (e.id === id) return { ...e, rwy: r }; return null; };
 /** spawn on final: distNm from the threshold of runway `id`, on a 3° path */
@@ -259,7 +259,7 @@ export const LESSONS = [
       {
         text: "Remove the frost from the wings first: Aircraft → Remove the frost",
         check: (sim) => sim.ac.frost === 0,
-        fail: (sim) => (!sim.d.onGround && sim.ac.frost > 0 ? "You took off with frost on the wings. Frost raises the stall speed and can keep the airplane from flying: always remove it first." : null),
+        fail: (sim) => (!sim.d.onGround && sim.d.ias > 30 && sim.ac.frost > 0 ? "You took off with frost on the wings. Frost raises the stall speed and can keep the airplane from flying: always remove it first." : null),
       },
       {
         text: "Take off on the snow: release the parking brake, full power, back pressure, and lift off as soon as it flies",
@@ -327,6 +327,65 @@ export const LESSONS = [
         fail: (sim) => (sim.d.onGround && sim.d.gs > 3 && !onRunwaySurface(Z19, sim.ac.pos.x, sim.ac.pos.z) ? "You ran off the strip. With no headwind the landing roll is longer: touch down near the threshold at the short-field speed." : null),
         result: (ls, sim) => `Stopped ${Math.round((ls.e.rwy.len - distFromThreshold(ls.e, sim.ac.pos.x, sim.ac.pos.z)) / FT)} ft before the end of the runway.`,
       },
+    ],
+  },
+  {
+    id: "densalt", title: "Hot and high: density altitude at Electra Pass", tag: "Performance", time: "5 min", level: 3,
+    summary: "A 30°C afternoon at a 4,430 ft mountain strip puts the density altitude above 7,000 ft. Lean the mixture for best power, expect a long takeoff roll and a weak climb, and climb out over the lower terrain.",
+    exam: ["t2", "e31", "f244", "q533", "q534"],
+    tips: [
+      "Density altitude is pressure altitude corrected for temperature. Hot, high and humid all raise it, and the airplane performs as if it were that high.",
+      "Lean for best power before takeoff: full throttle with the brakes on, then lean slowly (Aircraft → Mixture) until the RPM peaks.",
+      "Expect a much longer takeoff roll and a weaker climb than at sea level. Hold Vy, and never climb toward rising terrain.",
+    ],
+    setup(sim, ls) {
+      sim.setWeather({ windDir: 0, windKt: 3, gustKt: 0, turb: 0.2, visSM: 10, clouds: [{ cover: "FEW", baseFt: 9000 }], tempC: 38, dewC: 8, qnhInHg: 29.92 }); sim.setTime(15);
+      sim.spawn({ ...Z40.spawn.rwy36, onGround: true, engineRunning: true }); sim.radio.com1 = Z40.freqs.ctaf;
+      ls.e = end(Z40, "36"); ls.da = Math.round(sim.d.densAlt / 100) * 100;
+      sim.say(`Electra Pass: field elevation ${Z40.elevFt.toLocaleString()} ft, ${Math.round(sim.d.oatC)}°C, density altitude about ${ls.da.toLocaleString()} ft.`, "info", 9000);
+    },
+    objectives: [
+      {
+        text: "Run-up: full throttle on the brakes, then lean the mixture until the RPM peaks (Aircraft → Mixture)",
+        check(sim, ls, dt) { const ok = sim.d.onGround && sim.ac.ctl.throttle > 0.9 && Math.abs(sim.ac.eng.mixture - sim.ac.bestMixture()) < 0.07; ls.leanT = ok ? (ls.leanT || 0) + dt : 0; if (ok) ls.rpm = sim.d.rpm; return ls.leanT > 1; },
+        fail: (sim) => (!sim.d.onGround && sim.d.ias > 30 ? "You took off without leaning. At this density altitude a full-rich mixture costs power you need." : null),
+        result: (ls) => `Leaned for best power: ${Math.round(ls.rpm)} RPM at full throttle.`,
+      },
+      {
+        text: "Take off on runway 36: full power, rotate at 55 KIAS, and expect a long roll",
+        check(sim, ls) { if (!sim.d.onGround && sim.d.ias > 30 && ls.roll == null) ls.roll = distFromThreshold(ls.e, sim.ac.pos.x, sim.ac.pos.z) - distFromThreshold(ls.e, Z40.spawn.rwy36.x, Z40.spawn.rwy36.z); return !sim.d.onGround && sim.d.agl > 30; },
+        result: (ls) => `Takeoff roll about ${Math.round(ls.roll / FT).toLocaleString()} ft. At sea level on a standard day it would be about 650 ft.`,
+      },
+      {
+        text: "Climb at Vy, 74 KIAS, to 1,000 ft above the field",
+        check(sim, ls, dt) { if (!sim.d.onGround) { ls.climbT = (ls.climbT || 0) + dt; ls.alt0 ??= sim.d.altInd; } return sim.d.altInd > Z40.elevFt + 970; },
+        result: (ls, sim) => `Average climb ${Math.round((sim.d.altInd - ls.alt0) / (ls.climbT / 60))} fpm. The same airplane climbs about 800 fpm at sea level.`,
+      },
+    ],
+  },
+  {
+    id: "displaced", title: "Displaced threshold at Southridge", tag: "Airport operations", time: "4 min", level: 2,
+    summary: "Runway 31 at Southridge Regional has its landing threshold displaced 650 ft because of the highway under the approach. The white arrows before the threshold bar are for taxi, takeoff and rollout only: touch down beyond the bar.",
+    exam: ["e50", "f336", "f337", "q540"],
+    tips: [
+      "White arrows lead to a displaced threshold. You may taxi, take off and roll out on that pavement, but not land on it.",
+      "Yellow chevrons, like the blast pad at the far end of this runway, mark pavement you can't use at all.",
+      "Aim at the aiming-point markings beyond the threshold bar and fly a normal 3° approach to them. Southridge uses right traffic for runway 31: check the segmented circle.",
+    ],
+    setup(sim, ls) {
+      sim.setWeather({ ...PRESETS.clear, windDir: 300, windKt: 7, gustKt: 0 }); sim.setTime(11);
+      const sp = onFinal(KSRH, "31", 3, 70, 20); sp.altFt += Math.tan(3 * DEG) * 450 / FT; // on the path to the aiming point, not to the end of the pavement
+      sim.spawn(sp); sim.ac.ctl.throttle = 0.32; sim.ac.ctl.trim = 0.32; sim.radio.com1 = KSRH.freqs.ctaf;
+      ls.e = end(KSRH, "31"); ls.disp = ls.e.rwy.displaced["31"];
+    },
+    objectives: [
+      {
+        text: "Land on runway 31 beyond the displaced threshold (past the white bar, not on the arrows)",
+        check(sim, ls) { if (!landedOn(sim, KSRH, "31")) return false; ls.past = distFromThreshold(ls.e, sim.lastTouchdown.x, sim.lastTouchdown.z) - ls.disp; return ls.past > 0; },
+        fail: (sim, ls) => (landedOn(sim, KSRH, "31") && ls.past != null && ls.past <= 0 ? "You touched down on the displaced part of the runway, before the threshold bar. That pavement is for takeoff and rollout only." : offRunway(KSRH)(sim)),
+        result: (ls, sim) => `Touched down ${Math.round(ls.past / FT)} ft past the displaced threshold. ${touchdownReport(sim, KSRH, "31").replace(/, \d+ ft past the threshold\./, ".")}`,
+      },
+      { text: "Slow to taxi speed on the runway", check: (sim) => sim.d.onGround && sim.d.gs < 8 && onRunwaySurface(KSRH, sim.ac.pos.x, sim.ac.pos.z) },
     ],
   },
   {

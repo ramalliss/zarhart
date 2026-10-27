@@ -7,7 +7,7 @@ const DEG = Math.PI / 180, NM = 1852, FT = 0.3048;
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 const wrap180 = (a) => ((a % 360) + 540) % 360 - 180;
 const brg = (fx, fz, tx, tz) => (Math.atan2(tx - fx, -(tz - fz)) / DEG + 360) % 360;
-const [KZAR, KAME, Z19] = AIRPORTS;
+const [KZAR, KAME, Z19, Z40, KSRH] = AIRPORTS;
 const endOf = (ap, id) => { for (const r of ap.runways) for (const e of r.ends) if (e.id === id) return e; };
 
 /* ---------------- low-level autopilot ---------------- */
@@ -215,6 +215,14 @@ export const PILOTS = {
     };
   },
   calm(z) { const apx = new AP(); const land = landing(Z19, endOf(Z19, "22"), { vref: 61, flaps: 30, aim: 80, brakeBelow: 45 }); return (ac, d, sim, dt) => land(ac, d, sim, dt, apx); },
+  densalt(z) {
+    const apx = new AP();
+    return (ac, d, sim, dt) => {
+      if (z.lessons.idx === 0) { ac.parkingBrake = true; ac.ctl.throttle = 1; ac.eng.mixture = ac.bestMixture(); return; } // run-up: lean for best power
+      takeoffClimb(apx, ac, d, dt, 0);
+    };
+  },
+  displaced(z) { const apx = new AP(); const land = landing(KSRH, endOf(KSRH, "31"), { vref: 65, flaps: 30, aim: 200 + 260 }); return (ac, d, sim, dt) => land(ac, d, sim, dt, apx); },
   crosswind(z) { const apx = new AP(); const land = landing(KZAR, endOf(KZAR, "27"), { vref: 70, flaps: 20 }); return (ac, d, sim, dt) => land(ac, d, sim, dt, apx); },
   wake(z) { const apx = new AP(); const land = landing(KZAR, endOf(KZAR, "27"), { vref: 68, flaps: 20, aim: 700 }); return (ac, d, sim, dt) => land(ac, d, sim, dt, apx); },
   nordo(z) {

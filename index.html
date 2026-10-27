@@ -43,6 +43,7 @@
 .idx { font-family: var(--f-mono); color: var(--magenta); letter-spacing: .06em; margin-right: 12px; }
 
 .split { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: clamp(36px, 5vw, 84px); align-items: center; }
+.split.rev { grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); }
 .split.rev .copy { order: 2; }
 .copy { display: grid; gap: 22px; justify-items: start; }
 .specs { list-style: none; margin: 6px 0 8px; padding: 0; width: 100%; border-top: 1px solid var(--line); }
@@ -50,6 +51,9 @@
 .specs li span { font: 500 11.5px/1.9 var(--f-body); letter-spacing: .18em; text-transform: uppercase; color: var(--dim); }
 .shot { margin: 0; display: grid; gap: 12px; }
 .shot img { width: 100%; height: auto; display: block; border: 1px solid var(--line); }
+.shot.pair { grid-template-columns: 1fr 1fr; }
+.shot.pair figcaption { grid-column: 1 / -1; }
+@media (max-width: 520px) { .shot.pair { grid-template-columns: 1fr; } }
 .shot figcaption, .qref { font: 500 11px/1.5 var(--f-mono); letter-spacing: .1em; text-transform: uppercase; color: var(--dim); }
 
 .qmock { padding: clamp(22px, 3vw, 40px); background: linear-gradient(180deg, #0F1318, #090B0E); border: 1px solid var(--line); display: grid; gap: 12px; }
@@ -199,9 +203,9 @@
   </section>
 
   <section class="wrap stats" aria-label="At a glance">
-    <div><b>13</b><span>lessons linked to written-test questions</span></div>
+    <div><b>19</b><span>lessons linked to written-test questions</span></div>
     <div><b>650+</b><span>practice questions with explanations</span></div>
-    <div><b>3</b><span>airports, two VORs and Class D airspace</span></div>
+    <div><b>6</b><span>airports and 3 airplanes, in rain, snow, wind and calm</span></div>
     <div><b>$0</b><span>to fly and study<span class="web-only">. No install, no account</span></span></div>
   </section>
 
@@ -226,16 +230,38 @@
     </div>
   </section>
 
+  <section class="wrap block" id="weather" aria-labelledby="wxh">
+    <div class="split rev">
+      <div class="copy">
+        <p class="eyebrow"><span class="idx">02</span>Weather &amp; airplanes</p>
+        <h2 id="wxh">Rain, snow, wind, and no wind at all.</h2>
+        <p class="lede">The weather the written test asks about, flown for real: runways that flood and hydroplane, frost that keeps you on the ground, ice in freezing rain, gusts, a microburst on final, and the calm, foggy mornings in between.</p>
+        <ul class="specs">
+          <li><span>Weather</span>Rain, snow, freezing rain, fog, gusts, dead calm and thunderstorms with microbursts</li>
+          <li><span>Runways</span>Dry, wet, flooded, snow-covered or icy, with real braking and hydroplaning</li>
+          <li><span>Airplanes</span>Cessna 172, Cessna 152 and a low-wing Piper PA-28, each with its own numbers</li>
+          <li><span>Airports</span>Six, from a 4,430 ft mountain strip to a regional field with a displaced threshold</li>
+        </ul>
+        <a class="more" href="sim/?lesson=wetrunway">Fly the rain lesson</a>
+      </div>
+      <figure class="shot pair">
+        <img src="assets/img/shots/rain-final.jpg" width="2000" height="1250" loading="lazy" alt="Cockpit view on final approach in heavy rain, rain streaking past the windshield, the runway ahead under a dark overcast">
+        <img src="assets/img/shots/snow-piper.jpg" width="2000" height="1250" loading="lazy" alt="A white low-wing Piper flying over snow-covered mountains">
+        <figcaption>Short final in heavy rain · the Piper over the snowy Electra Range</figcaption>
+      </figure>
+    </div>
+  </section>
+
   <section class="wrap block" id="study" aria-labelledby="studyh">
     <div class="split rev">
       <div class="copy">
-        <p class="eyebrow"><span class="idx">02</span>Study</p>
+        <p class="eyebrow"><span class="idx">03</span>Study</p>
         <h2 id="studyh">Every topic on the written test.</h2>
         <p class="lede">650+ practice questions with explanations, organized by the areas the test covers, plus scenario quizzes (rain, icing, wind, storms, fog) and ten timed practice tests. Each topic lists its FAA handbook chapter and a lesson where you can fly it.</p>
         <ul class="specs">
           <li><span>Study guide</span>Key facts and questions, topic by topic</li>
           <li><span>Flashcards</span>Mark what you know and drill the rest</li>
-          <li><span>Practice exam</span>60 questions in 2 h 30 min, with a report by topic</li>
+          <li><span>Practice exam</span>Ten fixed 60-question tests plus random ones, 2 h 30 min each, with a report by topic</li>
           <li><span>Quizlet</span>Copy any deck straight into a Quizlet set</li>
         </ul>
         <a class="more" href="prep/">Start studying</a>
@@ -256,7 +282,7 @@
   <section class="bandimg" id="lessons" aria-labelledby="lessonsh">
     <img src="assets/img/shots/dusk-final.jpg" width="2000" height="1125" loading="lazy" alt="The trainer on a long final at sunset with the airport ahead">
     <div class="wrap">
-      <p class="eyebrow"><span class="idx">03</span>Lessons</p>
+      <p class="eyebrow"><span class="idx">04</span>Lessons</p>
       <h2 id="lessonsh">Fly the questions.</h2>
       <p class="lede">Thirteen lessons set up the scenario, check your objectives as you fly and debrief you when you land. Each one is tied to the written-test questions it teaches.</p>
       <a class="btn primary" href="sim/?lesson=pattern">Fly lesson 1</a>
@@ -269,7 +295,7 @@
 
   <section class="wrap block" aria-labelledby="mergeh">
     <div class="sechead">
-      <p class="eyebrow"><span class="idx">04</span>Three sims, one cockpit</p>
+      <p class="eyebrow"><span class="idx">05</span>Three sims, one cockpit</p>
       <h2 id="mergeh">One idea from each of the big three.</h2>
       <p class="lede">Each desktop sim is great at one thing. Zarhart takes inspiration from each and adds what a student pilot needs for the written test.</p>
     </div>
@@ -282,7 +308,7 @@
   </section>
 
   <section class="wrap block" id="path" aria-labelledby="pathh">
-    <div class="sechead"><p class="eyebrow"><span class="idx">05</span>Your path</p><h2 id="pathh">From zero to the written test.</h2><p class="lede">Most of the road is free. Here's the order that works.</p></div>
+    <div class="sechead"><p class="eyebrow"><span class="idx">06</span>Your path</p><h2 id="pathh">From zero to the written test.</h2><p class="lede">Most of the road is free. Here's the order that works.</p></div>
     <ol class="steps">
       <li><h3>Ground-school lessons</h3><p><a href="https://fly8ma.com/private-pilot-ground-school/" target="_blank" rel="noopener">FLY8MA free ground school</a>: video lessons for every subject.</p><span class="cost">Free · no endorsement</span></li>
       <li><h3>Study the handbook</h3><p>The <a href="https://www.faa.gov/regulations_policies/handbooks_manuals/aviation/phak" target="_blank" rel="noopener">FAA Pilot's Handbook of Aeronautical Knowledge</a>. Zarhart lists the chapter for each topic.</p><span class="cost">Free PDF</span></li>
@@ -295,9 +321,9 @@
   </section>
 
   <section class="wrap block web-only" aria-labelledby="plansh">
-    <div class="sechead"><p class="eyebrow"><span class="idx">06</span>Plans</p><h2 id="plansh">Free to fly. Free to study.</h2><p class="lede">The simulator, all 17 lessons and the full question bank are free. Extras for test week come later.</p></div>
+    <div class="sechead"><p class="eyebrow"><span class="idx">07</span>Plans</p><h2 id="plansh">Free to fly. Free to study.</h2><p class="lede">The simulator, all 19 lessons and the full question bank are free. Extras for test week come later.</p></div>
     <div class="plans">
-      <div><p class="eyebrow">Free</p><p class="price">$0</p><p>Simulator, 17 lessons, 3 airplanes, 650+ questions, scenario quizzes and 10 practice tests.</p></div>
+      <div><p class="eyebrow">Free</p><p class="price">$0</p><p>Simulator, 19 lessons, 3 airplanes, 650+ questions, scenario quizzes and 10 practice tests.</p></div>
       <div><p class="eyebrow">Pass Pack</p><p class="price">$14.99<small>one time</small></p><p>Printable quick-reference cards, C172 checklists, an exam-day plan and flashcards.</p></div>
       <div><p class="eyebrow">Pro</p><p class="price">Soon</p><p>Ten checkride lessons (free preview now), then more scenery and your progress on every device.</p></div>
     </div>
@@ -367,6 +393,12 @@ const L = [
   ["crosswind", "Takeoffs & landings", "Gusty crosswind landing", ["e19"]],
   ["wake", "Wake turbulence", "Wake turbulence behind a heavy jet", ["t25", "t36", "t53"]],
   ["nordo", "Airport operations", "Radio failure: light gun signals", ["e47", "e48"]],
+  ["wetrunway", "Weather", "Rain: landing on a wet runway", ["f254", "q501"]],
+  ["winter", "Weather", "Snow and frost: a winter takeoff", ["e30", "q503"]],
+  ["microburst", "Weather", "Microburst on final: go around", ["f107", "f108"]],
+  ["calm", "Weather", "No wind: a calm-wind landing on a short strip", ["f93", "q505"]],
+  ["densalt", "Performance", "Hot and high: density altitude at Electra Pass", ["t2", "e31"]],
+  ["displaced", "Airport operations", "Displaced threshold at Southridge", ["e50", "f336"]],
 ];
 document.getElementById("lessonList").innerHTML = L.map(([id, tag, t, codes], i) =>
   `<li><a href="sim/?lesson=${id}"><span class="n">${String(i + 1).padStart(2, "0")}</span><span class="t">${t}</span><span class="c">${tag}</span><span class="q" title="Linked written-test questions">${codes.map((c) => c.toUpperCase()).join(" · ")}</span><span class="go" aria-hidden="true">→</span></a></li>`).join("");
