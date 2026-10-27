@@ -243,3 +243,24 @@ kbd { font: 600 12px/1 var(--f-mono); padding: 4px 6px; border-radius: 3px; back
 @media (pointer: coarse) and (max-width: 720px) {
   .vfr, .gmeter { bottom: calc(var(--panel-h, 0px) + 224px); } /* above the throttle column (Full, lever, Idle) */
 }
+
+/* phone VR: only the two eye views and the tap layer are left on screen */
+.phonevr .sim-top, .phonevr #touch, .phonevr #objectives, .phonevr #vfr, .phonevr #toasts, .phonevr #ctl, .phonevr #strip, .phonevr #stall, .phonevr #gmeter, .phonevr #lightgun, .phonevr #yoke, .phonevr #panel, .phonevr #drawer, .phonevr #paused, .phonevr #crash { display: none !important; }
+.pvr { position: fixed; z-index: 60; inset: 0; touch-action: none; cursor: pointer; -webkit-user-select: none; user-select: none; }
+.pvr-mid { position: absolute; top: 0; bottom: 0; left: 50%; width: 2px; margin-left: -1px; background: rgba(255, 255, 255, .4); }
+.pvr-turn { display: none; position: absolute; left: 16px; right: 16px; top: 40%; margin: 0; padding: 16px; border-radius: 4px; background: rgba(5, 6, 7, .86); color: var(--text); font: 600 17px/1.4 var(--f-body); text-align: center; }
+@media (orientation: portrait) { .pvr-turn { display: block; } }
+.pvr-steps { display: grid; gap: 8px; margin: 0; padding-left: 20px; color: var(--text); font-size: 15px; line-height: 1.45; }
+.pvr-pad { margin: 0; padding: 8px 12px; border-radius: 3px; border-left: 3px solid var(--amber); background: rgba(255, 176, 32, .08); font-size: 14px; color: var(--text); }
+.pvr-pad.ok { border-left-color: var(--green); background: rgba(91, 227, 138, .08); }
+.pvr-opt { display: grid; grid-template-columns: 110px 1fr 48px; align-items: center; gap: 10px; font-size: 14px; color: var(--muted); }
+.pvr-opt input { width: 100%; accent-color: var(--magenta, #e64bd0); }
+.pvr-opt span { font: 600 13px var(--f-mono); color: var(--text); text-align: right; }
+@media (max-height: 500px) { /* a phone held sideways: steps on the left, controller status, settings and Start on the right */
+  .pvr-card { grid-template-columns: 1.25fr 1fr; gap: 8px 22px; align-items: start; }
+  .pvr-card > .eyebrow, .pvr-card > h2 { grid-column: 1 / -1; }
+  .pvr-card h2 { font-size: 24px; }
+  .pvr-card .pvr-steps { grid-row: span 5; font-size: 13.5px; gap: 6px; }
+  .pvr-card .pvr-pad, .pvr-card .dnote { font-size: 12.5px; }
+  .pvr-opt { grid-template-columns: 84px 1fr 40px; font-size: 13px; }
+}

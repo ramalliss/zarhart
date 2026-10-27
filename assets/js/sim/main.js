@@ -12,7 +12,7 @@ import { Panel } from "./panel.js";
 import { buildSectionalBase, drawMap } from "./map.js";
 import { CHECKLISTS, suggestChecklist } from "./checklists.js";
 import { LESSONS, LessonRunner } from "./lessons.js";
-import { VR, VR_CONTROLS } from "./vr.js";
+import { VR, VR_CONTROLS, PHONE_VR_CONTROLS } from "./vr.js";
 
 const $ = (s, r = document) => r.querySelector(s);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -27,7 +27,7 @@ const FREQS = [
 const freqInfo = (f) => FREQS.find((q) => Math.abs(q.f - f) < 0.004);
 
 /* ---------------- settings ---------------- */
-const settings = Object.assign({ quality: "high", invert: false, mouseYoke: false, autoRudder: true, sound: true, voice: false, panel: "steam", sens: "normal", floating: true, touchRight: "slider", tilt: false, haptics: true, ctlMap: null, pad: true }, store.get("settings", {}));
+const settings = Object.assign({ quality: "high", invert: false, mouseYoke: false, autoRudder: true, sound: true, voice: false, panel: "steam", sens: "normal", floating: true, touchRight: "slider", tilt: false, haptics: true, ctlMap: null, pad: true, pvrSep: 100, pvrFov: 80 }, store.get("settings", {}));
 settings.assist ||= settings.autoRudder === false ? "off" : "assisted";
 const saveSettings = () => store.set("settings", settings);
 
@@ -308,7 +308,7 @@ const keymap = {
   "S+b": () => { ac.parkingBrake = !ac.parkingBrake; say(`Parking brake ${ac.parkingBrake ? "SET" : "released"}`, "info", 1500); },
   "S+r": () => { ac.ctl.throttle = 1; }, "S+f": () => { ac.ctl.throttle = 0; },
   c: () => { sim.view = VIEWS[(VIEWS.indexOf(sim.view) + 1) % VIEWS.length]; camState.reset = true; layout(); say(`View: ${sim.view}`, "info", 1200); },
-  p: () => togglePause(), Escape: () => { if (openDrawerName) closeDrawer(); else togglePause(); },
+  p: () => togglePause(), Escape: () => { if (vr.phone) vr.end(); else if (openDrawerName) closeDrawer(); else togglePause(); },
   m: () => toggleDrawer("map"), k: () => toggleDrawer("check"), "?": () => toggleDrawer("help"), F1: () => toggleDrawer("help"),
   i: () => { const modes = ["steam", "glass", "off"]; settings.panel = modes[(modes.indexOf(settings.panel) + 1) % 3]; panel.mode = settings.panel; saveSettings(); layout(); say(`Panel: ${{ steam: "six-pack", glass: "glass cockpit", off: "hidden" }[settings.panel]}`, "info", 1400); },
   h: () => { ac.eng.carbHeat = !ac.eng.carbHeat; say(`Carburetor heat ${ac.eng.carbHeat ? "ON" : "OFF"}`, "info", 1500); },
@@ -511,6 +511,7 @@ function renderDrawer() {
     const k = (keys, what) => `<li><span class="keys">${keys.map((x) => `<kbd>${esc(x)}</kbd>`).join(" ")}</span><span>${esc(what)}</span></li>`;
     B.innerHTML = `<ul class="keylist">${k(["↑", "W"], "Nose down")}${k(["↓", "S"], "Nose up")}${k(["←", "→", "A", "D"], "Roll (ailerons)")}${k(["Q", "E"], "Rudder / nosewheel steering")}${k(["R", "F"], "Throttle up / down (Shift = full / idle)")}${k(["[", "]"], "Flaps up / down a notch")}${k(["T", "G"], "Trim nose up / down")}${k(["B"], "Brakes (with rudder for differential)")}${k(["Shift+B"], "Parking brake")}${k(["H"], "Carburetor heat")}${k(["L"], "Landing light")}${k(["O"], "Set the heading indicator to the compass")}${k(["Space"], "Click the mic (pilot-controlled lighting)")}${k(["N"], "Swap NAV1")}${k(["C"], "Change view: cockpit, chase, orbit, tower")}${k(["I"], "Panel: six-pack, glass, hidden")}${k(["M"], "Map")}${k(["K"], "Checklist")}${k(["Y"], "Mouse yoke on/off")}${k(["U"], "Flight assist: Assisted → Auto-rudder → Manual")}${k(["P", "Esc"], "Pause")}</ul>
       <h3 class="dsub">VR headset (Meta Quest)</h3><ul class="keylist">${VR_CONTROLS.map(([c, what]) => `<li><span class="keys"><kbd>${esc(c)}</kbd></span><span>${esc(what)}</span></li>`).join("")}</ul>
+      <h3 class="dsub">Phone VR viewer (Cardboard-style)</h3><ul class="keylist">${PHONE_VR_CONTROLS.map(([c, what]) => `<li><span class="keys"><kbd>${esc(c)}</kbd></span><span>${esc(what)}</span></li>`).join("")}</ul>
       <p class="dnote">Mouse: drag to look around (cockpit) or orbit (outside views). Scroll to zoom. Double-click to recentre. Scroll over panel knobs (Kollsman, OBS, heading bug, attitude indicator) to set them. Click the HI knob to align it with the compass.</p>`;
   }
 }
@@ -616,7 +617,7 @@ function hudUpdate() {
 
 /* ---------------- layout ---------------- */
 /** no instrument panel: switched off, an outside view, or a phone held sideways (the data strip shows instead) */
-const panelOff = () => settings.panel === "off" || sim.view !== "cockpit" || innerHeight < 500;
+const panelOff = () => settings.panel === "off" || sim.view !== "cockpit" || innerHeight < 500 || !!vr.phone;
 function layout() {
   const ph = panelOff() ? 0 : Math.round(Math.min(Math.max(innerHeight * 0.33, 170), 330, innerWidth * 0.45));
   document.documentElement.style.setProperty("--panel-h", ph + "px");
@@ -646,14 +647,60 @@ $("#crashRetry").addEventListener("click", retry);
 /* ---------------- VR ---------------- */
 let viewBeforeVR = "cockpit";
 function enterVR() {
+  if (!vr.supported) { openPhoneVR(); return; }
   closeDrawer(); hideCrash(); $("#paused").hidden = true; sim.paused = false;
   viewBeforeVR = sim.view; sim.view = "cockpit";
   vr.enter().catch((err) => { sim.view = viewBeforeVR; say(`Couldn't start VR: ${err.message || err}`, "warn", 8000); });
 }
+let wakeLock = null;
 function vrChanged(on) {
   $("#vrBtn").textContent = on ? "Exit VR" : "VR"; $("#vrBtn").setAttribute("aria-pressed", String(on));
-  if (!on) { sim.view = viewBeforeVR; camState.reset = true; layout(); say("Back on the screen.", "info", 2000); }
+  const phone = on && !!vr.phone;
+  document.body.classList.toggle("phonevr", phone); $("#pvr").hidden = !phone;
+  if (phone) { layout(); navigator.wakeLock?.request("screen").then((l) => { wakeLock = l; }).catch(() => {}); } // keep the screen on inside the viewer
+  if (!on) {
+    wakeLock?.release().catch(() => {}); wakeLock = null;
+    if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
+    sim.view = viewBeforeVR; camState.reset = true; layout(); say("Back on the screen.", "info", 2000);
+  }
 }
+/* phone VR (Cardboard-style viewers): the steps and viewer settings first; Start must be a tap, for iOS motion access */
+let pvrPoll = 0;
+const pvrVals = () => { $("#pvrSepV").textContent = `${settings.pvrSep}%`; $("#pvrFovV").textContent = `${settings.pvrFov}°`; };
+function padStatus() {
+  const p = [...(navigator.getGamepads?.() || [])].find(Boolean), el = $("#pvrPad");
+  el.textContent = p ? `Controller connected: ${p.id.slice(0, 40)}` : "No controller yet: pair one in Bluetooth settings, then press a button on it.";
+  el.classList.toggle("ok", !!p);
+}
+function openPhoneVR() {
+  closeDrawer(); hideCrash(); sim.paused = true; $("#paused").hidden = true;
+  $("#pvrSep").value = settings.pvrSep; $("#pvrFov").value = settings.pvrFov; pvrVals();
+  $("#pvrIntro").hidden = false;
+  clearInterval(pvrPoll); pvrPoll = setInterval(padStatus, 500); padStatus();
+}
+function closePhoneVR() { $("#pvrIntro").hidden = true; clearInterval(pvrPoll); }
+$("#pvrSep").addEventListener("input", (e) => { settings.pvrSep = +e.target.value; pvrVals(); saveSettings(); });
+$("#pvrFov").addEventListener("input", (e) => { settings.pvrFov = +e.target.value; pvrVals(); saveSettings(); });
+$("#pvrCancel").addEventListener("click", () => { closePhoneVR(); $("#paused").hidden = false; });
+$("#pvrStart").addEventListener("click", () => {
+  closePhoneVR();
+  viewBeforeVR = sim.view; sim.view = "cockpit";
+  const go = vr.enterPhone({ sep: settings.pvrSep / 100, fov: settings.pvrFov }); // first, so iOS can ask for motion access during this tap
+  document.documentElement.requestFullscreen?.().then(() => screen.orientation?.lock?.("landscape")).catch(() => {}); // Android; on iPhone, Add to Home Screen gives full screen
+  go.then(() => { sim.paused = false; }).catch((err) => { sim.view = viewBeforeVR; $("#paused").hidden = false; say(`Couldn't start phone VR: ${err.message || err}`, "warn", 8000); });
+});
+// the tap layer over the eye views: the viewer's button taps the screen
+let pvrTap = 0, pvrTimer = 0;
+$("#pvr").addEventListener("pointerdown", (e) => {
+  e.preventDefault();
+  if (performance.now() - pvrTap < 380) { clearTimeout(pvrTimer); pvrTap = 0; vr.end(); return; }
+  pvrTap = performance.now();
+  pvrTimer = setTimeout(() => {
+    if (!$("#crash").hidden) retry();
+    else if (sim.paused) togglePause();
+    else { vr.recenter(); vr.message("View recentered.", "info"); }
+  }, 380);
+});
 $("#vrBtn").addEventListener("click", () => { if (vr.active) vr.end(); else enterVR(); });
 $("#startVR").addEventListener("click", () => {
   startFlying();
@@ -736,7 +783,7 @@ function tick(now) {
     const probe = world.clouds.probe(eye.x, eye.y, eye.z);
     world.setEnvironment({ hour: weather.hour, visSM: weather.visSM, inCloud: probe.inside });
     world.update(sim.t, eye, { pclLevel: sim.pcl.level, windDir: weather.windDir, windKt: weather.windKt, lightGun: sim.lightGun, beaconDay: weather.visSM < 3 || weather.clouds.some((c) => (c.cover === "BKN" || c.cover === "OVC") && c.baseFt < 1000) });
-    renderer.render(scene, camera);
+    if (vr.phone) vr.render(scene); else renderer.render(scene, camera);
     if (vr.active) vr.update(dt);
     panelT += dt; if (!vr.active && !panelOff() && panelT > 1 / 40) {
       panelT = 0;
@@ -763,7 +810,7 @@ async function boot() {
     $("#loading").hidden = true; $("#startChoices").hidden = false;
     const p = new URLSearchParams(location.search).get("lesson");
     if (p && LESSONS.some((l) => l.id === p)) { startLessonId = p; $("#startLesson").textContent = `Start lesson: ${LESSONS.find((l) => l.id === p).title}`; }
-    vr.check().then((ok) => { $("#startVR").hidden = $("#vrBtn").hidden = !ok; });
+    vr.check().then((ok) => { $("#startVR").hidden = $("#vrBtn").hidden = !(ok || TOUCH); }); // phones without WebXR get phone VR
   } catch (err) {
     console.error(err); prog.textContent = "Zarhart couldn't start: " + err.message + ". Try another browser with WebGL turned on.";
   }

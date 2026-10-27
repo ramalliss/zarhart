@@ -26,13 +26,17 @@ Created by **Sophia Ramalli**, a student pilot who built it while studying for t
 
 The site is an installable web app. On iPhone or iPad, open it in Safari and tap **Share → Add to Home Screen**; on Android or desktop Chrome and Edge, use **Install the app** on the home page (or Install in the browser menu). It opens full screen, and pages you've visited work offline (`sw.js`, network first, so online visitors always get the latest version).
 
-## VR (Meta Quest)
+## VR (Meta Quest, or a phone in a viewer)
 
 Open the simulator in the Quest's built-in browser and tap **Fly in VR** (or **VR** in the toolbar). It's a seated cockpit view through WebXR: the instruments are on the dashboard, lesson objectives and radio calls are on a strip on the glareshield, and the controllers fly the airplane:
 
 Right stick: pitch and roll · Left stick: throttle (up/down) and rudder (left/right) · Right trigger: brakes · A / B: flaps down / up · X: mic click · Y: recenter your view · Right stick press: flight assist · Left stick press: pause.
 
 WebXR needs HTTPS, so test VR on the live site rather than the local dev server. The VR button only appears in browsers that support immersive VR.
+
+### Phone VR (Cardboard-style viewers, iPhone included)
+
+Phones without WebXR (iPhone Safari, the iOS app) get **phone VR** from the same **VR** button: two eye views side by side for a $15–30 phone viewer, head tracking from the phone's motion sensors (iOS asks for Motion & Orientation access), and the same cockpit, dashboard instruments and glareshield messages as the headset mode. Fly with a Bluetooth game controller (Xbox, PlayStation, Switch Pro or MFi). Tap the screen, or the viewer's button, to recenter; double-tap to leave. Eye spacing and field of view are adjustable for different phones and lenses. Add the site to the Home Screen first for a full-screen view on iPhone.
 
 ## Run locally
 

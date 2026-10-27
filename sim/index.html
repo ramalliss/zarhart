@@ -47,7 +47,7 @@
     <button data-drawer="fail">Failures</button>
     <button data-drawer="settings">Settings</button>
     <button data-drawer="help">Keys</button>
-    <button id="vrBtn" hidden aria-pressed="false" title="Fly in a VR headset">VR</button>
+    <button id="vrBtn" hidden aria-pressed="false" title="Fly in VR: a headset, or your phone in a VR viewer">VR</button>
   </nav>
 </header>
 
@@ -86,6 +86,25 @@
       <span class="lv-pct">0%</span>
     </div>
     <div id="stick2" class="stick stick2" hidden aria-label="Throttle (up and down) and rudder (left and right)"><span class="s2l">THR</span><div id="knob2" class="knob"></div><span class="s2r">RUD</span></div>
+  </div>
+</div>
+
+<div id="pvr" class="pvr" hidden aria-label="Phone VR: tap to recenter, double-tap to leave"><span class="pvr-mid"></span><p class="pvr-turn">Turn your phone sideways for VR.<br>Double-tap to leave.</p></div>
+
+<div id="pvrIntro" class="modal" hidden role="dialog" aria-labelledby="pvrTitle">
+  <div class="card pvr-card">
+    <p class="eyebrow">VR with your phone</p>
+    <h2 id="pvrTitle">Fly in a phone VR viewer.</h2>
+    <ol class="pvr-steps">
+      <li><b>Pair a game controller</b> in your phone's Bluetooth settings (Xbox, PlayStation, Switch Pro or MFi). You fly with it, because you can't touch the screen inside the viewer.</li>
+      <li><b>Turn your phone sideways,</b> tap Start, then slide it into the viewer with the line down the middle.</li>
+      <li>Look straight ahead and <b>tap the screen</b> (or press the viewer's button) to recenter. <b>Double-tap</b> to leave.</li>
+    </ol>
+    <p id="pvrPad" class="pvr-pad"></p>
+    <label class="pvr-opt">Eye spacing <input id="pvrSep" type="range" min="70" max="100" step="1"><span id="pvrSepV"></span></label>
+    <label class="pvr-opt">Field of view <input id="pvrFov" type="range" min="60" max="100" step="1"><span id="pvrFovV"></span></label>
+    <p class="dnote">See two images instead of one? Lower the eye spacing. Everything looks too big or too small? Change the field of view.</p>
+    <div class="row"><button class="btn primary" id="pvrStart">Start</button><button class="btn" id="pvrCancel">Cancel</button></div>
   </div>
 </div>
 

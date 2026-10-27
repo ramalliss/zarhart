@@ -1,5 +1,7 @@
 // VR mode (WebXR) for headsets like Meta Quest: a seated cockpit view, the instrument panel drawn on the
 // dashboard, a message strip on the glareshield, and the hand controllers as yoke, throttle and switches.
+// Phone VR does the same for Cardboard-style viewers on phones without WebXR (iPhone): two eye views side by
+// side, head tracking from the phone's motion sensors, and a game controller to fly.
 import * as THREE from "three";
 import { Panel } from "./panel.js";
 
@@ -23,6 +25,21 @@ export const VR_CONTROLS = [
   ["Left stick press", "Pause"],
 ];
 
+/** phone in a Cardboard-style viewer: the screen can't be touched except by the viewer's button, which taps it */
+export const PHONE_VR_CONTROLS = [
+  ["Game controller", "Flies the airplane, same as on the screen (pair it in your phone's Bluetooth settings)"],
+  ["Tap", "Recenter your view (the viewer's button taps the screen). After a crash: try again. Paused: resume"],
+  ["Double-tap", "Leave phone VR"],
+];
+
+// the phone's attitude as a camera orientation (the same math as three.js's old DeviceOrientationControls)
+const ZEE = new THREE.Vector3(0, 0, 1), BACK = new THREE.Quaternion(-Math.SQRT1_2, 0, 0, Math.SQRT1_2), RAD = Math.PI / 180;
+const _e = new THREE.Euler(), _q = new THREE.Quaternion(), _size = new THREE.Vector2(), _clear = new THREE.Color();
+function deviceQuat(out, alpha, beta, gamma, screenAngle) {
+  _e.set(beta * RAD, alpha * RAD, -gamma * RAD, "YXZ");
+  return out.setFromEuler(_e).multiply(BACK).multiply(_q.setFromAxisAngle(ZEE, -screenAngle * RAD)); // look out of the back of the phone
+}
+
 export class VR {
   /**
    * @param {object} o renderer, scene, camera, cockpit (Group), input (Input), panelMode () => string,
@@ -30,7 +47,7 @@ export class VR {
    */
   constructor(o) {
     Object.assign(this, o);
-    this.active = false; this.session = null; this.supported = false; this.messages = [];
+    this.active = false; this.session = null; this.phone = null; this.supported = false; this.messages = [];
     this.renderer.xr.enabled = true;
     // camera rig: rig follows the pilot's eye in the airplane; seat holds the recenter offset; the headset pose is applied below it
     this.rig = new THREE.Group(); this.seat = new THREE.Group(); this.rig.add(this.seat); this.scene.add(this.rig);
@@ -84,16 +101,55 @@ export class VR {
     this.onChange?.(true);
   }
 
+  /**
+   * Phone VR for a Cardboard-style viewer. Call straight from a tap: iOS asks for motion-sensor access first.
+   * @param {{sep: number, fov: number}} o eye spacing (fraction of half the screen width) and vertical field of view in degrees
+   */
+  async enterPhone(o) {
+    if (this.active) return;
+    if (typeof DeviceOrientationEvent !== "undefined" && DeviceOrientationEvent.requestPermission
+      && (await DeviceOrientationEvent.requestPermission()) !== "granted") throw new Error("allow Motion & Orientation access so the view can follow your head");
+    const P = this.phone = { sep: o.sep, fov: o.fov, q: null, stereo: new THREE.StereoCamera() };
+    P.ori = (e) => {
+      if (e.alpha == null) return;
+      P.q = deviceQuat(P.q || new THREE.Quaternion(), e.alpha, e.beta, e.gamma, screen.orientation?.angle ?? window.orientation ?? 0);
+    };
+    addEventListener("deviceorientation", P.ori);
+    this.active = true;
+    this.seat.add(this.camera); this.camera.position.set(0, 0, 0); this.camera.quaternion.identity();
+    this.interior.visible = true; for (const m of this.flatParts) m.visible = false;
+    this.needRecenter = 10; // recenter once the motion sensors have reported a few readings
+    this.message("Phone VR: fly with your game controller. Tap to recenter, double-tap to leave.", "lesson");
+    this.onChange?.(true);
+  }
+
   exit() {
     if (!this.active) return;
     this.active = false; this.session = null;
+    if (this.phone) { removeEventListener("deviceorientation", this.phone.ori); this.phone = null; }
     this.input.xr = null; this.prev = {};
     this.seat.remove(this.camera); this.camera.scale.set(1, 1, 1);
+    this.seat.position.set(0, 0, 0); this.seat.rotation.set(0, 0, 0);
     this.interior.visible = false; for (const m of this.flatParts) m.visible = true;
     this.onChange?.(false);
   }
 
-  end() { this.session?.end(); }
+  end() { if (this.phone) this.exit(); else this.session?.end(); }
+
+  /** phone VR: draw the left and right eye views side by side, their centres `sep` of half the screen apart */
+  render(scene) {
+    const r = this.renderer, P = this.phone, cam = this.camera;
+    r.getSize(_size); const W = _size.x, H = _size.y, vw = Math.round((W / 2) * P.sep), x0 = Math.round(W / 2) - vw;
+    cam.fov = P.fov; cam.aspect = vw / H; cam.updateProjectionMatrix();
+    scene.updateMatrixWorld();
+    P.stereo.update(cam);
+    r.setScissorTest(true);
+    r.setScissor(0, 0, W, H); r.setViewport(0, 0, W, H);
+    r.getClearColor(_clear); const a = r.getClearAlpha(); r.setClearColor(0x000000, 1); r.clear(); r.setClearColor(_clear, a); // black outside the eye views
+    r.setScissor(x0, 0, vw, H); r.setViewport(x0, 0, vw, H); r.render(scene, P.stereo.cameraL);
+    r.setScissor(x0 + vw, 0, vw, H); r.setViewport(x0 + vw, 0, vw, H); r.render(scene, P.stereo.cameraR);
+    r.setScissorTest(false); r.setViewport(0, 0, W, H);
+  }
 
   /** Put the headset where the pilot's eyes are, facing forward. */
   recenter() {
@@ -104,6 +160,12 @@ export class VR {
 
   /** read the controllers into input.xr and fire button actions; call once per frame before the physics step */
   poll() {
+    if (this.phone) {
+      const q = this.phone.q; if (!q) return;
+      this.camera.quaternion.slerp(q, 0.7); // a touch of smoothing for sensor jitter
+      if (this.needRecenter > 0 && --this.needRecenter === 0) this.recenter();
+      return;
+    }
     if (!this.active || !this.session) return;
     let left = null, right = null;
     for (const src of this.session.inputSources) {
@@ -166,8 +228,8 @@ export class VR {
     const L = info.lesson;
     g.font = `600 ${26 * s}px Barlow, sans-serif`;
     let head = "Free flight", color = "#a4abb4";
-    if (info.crashed) { head = `Flight ended: ${info.crashed} Press A to try again.`; color = "#ffb020"; }
-    else if (info.paused) { head = "Paused. Press the left stick to resume."; color = "#3fd8f2"; }
+    if (info.crashed) { head = `Flight ended: ${info.crashed} ${this.phone ? "Tap" : "Press A"} to try again.`; color = "#ffb020"; }
+    else if (info.paused) { head = `Paused. ${this.phone ? "Tap" : "Press the left stick"} to resume.`; color = "#3fd8f2"; }
     else if (L) {
       const now = L.objectives.find((o) => o.state === "now");
       if (L.done) { head = L.failed ? `Lesson ended: ${L.failed}` : "Lesson complete"; color = L.failed ? "#ffb020" : "#5be38a"; }
