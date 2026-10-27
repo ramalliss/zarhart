@@ -1,5 +1,10 @@
-// Keyboard, gamepad/joystick, mouse yoke and touch controls.
+// Keyboard, gamepad/joystick (with assignable axes and buttons), mouse yoke, touch sticks and tilt controls.
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
+const D2R = Math.PI / 180;
+const CURVES = { gentle: { e: 0.75, g: 0.9 }, normal: { e: 0.5, g: 1 }, sharp: { e: 0.2, g: 1 } };
+/** controller buttons that can be assigned: name -> [label, keymap key or "hold"] */
+export const BUTTONS = { flapsDown: ["Flaps down", "]"], flapsUp: ["Flaps up", "["], brake: ["Brakes (hold)", "hold"], park: ["Parking brake", "S+b"], trimUp: ["Trim nose up (hold)", "hold"], trimDown: ["Trim nose down (hold)", "hold"], view: ["Change view", "c"], mic: ["Click the mic", " "], pause: ["Pause", "p"], assist: ["Flight assist", "u"] };
+export const AXES = { roll: "Roll (ailerons)", pitch: "Pitch (elevator)", yaw: "Rudder", throttle: "Throttle" };
 
 export class Input {
   constructor(el) {
@@ -16,6 +21,11 @@ export class Input {
     this.handlers = {}; // one-shot actions: name -> fn
     this.pad = null; this.padThrottle = null;
     this.xr = null; // VR controller state, written by vr.js each frame
+    this.map = null; // assigned controls { pitch: {id, axis, inv}, ..., flapsDown: {id, btn} }, or null for automatic
+    this.sens = "normal"; // stick response curve: gentle | normal | sharp
+    this.learn = null; // { kind: "axis"|"button", base, cb, t0 } while waiting for a control to move
+    this.tilt = { on: false, ok: false, roll: 0, pitch: 0, zero: null };
+    this.floating = true; // touch stick appears under the left thumb
     addEventListener("keydown", (e) => {
       if (e.target.closest && e.target.closest("input, select, textarea")) return;
       const k = e.key.length === 1 ? e.key.toLowerCase() : e.key;
@@ -32,6 +42,59 @@ export class Input {
   on(name, fn) { this.handlers[name] = fn; }
   fire(k, e) { const map = this.handlers.keymap || {}; const fn = map[(e.shiftKey ? "S+" : "") + k] || map[k]; if (fn) fn(e); }
   held(...ks) { return ks.some((k) => this.keys.has(k)); }
+  pads() { return navigator.getGamepads ? [...navigator.getGamepads()].filter(Boolean) : []; }
+  /** stick response: more expo = finer control near the centre */
+  curve(v) { const k = CURVES[this.sens] || CURVES.normal; return clamp(Math.sign(v) * ((1 - k.e) * Math.abs(v) + k.e * v * v) * k.g, -1, 1); }
+
+  /** wait up to 10 s for the user to move an axis (kind "axis") or press a button; cb gets {id, axis} / {id, btn} or null */
+  startLearn(kind, cb) {
+    const base = this.pads().map((g) => ({ id: g.id, axes: [...g.axes], buttons: g.buttons.map((b) => b.pressed) }));
+    this.learn = { kind, cb, base, t0: performance.now() };
+  }
+  /** called every frame, paused or not */
+  poll() {
+    const L = this.learn; if (!L) return;
+    if (performance.now() - L.t0 > 10000) { this.learn = null; return L.cb(null); }
+    for (const g of this.pads()) {
+      const b = L.base.find((x) => x.id === g.id); if (!b) { L.base.push({ id: g.id, axes: [...g.axes], buttons: g.buttons.map((x) => x.pressed) }); continue; }
+      if (L.kind === "axis") { for (let i = 0; i < g.axes.length; i++) if (Math.abs(g.axes[i] - (b.axes[i] ?? 0)) > 0.5) { this.learn = null; return L.cb({ id: g.id, axis: i, inv: false }); } }
+      else for (let i = 0; i < g.buttons.length; i++) if (g.buttons[i].pressed && !b.buttons[i]) { this.learn = null; return L.cb({ id: g.id, btn: i }); }
+    }
+  }
+  /** the usual layout of one controller: a standard gamepad (Xbox/PlayStation) or a flight joystick */
+  autoMap(g) {
+    const a = (axis) => (g.axes.length > axis ? { id: g.id, axis, inv: false } : null), b = (btn) => ({ id: g.id, btn });
+    if (g.mapping === "standard") return { roll: a(0), pitch: a(1), yaw: a(2), throttle: null, flapsDown: b(0), flapsUp: b(1), brake: b(2), view: b(3) };
+    return { roll: a(0), pitch: a(1), throttle: a(2), yaw: a(5) || a(3) };
+  }
+  /** the assigned layout on top of the first controller's automatic one, so assigning one control keeps the rest working */
+  layout(pads = this.pads()) {
+    const g = pads.find((x) => x.index === this.pad) || pads[0];
+    if (!g && !this.map) return null;
+    return { ...(g ? this.autoMap(g) : {}), ...(this.map || {}) };
+  }
+  /** current value of an assigned axis (−1..1, inverted if asked), or null if its device isn't connected */
+  axis(a, pads = this.pads()) { if (!a || a.axis == null) return null; const g = pads.find((x) => x.id === a.id); if (!g) return null; const v = g.axes[a.axis] || 0; return a.inv ? -v : v; }
+
+  /** tilt to fly: roll like a steering wheel, tilt the top edge away to push the nose down */
+  async setTilt(on) {
+    const T = this.tilt; T.on = on; T.zero = null; T.ok = false;
+    if (!on) { removeEventListener("deviceorientation", this._ori); return true; }
+    if (typeof DeviceOrientationEvent !== "undefined" && DeviceOrientationEvent.requestPermission) {
+      try { if ((await DeviceOrientationEvent.requestPermission()) !== "granted") { T.on = false; return false; } } catch { T.on = false; return false; }
+    }
+    this._ori ||= (e) => {
+      if (e.beta == null || e.gamma == null) return;
+      const b = e.beta * D2R, g = e.gamma * D2R;
+      const dx = Math.sin(g) * Math.cos(b), dy = -Math.sin(b), dz = -Math.cos(g) * Math.cos(b); // "down" in device axes
+      const a = ((screen.orientation?.angle ?? window.orientation ?? 0) + 360) % 360;
+      const [sx, sy] = a === 90 ? [-dy, dx] : a === 270 ? [dy, -dx] : a === 180 ? [-dx, -dy] : [dx, dy]; // in screen axes
+      const roll = Math.atan2(sx, -sy) / D2R, back = Math.asin(clamp(-dz, -1, 1)) / D2R;
+      T.zero ??= { roll: 0, back }; T.roll = roll - T.zero.roll; T.pitch = back - T.zero.back; T.ok = true;
+    };
+    addEventListener("deviceorientation", this._ori); return true;
+  }
+  recenterTilt() { if (this.tilt.on) { this.tilt.zero = null; } }
 
   /** update aircraft controls; dt seconds */
   apply(ac, dt) {
@@ -48,24 +111,22 @@ export class Input {
     yawT += this.touch.yaw || 0; // touch rudder buttons
     if (this.invert) pitchT = -pitchT;
     let usingAnalog = false;
-    // gamepad / joystick
-    const gp = this.pad != null && navigator.getGamepads ? navigator.getGamepads()[this.pad] : null;
-    if (gp) {
-      const dz = (v) => (Math.abs(v) < 0.08 ? 0 : (v - Math.sign(v) * 0.08) / 0.92);
-      if (gp.mapping === "standard") {
-        const r = dz(gp.axes[0]), p = dz(gp.axes[1]), y = dz(gp.axes[2]);
-        if (r || p || y) { usingAnalog = true; rollT = r; pitchT = this.invert ? -p : p; yawT = y; }
-        const rt = gp.buttons[7]?.value || 0, lt = gp.buttons[6]?.value || 0;
-        c.throttle = clamp(c.throttle + (rt - lt) * 0.6 * dt, 0, 1);
-        this._edge(gp, 0, () => this.handlers.keymap?.["]"]?.());
-        this._edge(gp, 1, () => this.handlers.keymap?.["["]?.());
-        this._edge(gp, 3, () => this.handlers.keymap?.["c"]?.());
-        c.brake = gp.buttons[2]?.pressed ? 1 : c.brake;
-      } else {
-        const r = dz(gp.axes[0] || 0), p = dz(gp.axes[1] || 0);
-        usingAnalog = true; rollT = r; pitchT = this.invert ? -p : p;
-        if (gp.axes.length > 2) { const th = (1 - (gp.axes[2] || 0)) / 2; if (this.padThrottle == null || Math.abs(th - this.padThrottle) > 0.01) { c.throttle = clamp(th, 0, 1); this.padThrottle = th; } }
-        if (gp.axes.length > 5) yawT = dz(gp.axes[5]); else if (gp.axes.length > 3) yawT = dz(gp.axes[3]);
+    // assigned joystick / throttle / pedal axes and buttons (any number of devices)
+    const dz = (v) => (Math.abs(v) < 0.08 ? 0 : (v - Math.sign(v) * 0.08) / 0.92);
+    const pads = this.pads(), m = this.layout(pads);
+    this._holds = {};
+    if (m) {
+      const r = dz(this.axis(m.roll, pads) ?? 0), p = dz(this.axis(m.pitch, pads) ?? 0), y = this.axis(m.yaw, pads), th = this.axis(m.throttle, pads);
+      if (r || p) { usingAnalog = true; rollT = r; pitchT = this.invert ? -p : p; }
+      if (y != null && dz(y)) yawT = dz(y);
+      if (th != null) { const t = clamp((1 - th) / 2, 0, 1); if (this.padThrottle == null || Math.abs(t - this.padThrottle) > 0.01) { c.throttle = t; this.padThrottle = t; } }
+      else for (const g of pads) if (g.mapping === "standard") c.throttle = clamp(c.throttle + ((g.buttons[7]?.value || 0) - (g.buttons[6]?.value || 0)) * 0.6 * dt, 0, 1); // gamepad triggers
+      this._btnPrev ||= {};
+      for (const [fn, [, key]] of Object.entries(BUTTONS)) {
+        const b = m[fn]; if (!b || b.btn == null) continue;
+        const on = !!pads.find((g) => g.id === b.id)?.buttons[b.btn]?.pressed;
+        if (key === "hold") this._holds[fn] = on; else if (on && !this._btnPrev[fn]) (this.handlers.keymap?.[key])?.();
+        this._btnPrev[fn] = on;
       }
     }
     // VR controllers: right stick flies, left stick is rudder (and throttle, below)
@@ -76,15 +137,18 @@ export class Input {
       const dzm = (v) => (Math.abs(v) < 0.06 ? 0 : (v - Math.sign(v) * 0.06) / 0.94);
       usingAnalog = true; rollT = clamp(dzm(this.mouse.x) * 1.3, -1, 1); pitchT = clamp(dzm(this.mouse.y) * 1.5, -1, 1) * (this.invert ? -1 : 1);
     }
+    // tilt to fly (full deflection at 30° of roll or 20° of pitch), unless a thumb is on the touch stick
+    const T = this.tilt;
+    if (T.on && T.ok && !this.touch.active) { usingAnalog = true; rollT = clamp(T.roll / 30, -1, 1); pitchT = clamp(-T.pitch / 20, -1, 1) * (this.invert ? -1 : 1); }
     // touch stick
     if (this.touch.active) { usingAnalog = true; rollT = this.touch.x; pitchT = this.touch.y * (this.invert ? -1 : 1); }
     this.manRudder = this.manRudder || 0;
-    const expo = (v) => Math.sign(v) * (0.35 * Math.abs(v) + 0.65 * v * v);
+    if (usingAnalog) { rollT = this.curve(rollT); pitchT = this.curve(pitchT); } // sensitivity setting
     const d = ac.derived || {};
     const assisted = this.assist === "assisted" && !d.onGround;
     if (assisted) {
       // rate command, attitude hold: inputs change pitch/bank; let go and the attitude is held
-      const pIn = usingAnalog ? expo(pitchT) : pitchT, rIn = usingAnalog ? expo(rollT) : rollT;
+      const pIn = pitchT, rIn = rollT;
       if (!this.tgt) this.tgt = { pitch: d.pitch || 0, bank: Math.abs(d.bank || 0) < 7 ? 0 : d.bank };
       const t = this.tgt;
       if (Math.abs(pIn) > 0.04) t.pitch += pIn * 5 * dt;
@@ -121,21 +185,45 @@ export class Input {
     if (this.held("f", "PageDown", "-")) c.throttle = clamp(c.throttle - 0.45 * dt, 0, 1);
     if (this.touch.throttle != null) { c.throttle = this.touch.throttle; this.touch.throttle = null; } // slider moves set it once; lessons and keys can still change it
     if (xr?.thr) c.throttle = clamp(c.throttle + xr.thr * 0.5 * dt, 0, 1);
-    if (this.held("t", "Home")) c.trim = clamp(c.trim + 0.22 * dt, -1, 1);
-    if (this.held("g", "End")) c.trim = clamp(c.trim - 0.22 * dt, -1, 1);
-    const b = Math.max(this.held("b") ? 1 : 0, xr ? xr.brake : 0, this.touch.brake ? 1 : 0);
+    if (this.held("t", "Home") || this._holds.trimUp) c.trim = clamp(c.trim + 0.22 * dt, -1, 1);
+    if (this.held("g", "End") || this._holds.trimDown) c.trim = clamp(c.trim - 0.22 * dt, -1, 1);
+    const b = Math.max(this.held("b") ? 1 : 0, xr ? xr.brake : 0, this.touch.brake || this._holds.brake ? 1 : 0);
     c.brake = b; c.brakeL = this.held(",") ? 1 : 0; c.brakeR = this.held(".") ? 1 : 0;
     if (b && Math.abs(c.rudder) > 0.2) { c.brakeL = c.rudder < 0 ? 1 : 0.3; c.brakeR = c.rudder > 0 ? 1 : 0.3; c.brake = 0; }
   }
-  _edge(gp, i, fn) { this._prev ||= {}; const p = !!gp.buttons[i]?.pressed; if (p && !this._prev[i]) fn(); this._prev[i] = p; }
 
-  /** on-screen stick (left) and throttle (right) for touch devices */
-  attachTouch(stickEl, knobEl, thrEl) {
-    const stick = (e) => { const r = stickEl.getBoundingClientRect(); const t = [...e.touches].find((tt) => tt.clientX < innerWidth / 2) || e.touches[0]; if (!t) return; const x = clamp(((t.clientX - r.left) / r.width) * 2 - 1, -1, 1), y = clamp(((t.clientY - r.top) / r.height) * 2 - 1, -1, 1); this.touch.active = true; this.touch.x = x; this.touch.y = y; knobEl.style.transform = `translate(${x * 34}px, ${y * 34}px)`; e.preventDefault(); };
-    stickEl.addEventListener("touchstart", stick, { passive: false }); stickEl.addEventListener("touchmove", stick, { passive: false });
-    stickEl.addEventListener("touchend", () => { this.touch.active = false; knobEl.style.transform = ""; });
-    thrEl.addEventListener("input", () => { this.touch.throttle = thrEl.value / 100; });
-    const busy = (on) => () => { this.touch.thrBusy = on; };
-    thrEl.addEventListener("pointerdown", busy(true)); thrEl.addEventListener("pointerup", busy(false)); thrEl.addEventListener("pointercancel", busy(false));
+  /** true when a touch at screen x belongs to the floating stick (the camera drag ignores it) */
+  claimsTouch(x) { return this.floating && x < innerWidth * 0.45; }
+
+  /** touch controls: the left stick (fixed, or floating under the thumb), and on the right either the throttle
+   *  slider or a throttle/rudder stick (up/down holds the throttle, left/right is rudder and springs back) */
+  attachTouch({ stick, knob, thr, stick2, knob2 }) {
+    const T = this.touch, ours = (e, id) => [...e.changedTouches].find((t) => t.identifier === id);
+    // left stick
+    let id = null, ox = 0, oy = 0, R = 50;
+    const move = (t) => { const x = clamp((t.clientX - ox) / R, -1, 1), y = clamp((t.clientY - oy) / R, -1, 1); T.active = true; T.x = x; T.y = y; knob.style.transform = `translate(${x * 34}px, ${y * 34}px)`; };
+    const start = (t, floating) => {
+      id = t.identifier; stick.style.transform = "";
+      const r = stick.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+      if (floating) { stick.style.transform = `translate(${t.clientX - cx}px, ${t.clientY - cy}px)`; ox = t.clientX; oy = t.clientY; R = 50; } else { ox = cx; oy = cy; R = r.width * 0.4; }
+      stick.classList.add("live"); move(t);
+    };
+    const end = () => { id = null; T.active = false; knob.style.transform = ""; stick.style.transform = ""; stick.classList.remove("live"); };
+    stick.addEventListener("touchstart", (e) => { e.preventDefault(); if (id == null) start(e.changedTouches[0], false); }, { passive: false });
+    this.el.addEventListener("touchstart", (e) => { if (id != null) return; const t = [...e.changedTouches].find((x) => this.claimsTouch(x.clientX)); if (t) { e.preventDefault(); start(t, true); } }, { passive: false });
+    // right throttle/rudder stick
+    let id2 = null, cx2 = 0, cy2 = 0, R2 = 50;
+    const move2 = (t) => { const x = clamp((t.clientX - cx2) / R2, -1, 1), y = clamp((t.clientY - cy2) / R2, -1, 1); T.yaw = Math.abs(x) < 0.12 ? 0 : x; T.throttle = (1 - y) / 2; knob2.style.transform = `translate(${x * 34}px, ${y * 34}px)`; };
+    stick2?.addEventListener("touchstart", (e) => { e.preventDefault(); if (id2 != null) return; const t = e.changedTouches[0], r = stick2.getBoundingClientRect(); id2 = t.identifier; cx2 = r.left + r.width / 2; cy2 = r.top + r.height / 2; R2 = r.width * 0.4; T.thrBusy = true; stick2.classList.add("live"); move2(t); }, { passive: false });
+    addEventListener("touchmove", (e) => {
+      const a = id != null && ours(e, id), b = id2 != null && ours(e, id2);
+      if (a) move(a); if (b) move2(b); if (a || b) e.preventDefault();
+    }, { passive: false });
+    const lift = (e) => { if (id != null && ours(e, id)) end(); if (id2 != null && ours(e, id2)) { id2 = null; T.yaw = 0; T.thrBusy = false; stick2.classList.remove("live"); } };
+    addEventListener("touchend", lift); addEventListener("touchcancel", lift);
+    // throttle slider
+    thr.addEventListener("input", () => { T.throttle = thr.value / 100; });
+    const busy = (on) => () => { T.thrBusy = on; };
+    thr.addEventListener("pointerdown", busy(true)); thr.addEventListener("pointerup", busy(false)); thr.addEventListener("pointercancel", busy(false));
   }
 }

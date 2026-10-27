@@ -168,6 +168,7 @@ kbd { font: 600 12px/1 var(--f-mono); padding: 4px 6px; border-radius: 3px; back
   .stick { width: 104px; height: 104px; }
   .thr input { height: 104px; }
   .tbtns { grid-template-columns: repeat(4, 66px); }
+  .touch.twostick .tbtns { grid-template-columns: repeat(3, 66px); }
   .modal .card { padding: 18px 22px; gap: 10px; }
   .strip { left: calc(var(--gutter) + 116px); transform: none; justify-content: flex-start; max-width: calc(100vw - var(--gutter) - 116px - 360px); }
   .strip span { font-size: 13px; padding: 5px 7px; }
@@ -203,6 +204,22 @@ kbd { font: 600 12px/1 var(--f-mono); padding: 4px 6px; border-radius: 3px; back
 @media (max-width: 720px) { .ctl { display: none; } }
 
 .pro { display: inline-block; font: 600 9.5px/1 var(--f-body); letter-spacing: .16em; text-transform: uppercase; color: var(--magenta); border: 1px solid rgba(230, 75, 208, .55); padding: 3px 5px; border-radius: 2px; vertical-align: 2px; }
+
+/* touch sticks and the controller table */
+.stick.live { border-color: var(--magenta); background: rgba(5, 6, 7, .6); }
+.stick2 { position: relative; }
+.stick2 .s2l, .stick2 .s2r { position: absolute; font: 700 9px var(--f-mono); color: var(--muted); letter-spacing: .08em; pointer-events: none; }
+.stick2 .s2l { top: 6px; left: 50%; transform: translateX(-50%); }
+.stick2 .s2r { bottom: 6px; left: 50%; transform: translateX(-50%); }
+.touch.twostick [data-t="rudL"], .touch.twostick [data-t="rudR"] { display: none; }
+.ctlmap { width: 100%; border-collapse: collapse; font-size: 13px; margin: 6px 0 10px; }
+.ctlmap td { padding: 6px 4px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+.ctlmap td.mono { font: 12px var(--f-mono); color: var(--muted); }
+.ctlmap .chk { display: flex; align-items: center; gap: 4px; font-size: 12px; color: var(--muted); }
+.ctlmap .sbtn { padding: 7px 9px; font-size: 11px; }
+.axbar { position: relative; display: block; width: 70px; height: 6px; border-radius: 3px; background: rgba(255, 255, 255, .12); }
+.axbar::before { content: ""; position: absolute; left: 50%; top: -2px; bottom: -2px; width: 1px; background: rgba(255, 255, 255, .3); }
+.axbar i { position: absolute; top: -3px; width: 10px; height: 12px; margin-left: -5px; border-radius: 2px; background: var(--cyan); }
 
 /* touch screens (last, so they win over the rules above) */
 @media (pointer: coarse) {

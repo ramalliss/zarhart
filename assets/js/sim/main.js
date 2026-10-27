@@ -6,7 +6,7 @@ import { World } from "./world3d.js";
 import { buildAirplane, buildCockpit, animateAirplane, buildShadow } from "./plane3d.js";
 import { Weather, PRESETS } from "./weather.js";
 import { vor, gps, WAYPOINTS, wrap180 } from "./nav.js";
-import { Input } from "./input.js";
+import { Input, BUTTONS, AXES } from "./input.js";
 import { Audio } from "./audio.js";
 import { Panel } from "./panel.js";
 import { buildSectionalBase, drawMap } from "./map.js";
@@ -27,7 +27,7 @@ const FREQS = [
 const freqInfo = (f) => FREQS.find((q) => Math.abs(q.f - f) < 0.004);
 
 /* ---------------- settings ---------------- */
-const settings = Object.assign({ quality: "high", invert: false, mouseYoke: false, autoRudder: true, sound: true, voice: false, panel: "steam" }, store.get("settings", {}));
+const settings = Object.assign({ quality: "high", invert: false, mouseYoke: false, autoRudder: true, sound: true, voice: false, panel: "steam", sens: "normal", floating: true, touchRight: "slider", tilt: false, haptics: true, ctlMap: null }, store.get("settings", {}));
 settings.assist ||= settings.autoRudder === false ? "off" : "assisted";
 const saveSettings = () => store.set("settings", settings);
 
@@ -46,6 +46,7 @@ const panel = new Panel($("#panel"));
 panel.mode = settings.panel;
 const input = new Input(view);
 input.invert = settings.invert; input.mouseYoke = settings.mouseYoke; input.autoRudder = settings.assist !== "off"; input.assist = settings.assist;
+input.sens = settings.sens; input.floating = settings.floating; input.map = settings.ctlMap;
 const audio = new Audio(); audio.enabled = settings.sound;
 
 const sim = {
@@ -100,7 +101,7 @@ const camState = { look: { yaw: 0, pitch: -7 * DEG }, orbit: { yaw: 200 * DEG, p
 const VIEWS = ["cockpit", "chase", "orbit", "tower"];
 const tmpQ = new THREE.Quaternion(), tmpV = new THREE.Vector3(), tmpE = new THREE.Euler(0, 0, 0, "YXZ");
 let drag = null;
-view.addEventListener("pointerdown", (e) => { if (e.button === 0 || e.button === 2) { drag = { x: e.clientX, y: e.clientY }; view.setPointerCapture(e.pointerId); } });
+view.addEventListener("pointerdown", (e) => { if (e.pointerType === "touch" && $("#touch") && !$("#touch").hidden && input.claimsTouch(e.clientX)) return; if (e.button === 0 || e.button === 2) { drag = { x: e.clientX, y: e.clientY }; view.setPointerCapture(e.pointerId); } });
 view.addEventListener("pointermove", (e) => {
   if (!drag) return; const dx = e.clientX - drag.x, dy = e.clientY - drag.y; drag = { x: e.clientX, y: e.clientY };
   if (sim.view === "cockpit") { camState.look.yaw -= dx * 0.004; camState.look.pitch = Math.max(-1.2, Math.min(1.0, camState.look.pitch - dy * 0.004)); }
@@ -154,6 +155,23 @@ const toasts = $("#toasts");
 const TOUCH = matchMedia("(pointer: coarse)").matches;
 const TOUCH_KEYS = { "Shift+B": "Park brk", E: "Rudder ▶", Q: "◀ Rudder", Space: "Radio → Click the mic", H: "Aircraft → Carb heat", M: "Map", K: "Checklist", C: "View", P: "Pause" };
 const forTouch = (s) => (TOUCH ? s.replace(/\((Shift\+B|Space|[A-Z])\)/g, (m, k) => (TOUCH_KEYS[k] ? `(${TOUCH_KEYS[k]})` : m)).replace(/ \(or press [A-Z]\)/g, "").replace(/Press Space to click the mic/g, "Tap Radio → Click the mic") : s);
+/** a short haptic pulse: phones vibrate, gamepads with rumble motors rumble */
+function buzz(ms, strength) {
+  if (!settings.haptics) return;
+  if (TOUCH) navigator.vibrate?.(ms);
+  for (const g of input.pads()) g.vibrationActuator?.playEffect?.("dual-rumble", { duration: ms, strongMagnitude: strength, weakMagnitude: strength / 2 })?.catch?.(() => {});
+}
+const padName = (id) => id.replace(/\s*\(.*$/, "").slice(0, 32);
+const ctlName = (a) => (a ? `${a.axis != null ? `Axis ${a.axis}` : `Button ${a.btn}`} · ${padName(a.id)}` : "—");
+/** the Settings drawer's controller table: who's connected, what each control is assigned to, live axis positions */
+function ctlBars() {
+  const B = drawerBody, dev = $("#ctlDevs", B); if (!dev) return;
+  const pads = input.pads(), m = input.layout(pads) || {};
+  dev.textContent = pads.length ? `Connected: ${pads.map((g) => padName(g.id)).join(", ")}` : "No controller connected. Plug one in and press any of its buttons.";
+  B.querySelectorAll("[data-cur]").forEach((td) => { const k = td.dataset.cur, a = m[k]; td.textContent = ctlName(a) + (a && !settings.ctlMap?.[k] ? " (auto)" : ""); });
+  B.querySelectorAll("[data-inv]").forEach((c) => { const a = m[c.dataset.inv]; c.disabled = !a; if (document.activeElement !== c) c.checked = !!a?.inv; });
+  B.querySelectorAll("[data-bar]").forEach((i) => { const v = input.axis(m[i.dataset.bar], pads); i.style.left = `${((v ?? 0) + 1) * 50}%`; i.style.opacity = v == null ? 0.25 : 1; });
+}
 function say(text, kind = "info", ms = 5200) {
   text = forTouch(text);
   vr.message(text, kind);
@@ -269,7 +287,7 @@ function monitors(dt) {
 function handleEvents() {
   for (const e of ac.events) {
     if (e.type === "touchdown") {
-      const td = e.msg; sim.lastTouchdown = { ...td, used: false }; audio.thump(td.fpm);
+      const td = e.msg; sim.lastTouchdown = { ...td, used: false }; audio.thump(td.fpm); buzz(td.fpm > 400 ? 160 : 60, Math.min(1, 0.3 + td.fpm / 900));
       const g = td.fpm < 200 ? "Smooth" : td.fpm < 400 ? "Good" : td.fpm < 650 ? "Firm" : "Hard";
       say(`Touchdown ${td.fpm} fpm · ${td.kias} KIAS · ${g}`, td.fpm < 650 ? "good" : "warn");
     } else if (e.type === "crash") showCrash(e.msg);
@@ -440,7 +458,44 @@ function renderDrawer() {
       <label class="chk"><input type="checkbox" id="sSound" ${settings.sound ? "checked" : ""}> Sound</label>
       <label class="chk"><input type="checkbox" id="sVoice" ${settings.voice ? "checked" : ""}> Spoken ATC & ATIS (text-to-speech)</label>
       <label>Instrument panel (I) <select id="sPanel"><option value="steam">Six-pack (steam gauges)</option><option value="glass">Glass cockpit (G1000 style)</option><option value="off">Hidden</option></select></label></div>
-      <p class="dnote">Graphics changes take effect after a reload. Gamepads and joysticks are detected automatically: press any button.</p>`;
+      <p class="dnote">Graphics changes take effect after a reload.</p>
+      <h3 class="dsub">Controls</h3>
+      <div class="form"><label>Stick sensitivity <select id="sSens"><option value="gentle">Gentle: finer control near the centre</option><option value="normal">Normal</option><option value="sharp">Sharp: more direct</option></select></label>
+      ${TOUCH ? `<label class="chk"><input type="checkbox" id="sFloat" ${settings.floating ? "checked" : ""}> Floating stick: touch anywhere on the left side</label>
+      <label>Right thumb <select id="sRight"><option value="slider">Throttle slider and rudder buttons</option><option value="stick">Second stick: throttle up and down, rudder left and right</option></select></label>
+      <label class="chk"><input type="checkbox" id="sTilt" ${settings.tilt ? "checked" : ""}> Tilt to fly: turn the phone like a wheel to bank, tilt the top edge toward you to raise the nose</label>
+      <button class="sbtn" id="sRecenter" ${settings.tilt ? "" : "hidden"}>Recenter tilt (hold the phone how you like, then tap)</button>` : ""}
+      <label class="chk"><input type="checkbox" id="sHaptic" ${settings.haptics ? "checked" : ""}> Vibration and controller rumble with the stall horn and on touchdown</label></div>
+      <h3 class="dsub">Joystick, throttle and pedals</h3>
+      <p class="dnote" id="ctlDevs"></p>
+      <table class="ctlmap"><tbody>${Object.entries(AXES).map(([k, label]) => `<tr><td>${esc(label)}</td><td class="mono" data-cur="${k}"></td><td><span class="axbar"><i data-bar="${k}"></i></span></td><td><label class="chk"><input type="checkbox" data-inv="${k}"> Invert</label></td><td><button class="sbtn" data-learn="${k}">Assign</button></td></tr>`).join("")}
+        ${Object.entries(BUTTONS).map(([k, [label]]) => `<tr><td>${esc(label)}</td><td class="mono" data-cur="${k}"></td><td></td><td></td><td><button class="sbtn" data-learn="${k}">Assign</button></td></tr>`).join("")}</tbody></table>
+      <p><button class="sbtn" id="ctlReset">Reset to automatic</button></p>
+      <p class="dnote">Click Assign, then move the axis or press the button on your controller. You can mix devices: a stick, a separate throttle quadrant and rudder pedals. Anything you don't assign uses the first controller's usual layout. Your browser only sees a controller after you press one of its buttons.</p>`;
+    $("#sSens", B).value = settings.sens;
+    $("#sSens", B).addEventListener("change", (e) => { settings.sens = input.sens = e.target.value; saveSettings(); });
+    $("#sHaptic", B).addEventListener("change", (e) => { settings.haptics = e.target.checked; saveSettings(); if (settings.haptics) buzz(60, 0.5); });
+    if (TOUCH) {
+      $("#sFloat", B).addEventListener("change", (e) => { settings.floating = input.floating = e.target.checked; saveSettings(); });
+      $("#sRight", B).value = settings.touchRight;
+      $("#sRight", B).addEventListener("change", (e) => { settings.touchRight = e.target.value; saveSettings(); touchLayout(); });
+      $("#sTilt", B).addEventListener("change", async (e) => {
+        const ok = await input.setTilt(e.target.checked); settings.tilt = e.target.checked && ok; saveSettings(); $("#sRecenter", B).hidden = !settings.tilt;
+        if (e.target.checked && !ok) { e.target.checked = false; say("This browser didn't allow motion access, so tilt to fly is off.", "warn"); }
+        else if (settings.tilt) say("Tilt to fly is on. Hold the phone where it feels level, then tap Recenter.", "info", 5000);
+      });
+      $("#sRecenter", B).addEventListener("click", () => { input.recenterTilt(); say("Tilt recentered.", "good", 1500); });
+    }
+    const assign = (k, r) => { settings.ctlMap = { ...(settings.ctlMap || {}), [k]: r }; input.map = settings.ctlMap; saveSettings(); };
+    B.querySelectorAll("[data-inv]").forEach((c) => c.addEventListener("change", () => { const k = c.dataset.inv, a = input.layout()?.[k]; if (a) assign(k, { ...a, inv: c.checked }); }));
+    B.querySelectorAll("[data-learn]").forEach((b) => b.addEventListener("click", () => {
+      const k = b.dataset.learn, isAxis = k in AXES;
+      if (!input.pads().length) return say("No controller found. Plug it in and press one of its buttons, then try again.", "warn");
+      B.querySelectorAll("[data-learn]").forEach((x) => { x.disabled = true; }); b.textContent = isAxis ? "Move it now…" : "Press it now…";
+      input.startLearn(isAxis ? "axis" : "button", (r) => { if (r) { assign(k, r); say(`${isAxis ? AXES[k] : BUTTONS[k][0]}: ${ctlName(r)}`, "good", 2500); } else say("Nothing moved within 10 seconds. Try Assign again.", "tip"); renderDrawer(); });
+    }));
+    $("#ctlReset", B).addEventListener("click", () => { settings.ctlMap = input.map = null; saveSettings(); renderDrawer(); say("Controls reset to automatic.", "info", 2000); });
+    ctlBars();
     $("#sQ", B).value = settings.quality; $("#sPanel", B).value = settings.panel;
     $("#sQ", B).addEventListener("change", (e) => { settings.quality = e.target.value; saveSettings(); say("Reload the page to apply graphics quality.", "info"); });
     $("#sInv", B).addEventListener("change", (e) => { settings.invert = input.invert = e.target.checked; saveSettings(); });
@@ -520,7 +575,13 @@ function hudUpdate() {
   const gm = $("#gmeter"); gm.hidden = !(sim.showG || sim.gHigh > 1.2) || d.onGround;
   if (!gm.hidden) gm.innerHTML = `<b>${d.g.toFixed(2)} G</b><span>bank ${Math.round(Math.abs(d.bank))}° · theory ${(1 / Math.cos(Math.min(85, Math.abs(d.bank)) * DEG)).toFixed(2)} G</span>`;
   // touch controls follow the airplane: the throttle slider (unless a thumb is on it) and the parking brake button
-  if (!$("#touch").hidden) { if (!input.touch.thrBusy) $("#thr").value = Math.round(ac.ctl.throttle * 100); $('#touch [data-t="park"]').classList.toggle("on", ac.parkingBrake); }
+  if (!$("#touch").hidden) {
+    if (!input.touch.thrBusy) { $("#thr").value = Math.round(ac.ctl.throttle * 100); $("#knob2").style.transform = `translate(0px, ${Math.round((1 - 2 * ac.ctl.throttle) * 34)}px)`; }
+    $('#touch [data-t="park"]').classList.toggle("on", ac.parkingBrake);
+  }
+  // haptics: a buzz with the stall horn (phones vibrate, gamepads rumble)
+  if (d.stallWarn && !sim.paused && performance.now() - (hudUpdate.buzzT || 0) > 450) { hudUpdate.buzzT = performance.now(); buzz(70, 0.35); }
+  if (openDrawerName === "settings") ctlBars();
   // light gun
   const lg = $("#lightgun"); lg.hidden = !sim.lightGun; if (sim.lightGun) lg.innerHTML = `<span class="dot ${sim.lightGun.color} ${sim.lightGun.flash ? "flash" : ""}"></span>${esc(sim.lightGun.text)}`;
   // objectives
@@ -580,8 +641,13 @@ $("#startVR").addEventListener("click", () => {
 $("#crashLessons").addEventListener("click", () => { hideCrash(); openDrawer("lessons"); });
 $("#resume").addEventListener("click", () => { sim.paused = false; $("#paused").hidden = true; });
 input.on("onPad", (id) => say(`Controller connected: ${id.slice(0, 40)}`, "good"));
+/** touch layout: the throttle slider and rudder buttons, or a right-hand throttle/rudder stick */
+function touchLayout() { const two = settings.touchRight === "stick"; $("#stick2").hidden = !two; $(".thr").hidden = two; $("#touch").classList.toggle("twostick", two); }
 if (matchMedia("(pointer: coarse)").matches) {
-  $("#touch").hidden = false; input.attachTouch($("#stick"), $("#knob"), $("#thr"));
+  $("#touch").hidden = false; input.attachTouch({ stick: $("#stick"), knob: $("#knob"), thr: $("#thr"), stick2: $("#stick2"), knob2: $("#knob2") }); touchLayout();
+  // iPhones only grant motion access from a tap, so tilt waits for the first touch there
+  const tiltOn = () => input.setTilt(true).then((ok) => { if (!ok) { settings.tilt = false; saveSettings(); say("Tilt to fly needs motion access. Turn it on again in Settings.", "warn"); } });
+  if (settings.tilt) { if (window.DeviceOrientationEvent?.requestPermission) addEventListener("touchend", tiltOn, { once: true }); else tiltOn(); }
   const tap = { flapsDown: () => keymap["]"](), flapsUp: () => keymap["["](), park: () => keymap["S+b"](), view: () => keymap.c(), pause: () => togglePause() };
   const holds = { brake: (on) => { input.touch.brake = on; }, rudL: (on) => { input.touch.yaw = on ? -1 : 0; }, rudR: (on) => { input.touch.yaw = on ? 1 : 0; } };
   document.querySelectorAll("#touch [data-t]").forEach((b) => {
@@ -630,6 +696,7 @@ function stepSim(dt, pilot) {
 function tick(now) {
   const dt = Math.max(0, Math.min(0.05, (now - last) / 1000)); last = Math.max(last, now);
   if (vr.active) vr.poll();
+  input.poll(); // assigning a joystick control works while paused too
   if (sim.ready && !sim.paused) stepSim(dt);
   if (sim.ready) {
     const d = sim.d = ac.derived;
