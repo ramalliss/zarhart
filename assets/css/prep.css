@@ -150,3 +150,17 @@ textarea { width: 100%; min-height: 280px; font: 13px/1.5 var(--f-mono); backgro
 .courses a { font-weight: 600; }
 .courses span:not(.chip) { color: var(--muted); font-size: 15px; }
 @media (max-width: 640px) { .courses li { grid-template-columns: 1fr; } }
+
+/* scenario quizzes and the ten practice tests */
+.chiprow { display: flex; flex-wrap: wrap; gap: 8px; margin: 6px 0 18px; }
+.chipbtn { display: inline-flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 999px; border: 1px solid var(--line-2); background: var(--panel); color: var(--text); font: 500 13.5px/1.2 var(--f-body); cursor: pointer; }
+.chipbtn span { font: 600 11px/1 var(--f-mono); color: var(--muted); }
+.chipbtn:hover, .chipbtn:focus-visible { border-color: var(--magenta); }
+.forms { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 8px; }
+.forms .form { display: grid; gap: 4px; text-align: left; padding: 12px 14px; border-radius: 4px; border: 1px solid var(--line-2); background: rgba(255, 255, 255, .02); color: var(--text); cursor: pointer; font: inherit; }
+.forms .form b { font-size: 15px; }
+.forms .form span { font: 500 11.5px var(--f-mono); color: var(--muted); }
+.forms .form.pass { border-color: var(--green); }
+.forms .form.fail { border-color: var(--amber); }
+.forms .form:hover, .forms .form:focus-visible { border-color: var(--magenta); }
+.examintro h3 { margin: 0; }

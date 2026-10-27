@@ -8283,6 +8283,565 @@
    ],
    "why": "The induced roll can exceed what the ailerons can counter, especially for small aircraft.",
    "ref": "AIM 7-4-5"
+  },
+  {
+   "id": "q501",
+   "src": "faa",
+   "topic": "perf",
+   "q": "What are the three basic types of hydroplaning?",
+   "c": [
+    "Dynamic, reverted rubber, and viscous",
+    "Dynamic, static, and kinetic",
+    "Viscous, frictional, and thermal"
+   ],
+   "why": "Dynamic: standing water lifts the tire off the runway. Viscous: a thin film of water on a smooth surface. Reverted rubber: a locked, skidding wheel heats the rubber and turns the water to steam.",
+   "ref": "PHAK ch. 11"
+  },
+  {
+   "id": "q502",
+   "src": "faa",
+   "topic": "perf",
+   "q": "Landing on a runway with standing water, the best way to slow down at high speed is to",
+   "c": [
+    "hold the nose up for aerodynamic braking, and brake gently only once below hydroplaning speed",
+    "apply maximum braking right after touchdown",
+    "touch down fast to get through the water quickly"
+   ],
+   "why": "Above the hydroplaning speed the tires ride on the water and the brakes do almost nothing. Land at the slowest safe speed, use aerodynamic braking, then brake gently.",
+   "ref": "PHAK ch. 11"
+  },
+  {
+   "id": "q503",
+   "src": "faa",
+   "topic": "adm",
+   "q": "On a cold morning you find a thin layer of frost on the wings. What should you do?",
+   "c": [
+    "Remove all of it before takeoff",
+    "Take off: the frost will blow off during the takeoff roll",
+    "Rotate at a higher speed to make up for it"
+   ],
+   "why": "Even thin frost roughens the wing, decreasing lift and increasing drag, and the airplane may not fly at the normal takeoff speed. It cannot be relied on to blow off.",
+   "ref": "PHAK ch. 12"
+  },
+  {
+   "id": "q504",
+   "src": "faa",
+   "topic": "wx",
+   "q": "An individual microburst usually lasts about",
+   "c": [
+    "15 minutes from when it first strikes the ground",
+    "2 to 3 hours",
+    "30 seconds"
+   ],
+   "why": "A microburst seldom lasts longer than 15 minutes from the time it strikes the ground until it dissipates, so waiting it out or diverting is the answer.",
+   "ref": "AIM 7-1-24"
+  },
+  {
+   "id": "q505",
+   "src": "faa",
+   "topic": "ops",
+   "q": "With the wind calm at a non-towered airport, which runway should you use?",
+   "c": [
+    "The designated calm-wind runway if there is one, otherwise the most suitable runway, and announce it on the CTAF",
+    "Always the longest runway, without a radio call",
+    "The runway that points closest to north"
+   ],
+   "why": "With no wind to favour a runway, use the calm-wind runway listed for the airport (if any) and tell other traffic which runway you are using.",
+   "ref": "AC 90-66C"
+  },
+  {
+   "id": "q506",
+   "src": "faa",
+   "topic": "perf",
+   "q": "Compared with landing into a 10-knot headwind, landing with the wind calm gives",
+   "c": [
+    "a higher groundspeed at touchdown and a longer landing roll",
+    "a lower groundspeed and a shorter landing roll",
+    "the same landing roll, because the indicated airspeed is the same"
+   ],
+   "why": "A headwind subtracts from groundspeed. With no wind, you touch down at your full true airspeed over the ground and need more runway to stop.",
+   "ref": "PHAK ch. 11"
+  },
+  {
+   "id": "q507",
+   "src": "faa",
+   "topic": "perf",
+   "q": "Which type of hydroplaning can happen at lower speeds than dynamic hydroplaning, with only a thin film of water on a smooth runway?",
+   "c": [
+    "Viscous hydroplaning",
+    "Dynamic hydroplaning",
+    "Reverted rubber hydroplaning"
+   ],
+   "why": "Viscous hydroplaning needs only a very thin film of water on a smooth surface, such as rubber deposits in the touchdown zone, and can occur at lower speeds.",
+   "ref": "PHAK ch. 11"
+  },
+  {
+   "id": "q508",
+   "src": "faa",
+   "topic": "perf",
+   "q": "Reverted rubber hydroplaning is caused by",
+   "c": [
+    "a locked wheel skidding, which heats the rubber and turns the water under it to steam",
+    "standing water deeper than the tire tread",
+    "oil mixing with rain on the runway"
+   ],
+   "why": "It follows a prolonged locked-wheel skid. Avoid it by not locking the brakes on a wet runway.",
+   "ref": "PHAK ch. 11"
+  },
+  {
+   "id": "q509",
+   "src": "faa",
+   "topic": "perf",
+   "q": "Using the rule of thumb of 9 times the square root of the tire pressure, a tire inflated to 25 psi starts dynamic hydroplaning at about",
+   "c": [
+    "45 knots",
+    "25 knots",
+    "81 knots"
+   ],
+   "why": "9 × √25 = 9 × 5 = 45 knots.",
+   "ref": "PHAK ch. 11"
+  },
+  {
+   "id": "q510",
+   "src": "faa",
+   "topic": "perf",
+   "q": "On a wet runway, compared with a dry one, the landing distance",
+   "c": [
+    "increases, because braking is less effective",
+    "decreases, because water slows the wheels",
+    "stays the same if the approach speed is normal"
+   ],
+   "why": "Water reduces the friction between the tires and the runway, so braking is less effective and the airplane needs more distance to stop.",
+   "ref": "PHAK ch. 11"
+  },
+  {
+   "id": "q511",
+   "src": "faa",
+   "topic": "perf",
+   "q": "Snow or slush on the runway affects the takeoff by",
+   "c": [
+    "adding rolling resistance, so the takeoff roll is longer",
+    "reducing rolling resistance, so the takeoff roll is shorter",
+    "having no effect if the snow is dry"
+   ],
+   "why": "Snow, slush, tall grass and soft surfaces all drag on the wheels and lengthen the takeoff roll.",
+   "ref": "PHAK ch. 11"
+  },
+  {
+   "id": "q512",
+   "src": "faa",
+   "topic": "perf",
+   "q": "Cold, dense air affects airplane performance by",
+   "c": [
+    "improving it: shorter takeoffs and better climbs, because density altitude is low",
+    "degrading it, because the engine runs too cold to make power",
+    "not affecting it at all"
+   ],
+   "why": "Cold air is dense: the wing makes more lift, the propeller more thrust and the engine more power at a given setting.",
+   "ref": "PHAK ch. 11"
+  },
+  {
+   "id": "q513",
+   "src": "faa",
+   "topic": "wx",
+   "q": "Clear ice is most likely to form from",
+   "c": [
+    "large supercooled water drops, such as freezing rain, that spread out before they freeze",
+    "small supercooled droplets that freeze instantly",
+    "water vapour turning directly into ice on a cold surface"
+   ],
+   "why": "Large drops flow back over the surface before freezing, forming hard, heavy, glossy clear ice. Small droplets freeze on impact as rime; vapour deposition forms frost.",
+   "ref": "PHAK ch. 12"
+  },
+  {
+   "id": "q514",
+   "src": "faa",
+   "topic": "wx",
+   "q": "Structural ice on the airframe",
+   "c": [
+    "decreases lift and thrust, and increases drag and weight",
+    "increases lift by adding camber to the wing",
+    "affects only the windshield"
+   ],
+   "why": "Ice changes the wing's shape and roughens it, adds weight, and ice on the propeller cuts thrust. The stall speed goes up.",
+   "ref": "PHAK ch. 12"
+  },
+  {
+   "id": "q515",
+   "src": "faa",
+   "topic": "adm",
+   "q": "Flying a non-deiced airplane, you unexpectedly pick up ice in a cloud. The best first action is to",
+   "c": [
+    "leave the icing conditions right away: reverse course or change altitude out of the cloud or toward warmer air",
+    "keep going and climb until the ice melts, wherever that takes you",
+    "slow down close to the stall to reduce the ice build-up"
+   ],
+   "why": "Light airplanes are not certified for known icing. Get out of the visible moisture or into above-freezing air as soon as possible, and tell ATC.",
+   "ref": "AC 91-74B"
+  },
+  {
+   "id": "q516",
+   "src": "faa",
+   "topic": "inst",
+   "q": "When should pitot heat be turned on?",
+   "c": [
+    "Before flying into visible moisture when the temperature is near or below freezing",
+    "Only after the airspeed indicator has failed",
+    "Only on the ground before takeoff"
+   ],
+   "why": "Pitot heat keeps ice from blocking the pitot tube. Turn it on before entering visible moisture near freezing, not after the airspeed indicator has failed.",
+   "ref": "PHAK ch. 8"
+  },
+  {
+   "id": "q518",
+   "src": "faa",
+   "topic": "wx",
+   "q": "In a METAR, \"+RA\" means",
+   "c": [
+    "heavy rain",
+    "light rain",
+    "rain showers ending"
+   ],
+   "why": "The intensity symbol comes first: minus for light, no sign for moderate, plus for heavy. RA is rain.",
+   "ref": "AC 00-45H"
+  },
+  {
+   "id": "q519",
+   "src": "faa",
+   "topic": "wx",
+   "q": "In a METAR, \"-SN\" means",
+   "c": [
+    "light snow",
+    "heavy snow",
+    "snow ended"
+   ],
+   "why": "The minus sign means light; SN is snow.",
+   "ref": "AC 00-45H"
+  },
+  {
+   "id": "q520",
+   "src": "faa",
+   "topic": "wx",
+   "q": "In a METAR, \"FZRA\" means",
+   "c": [
+    "freezing rain",
+    "freezing fog with rain in the vicinity",
+    "frost and rain"
+   ],
+   "why": "FZ (freezing) describes RA (rain): rain that freezes on contact with the ground or the airplane.",
+   "ref": "AC 00-45H"
+  },
+  {
+   "id": "q521",
+   "src": "faa",
+   "topic": "wx",
+   "q": "In a METAR, \"BR\" means",
+   "c": [
+    "mist",
+    "blowing rain",
+    "breaks in the overcast"
+   ],
+   "why": "BR (from the French brume) is mist: visibility of 5/8 statute mile or more, but obscured by water droplets.",
+   "ref": "AC 00-45H"
+  },
+  {
+   "id": "q522",
+   "src": "faa",
+   "topic": "wx",
+   "q": "\"FG\" (fog) is reported in a METAR when the visibility is",
+   "c": [
+    "less than 5/8 statute mile",
+    "less than 3 statute miles",
+    "less than 1 nautical mile"
+   ],
+   "why": "Below 5/8 SM the obscuration is reported as fog; at 5/8 SM or more it is mist (BR).",
+   "ref": "AC 00-45H"
+  },
+  {
+   "id": "q523",
+   "src": "faa",
+   "topic": "wx",
+   "q": "In a METAR, \"VCTS\" means",
+   "c": [
+    "a thunderstorm in the vicinity, between 5 and 10 statute miles from the station",
+    "a very strong convective thunderstorm over the field",
+    "visibility reduced by thunderstorms"
+   ],
+   "why": "VC (vicinity) means 5 to 10 SM from the point of observation; TS is thunderstorm.",
+   "ref": "AC 00-45H"
+  },
+  {
+   "id": "q524",
+   "src": "faa",
+   "topic": "wx",
+   "q": "In a METAR, the wind group \"00000KT\" means",
+   "c": [
+    "the wind is calm",
+    "the wind direction is variable",
+    "the wind sensor is out of service"
+   ],
+   "why": "Calm wind is reported as 00000KT.",
+   "ref": "AC 00-45H"
+  },
+  {
+   "id": "q525",
+   "src": "faa",
+   "topic": "wx",
+   "q": "In a METAR wind group such as \"VRB04KT\", VRB means",
+   "c": [
+    "the wind direction is variable",
+    "the air is very rough and bumpy",
+    "there is a visual range report"
+   ],
+   "why": "VRB is used when the direction varies, typically with light winds of 6 knots or less.",
+   "ref": "AC 00-45H"
+  },
+  {
+   "id": "q526",
+   "src": "faa",
+   "topic": "adm",
+   "q": "The wind is reported 270 at 15 gusting 25. What is the gust factor?",
+   "c": [
+    "10 knots",
+    "25 knots",
+    "40 knots"
+   ],
+   "why": "The gust factor is the difference between the gust and the steady wind: 25 − 15 = 10 knots.",
+   "ref": "AFH ch. 9"
+  },
+  {
+   "id": "q527",
+   "src": "faa",
+   "topic": "adm",
+   "q": "Landing in gusty winds, a common technique is to add to the normal approach speed",
+   "c": [
+    "one-half of the gust factor",
+    "the full gust speed",
+    "nothing: gusts don't affect the approach"
+   ],
+   "why": "The extra margin protects against a sudden lull dropping the airspeed near the stall. With a 10-knot gust factor, add 5 knots.",
+   "ref": "AFH ch. 9"
+  },
+  {
+   "id": "q528",
+   "src": "faa",
+   "topic": "wx",
+   "q": "Virga is",
+   "c": [
+    "precipitation that evaporates before it reaches the ground, and can be a sign of strong downdrafts",
+    "fog that forms over water",
+    "a lens-shaped cloud over mountains"
+   ],
+   "why": "Rain streaks hanging below a cloud and evaporating cool the air, which can fall rapidly as a downdraft or microburst.",
+   "ref": "AIM 7-1-24"
+  },
+  {
+   "id": "q529",
+   "src": "faa",
+   "topic": "wx",
+   "q": "Horizontal winds near the surface in a microburst can be as strong as",
+   "c": [
+    "45 knots, a 90-knot shear across the microburst",
+    "10 knots",
+    "200 knots"
+   ],
+   "why": "Outflow winds of up to 45 knots in opposite directions give a total wind shear of about 90 knots across a microburst.",
+   "ref": "AIM 7-1-24"
+  },
+  {
+   "id": "q530",
+   "src": "faa",
+   "topic": "wx",
+   "q": "Flying through a microburst on approach, after the initial headwind you would encounter",
+   "c": [
+    "a downdraft and then a tailwind, decreasing performance",
+    "a steady headwind all the way to the runway",
+    "an updraft that improves climb performance"
+   ],
+   "why": "First an increasing headwind (performance increase), then the core downdraft, then a tailwind that drops the airspeed: often too much for a light airplane low on approach.",
+   "ref": "AIM 7-1-24"
+  },
+  {
+   "id": "q531",
+   "src": "faa",
+   "topic": "wx",
+   "q": "Mechanical turbulence near the ground is caused by",
+   "c": [
+    "wind blowing over buildings, trees and rough terrain",
+    "temperature inversions only",
+    "the sun heating clouds"
+   ],
+   "why": "Obstructions break up the smooth flow of the wind into eddies. It gets worse with stronger winds and rougher terrain.",
+   "ref": "PHAK ch. 12"
+  },
+  {
+   "id": "q532",
+   "src": "faa",
+   "topic": "adm",
+   "q": "Crossing a mountain ridge in strong winds, you should approach the ridge",
+   "c": [
+    "at about a 45-degree angle with plenty of altitude, so you can turn away if you meet a downdraft",
+    "straight on, as low as possible to stay out of the wind",
+    "parallel to it on the downwind side"
+   ],
+   "why": "An angled approach leaves room to turn away toward lower terrain. Cross with enough height to clear the ridge and its lee-side downdrafts.",
+   "ref": "FAA-P-8740-60 (Tips on Mountain Flying)"
+  },
+  {
+   "id": "q533",
+   "src": "faa",
+   "topic": "perf",
+   "q": "At a high-elevation airport, before takeoff in a normally aspirated airplane, the mixture should usually be",
+   "c": [
+    "leaned during the runup for best power, as the POH directs",
+    "full rich, always, for takeoff",
+    "in idle cutoff until the takeoff roll starts"
+   ],
+   "why": "High density altitude means thinner air. A full-rich mixture is too rich and the engine loses power, so lean for maximum RPM per the POH.",
+   "ref": "PHAK ch. 7"
+  },
+  {
+   "id": "q534",
+   "src": "faa",
+   "topic": "perf",
+   "q": "Field elevation is 4,400 ft and the temperature is well above standard. The density altitude is",
+   "c": [
+    "higher than the field elevation, so performance is reduced",
+    "lower than the field elevation",
+    "the same as the field elevation"
+   ],
+   "why": "Warmer than standard air is less dense, so the airplane performs as if it were at a higher altitude.",
+   "ref": "PHAK ch. 11"
+  },
+  {
+   "id": "q535",
+   "src": "faa",
+   "topic": "aero",
+   "q": "A low-wing airplane tends to float farther in the landing flare than a high-wing one because",
+   "c": [
+    "its wing is closer to the ground, so ground effect is stronger",
+    "it always has more drag",
+    "low-wing airplanes always land faster"
+   ],
+   "why": "Ground effect grows as the wing gets closer to the surface: induced drag falls and the airplane floats.",
+   "ref": "PHAK ch. 5"
+  },
+  {
+   "id": "q536",
+   "src": "faa",
+   "topic": "aero",
+   "q": "A stabilator, as on the Piper PA-28, is",
+   "c": [
+    "an all-moving horizontal tail that works as both stabilizer and elevator",
+    "a trim tab on the rudder",
+    "a spoiler on the wing"
+   ],
+   "why": "The whole horizontal tail pivots. An anti-servo tab adds control feel and trim.",
+   "ref": "PHAK ch. 6"
+  },
+  {
+   "id": "q537",
+   "src": "faa",
+   "topic": "perf",
+   "q": "Where do you find the V-speeds (Vr, Vx, Vy, best glide) for the airplane you are flying?",
+   "c": [
+    "In that airplane's POH/AFM: they differ from type to type",
+    "They are the same for every light airplane",
+    "On the sectional chart"
+   ],
+   "why": "A Cessna 152, Cessna 172 and Piper PA-28 all have different V-speeds. Always use the numbers for your airplane.",
+   "ref": "PHAK ch. 9"
+  },
+  {
+   "id": "q538",
+   "src": "faa",
+   "topic": "wake",
+   "q": "Close to the ground (within 100 to 200 ft), with no wind, wake vortices",
+   "c": [
+    "move outward over the ground at about 2 to 3 knots",
+    "rise back up to the flight path",
+    "disappear the moment the airplane lands"
+   ],
+   "why": "Vortices sink, then spread sideways near the ground at 2 to 3 knots. A light crosswind of 1 to 5 knots can stop the upwind vortex and hold it over the runway.",
+   "ref": "AIM 7-4-4"
+  },
+  {
+   "id": "q539",
+   "src": "faa",
+   "topic": "wx",
+   "q": "Radiation fog usually dissipates",
+   "c": [
+    "after sunrise as the ground warms, or when the wind picks up",
+    "only when it starts to rain",
+    "as the temperature keeps falling"
+   ],
+   "why": "Radiation fog forms on clear, calm nights. Morning sun and stirring wind raise the temperature above the dew point and lift it.",
+   "ref": "PHAK ch. 12"
+  },
+  {
+   "id": "q540",
+   "src": "faa",
+   "topic": "ops",
+   "q": "The segmented circle shows right traffic for runway 31. In the pattern for runway 31 you will",
+   "c": [
+    "make right turns, with the runway on your right on downwind",
+    "make left turns, as at any other airport",
+    "fly only straight-in approaches"
+   ],
+   "why": "Traffic pattern indicators at the segmented circle show the direction of turns. Right traffic means right turns and the runway on your right.",
+   "ref": "AIM 4-3-4"
+  },
+  {
+   "id": "q541",
+   "src": "faa",
+   "topic": "regs",
+   "q": "For VFR flight in Class D airspace, the minimum ceiling and visibility to take off or land are",
+   "c": [
+    "a 1,000-ft ceiling and 3 statute miles",
+    "a 500-ft ceiling and 1 statute mile",
+    "clear of clouds and 1 statute mile"
+   ],
+   "why": "Without a special VFR clearance, VFR in the surface area needs a 1,000-ft ceiling and 3 SM ground visibility.",
+   "ref": "14 CFR 91.155"
+  },
+  {
+   "id": "q542",
+   "src": "faa",
+   "topic": "adm",
+   "q": "Heavy rain is falling at your destination and the ATIS reports standing water on the runway. A good plan is to",
+   "c": [
+    "fly a stabilized approach at the normal speed, touch down firmly on the centreline, and expect a longer rollout",
+    "land fast and float to dry off the wheels",
+    "land with a tailwind to get down sooner"
+   ],
+   "why": "A firm touchdown at the correct speed helps the tires reach the pavement. A fast or floated landing raises the risk of hydroplaning.",
+   "ref": "PHAK ch. 11"
+  },
+  {
+   "id": "q544",
+   "src": "faa",
+   "topic": "wx",
+   "q": "Which conditions are needed for a thunderstorm to form?",
+   "c": [
+    "Enough water vapour, unstable air, and a lifting force",
+    "High pressure, calm wind and clear skies",
+    "A temperature inversion and stable air"
+   ],
+   "why": "Moisture feeds the cloud, instability lets it grow, and a lifting force (heating, a front, terrain) starts the upward motion.",
+   "ref": "PHAK ch. 12"
+  },
+  {
+   "id": "q545",
+   "src": "faa",
+   "topic": "adm",
+   "q": "Taking off from a snow-covered runway, a good technique is to",
+   "c": [
+    "use soft-field technique: keep weight off the nosewheel and lift off as soon as the airplane will fly",
+    "use full brakes during the runup and then release them quickly",
+    "hold the airplane on the ground well past normal rotation speed"
+   ],
+   "why": "Like a soft field, snow drags on the wheels. Taking weight off the nosewheel reduces the drag, and lifting off early gets you out of it sooner.",
+   "ref": "AFH ch. 6"
   }
  ]
 }

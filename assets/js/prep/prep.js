@@ -41,6 +41,20 @@ const DECKS = [
   { key: "extra", label: "Commonly tested topics", pick: (c) => c.src === "extra" },
   { key: "phak", label: "FAA handbook questions", pick: (c) => c.src === "phak" },
 ];
+/** scenario quizzes: sets built from what a question is about, across the topic tabs */
+const SCENARIOS = [
+  { key: "rain", label: "Rain, wet runways & hydroplaning", re: /hydroplan|wet runway|standing water|\brain\b|\+RA\b|aerodynamic braking/i },
+  { key: "winter", label: "Snow, frost & icing", re: /frost|snow|\bice\b|icing|\brime\b|freezing|FZRA|pitot heat|cold, dense|cold weather/i },
+  { key: "wind", label: "Wind, gusts & crosswinds", re: /gust|crosswind|tailwind|headwind|wind shear|mechanical turbulence|windsock|quartering/i },
+  { key: "storms", label: "Thunderstorms & microbursts", re: /thunderstorm|microburst|virga|cumulonimbus|\bhail\b|VCTS|squall|anvil/i },
+  { key: "fog", label: "Fog, calm wind & low visibility", re: /\bfog\b|\bmist\b|\bBR\b|\bcalm\b|dew point|special VFR|ceiling/i },
+  { key: "metar", label: "Reading METARs, TAFs & reports", re: /METAR|\bTAF\b|PIREP|AIRMET|SIGMET|AC 00-45/i },
+  { key: "markings", label: "Airport markings, signs & lighting", re: /marking|\bsign\b|threshold|chevron|segmented circle|VASI|PAPI|beacon|hold.?short|runway light/i },
+  { key: "mountain", label: "Density altitude & mountain flying", re: /density altitude|mountain|ridge|lenticular|high.elevation|lean(ed)? .*mixture|mixture.*lean/i },
+  { key: "types", label: "Airplanes, V-speeds & aerodynamics in practice", re: /\bV[xyrsa]\b|V-speed|stabilator|low-wing|high-wing|ground effect|maneuvering speed|stall speed/i },
+];
+const scenarioPool = (sc) => CARDS.filter((c) => sc.re.test(`${c.q} ${c.c[0]} ${c.why || ""} ${c.ref || ""}`));
+
 /** topic accuracy from per-question history, pulled toward 60% until there are enough answers */
 function topicAcc(key) {
   let r = 0, n = 0;
@@ -113,7 +127,8 @@ function mark(k) { if (!fc.list.length) return; const c = fc.list[fc.i]; if (k) 
 const qz = { list: [], i: 0, order: [], picked: null, res: [], timer: null, deadline: 0 };
 const EMPTY = { missed: "No missed questions here yet. Take a quiz, and anything you get wrong comes back in this mode until you've answered it right three times.", new: "You've seen every question in this deck and topic. Try Smart review." };
 /** retry: an explicit list of cards (the "retry the ones I missed" button); otherwise build from the toolbar */
-function qzStart(retry) {
+function qzStart(retry, label = "") {
+  qz.label = label;
   const n = +$("#qzLen").value, mode = $("#qzMode").value;
   let pool = retry || deck($("#qzDeck").value, $("#qzTopic").value);
   if (!retry && mode === "missed") pool = pool.filter(missed);
@@ -166,9 +181,27 @@ function examPick() {
   picked.push(...shuffle(CARDS.filter((c) => !ids.has(c.id))).slice(0, 60 - picked.length));
   return shuffle(picked).slice(0, 60);
 }
-function exStart() {
-  ex.list = examPick(); ex.orders = ex.list.map((c) => shuffle(c.c.map((t, k) => ({ t, ok: k === 0 }))));
-  ex.answers = new Array(60).fill(null); ex.i = 0; ex.done = false; ex.end = Date.now() + 150 * 60 * 1000;
+const FORMS = 10;
+function seeded(seed) { let a = seed >>> 0; return () => { a = (a + 0x6d2b79f5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+function seededShuffle(a, seed) { const r = seeded(seed), b = [...a]; for (let i = b.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [b[i], b[j]] = [b[j], b[i]]; } return b; }
+/** practice test `k` (1–10): the same 60 questions every time, in the EXAM_MIX proportions */
+function formPick(k) {
+  const picked = [];
+  Object.entries(EXAM_MIX).forEach(([key, n], ti) => {
+    const pool = seededShuffle(CARDS.filter((c) => c.topic === key).sort((a, b) => (a.id < b.id ? -1 : 1)), 1931 + ti);
+    for (let i = 0; i < n && pool.length; i++) picked.push(pool[((k - 1) * n + i) % pool.length]);
+  });
+  return seededShuffle([...new Map(picked.map((c) => [c.id, c])).values()], 7 * k).slice(0, 60);
+}
+function renderForms() {
+  const best = store.get("forms", {}), el = $("#exForms"); if (!el) return;
+  el.innerHTML = Array.from({ length: FORMS }, (_, i) => { const k = i + 1, b = best[k]; return `<button class="form ${b ? (b.best >= 70 ? "pass" : "fail") : ""}" data-form="${k}"><b>Test ${k}</b><span>${b ? `best ${b.best}% · ${b.n} ${b.n === 1 ? "try" : "tries"}` : "not taken"}</span></button>`; }).join("");
+  el.querySelectorAll("[data-form]").forEach((b) => (b.onclick = () => exStart(+b.dataset.form)));
+}
+function exStart(form = null) {
+  ex.form = form;
+  ex.list = form ? formPick(form) : examPick(); ex.orders = ex.list.map((c) => shuffle(c.c.map((t, k) => ({ t, ok: k === 0 }))));
+  ex.answers = new Array(ex.list.length).fill(null); ex.i = 0; ex.done = false; ex.end = Date.now() + 150 * 60 * 1000;
   clearInterval(ex.timer); ex.timer = setInterval(exTick, 1000); exRender();
 }
 function exTick() { if (ex.done) return; const left = ex.end - Date.now(); if (left <= 0) return exFinish(); const m = Math.floor(left / 60000), s = Math.floor((left % 60000) / 1000); const el = $("#exClock"); if (el) el.textContent = `${Math.floor(m / 60)}:${String(m % 60).padStart(2, "0")}:${String(s).padStart(2, "0")}`; }
@@ -191,14 +224,15 @@ function exFinish() {
   const right = rows.filter((r) => r.ok).length, p = Math.round(100 * right / 60);
   const by = {}; rows.forEach((r) => { const b = (by[r.c.topic] ||= { r: 0, n: 0 }); b.n++; if (r.ok) b.r++; });
   const missedAcs = [...new Set(rows.filter((r) => !r.ok).map((r) => META[r.c.topic].acs))];
-  const hist = store.get("exams", []); hist.unshift({ p, date: new Date().toISOString().slice(0, 10) }); store.set("exams", hist.slice(0, 10));
-  $("#exStage").innerHTML = `<div class="result report"><p class="eyebrow">Practice knowledge test report</p><p class="big ${p >= 70 ? "pass" : "fail"}">${p}%</p><p>${right} of 60 correct · ${p >= 70 ? "PASS (70% required)" : "Below 70%: not yet"}</p>
+  const hist = store.get("exams", []); hist.unshift({ p, date: new Date().toISOString().slice(0, 10), form: ex.form }); store.set("exams", hist.slice(0, 10));
+  if (ex.form) { const f = store.get("forms", {}); const b = f[ex.form] || { best: 0, n: 0 }; f[ex.form] = { best: Math.max(b.best, p), last: p, n: b.n + 1 }; store.set("forms", f); }
+  $("#exStage").innerHTML = `<div class="result report"><p class="eyebrow">${ex.form ? `Practice test ${ex.form} report` : "Practice knowledge test report"}</p><p class="big ${p >= 70 ? "pass" : "fail"}">${p}%</p><p>${right} of 60 correct · ${p >= 70 ? "PASS (70% required)" : "Below 70%: not yet"}</p>
     <h3>By topic</h3><table class="bytopic"><tbody>${Object.entries(by).sort((a, b) => a[1].r / a[1].n - b[1].r / b[1].n).map(([k, b]) => `<tr><td>${esc(TOPICS[k].name)}</td><td class="mono">${esc(META[k].acs)}</td><td class="mono">${b.r}/${b.n}</td><td><span class="mini"><span style="width:${100 * b.r / b.n}%"></span></span></td></tr>`).join("")}</tbody></table>
     ${missedAcs.length ? `<p class="dnote">ACS areas to review: ${missedAcs.map(esc).join(" · ")}. On the real test your report lists ACS codes like these, and your instructor must review them with you.</p>` : ""}
     <h3>Missed questions</h3><ol class="miss">${rows.filter((r) => !r.ok).map((r) => `<li><p>${esc(r.c.q)}</p><p><s>${esc(r.picked)}</s> → <b>${esc(r.c.c[0])}</b></p>${r.c.why ? `<p class="why">${esc(r.c.why)}</p>` : ""}</li>`).join("")}</ol>
-    <div class="actions"><button class="btn primary" id="exAgain">Take another practice exam</button></div>
+    <div class="actions">${ex.form && ex.form < FORMS ? `<button class="btn primary" id="exNextForm">Next: practice test ${ex.form + 1}</button>` : ""}${ex.form ? `<button class="btn" id="exRetake">Retake test ${ex.form}</button>` : ""}<button class="btn ${ex.form ? "" : "primary"}" id="exAgain">Random practice exam</button></div>
     <p class="dnote">Recent scores on this device: ${hist.slice(0, 6).map((h) => `${h.p}%`).join(" · ")}</p></div>`;
-  $("#exAgain").onclick = exStart;
+  $("#exAgain").onclick = () => exStart(); if ($("#exNextForm")) $("#exNextForm").onclick = () => exStart(ex.form + 1); if ($("#exRetake")) $("#exRetake").onclick = () => exStart(ex.form);
   renderStatus();
 }
 
@@ -223,7 +257,9 @@ async function boot() {
   $("#fcKnow").onclick = () => mark(true); $("#fcLearn").onclick = () => mark(false);
   addEventListener("keydown", (e) => { if ($("#p-cards").hidden || /input|select|textarea/i.test(e.target.tagName)) return; if (e.key === " ") { e.preventDefault(); flip(); } else if (e.key === "ArrowRight") move(1); else if (e.key === "ArrowLeft") move(-1); else if (e.key.toLowerCase() === "k") mark(true); else if (e.key.toLowerCase() === "l") mark(false); });
   $("#qzStart").onclick = () => qzStart(); qzStart();
-  $("#exStart").onclick = exStart;
+  $("#qzScen").innerHTML = SCENARIOS.map((sc) => `<button class="chipbtn" data-sc="${sc.key}">${esc(sc.label)} <span>${scenarioPool(sc).length}</span></button>`).join("");
+  $("#qzScen").querySelectorAll("[data-sc]").forEach((b) => (b.onclick = () => { const sc = SCENARIOS.find((x) => x.key === b.dataset.sc); qzStart(shuffle(scenarioPool(sc)), sc.label); }));
+  $("#exStart").onclick = () => exStart(); renderForms();
   $("#qlDeck").onchange = $("#qlWhy").onchange = qlRender; qlRender();
   $("#qlCopy").onclick = () => { const ta = $("#qlText"); const n = ta.value.split("\n").length; navigator.clipboard?.writeText(ta.value).then(() => ($("#qlStatus").textContent = `Copied ${n} cards. Paste them into Quizlet's Import box.`), () => { ta.select(); $("#qlStatus").textContent = "Press Ctrl+C (⌘C) to copy the selected text."; }); };
   TABS.forEach((t) => $("#tab-" + t).addEventListener("click", () => showTab(t)));

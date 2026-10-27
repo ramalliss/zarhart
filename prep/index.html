@@ -5,12 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>FAA Private Pilot Written Test Prep: 600+ Practice Questions · Zarhart</title>
 <meta name="author" content="Sophia Ramalli">
-<meta name="description" content="Free FAA Private Pilot (PAR) written-test prep: study guide, flashcards, quizzes, a timed 60-question practice exam and Quizlet export, linked to simulator lessons.">
+<meta name="description" content="Free FAA Private Pilot (PAR) written-test prep: study guide, flashcards, scenario quizzes, ten timed 60-question practice tests and Quizlet export, linked to simulator lessons.">
 <link rel="canonical" href="https://ramalliss.github.io/zarhart/prep/">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Zarhart">
 <meta property="og:title" content="FAA Private Pilot written-test prep: 600+ practice questions">
-<meta property="og:description" content="Free FAA Private Pilot (PAR) written-test prep: study guide, flashcards, quizzes, a timed 60-question practice exam and Quizlet export, linked to simulator lessons.">
+<meta property="og:description" content="Free FAA Private Pilot (PAR) written-test prep: study guide, flashcards, scenario quizzes, ten timed 60-question practice tests and Quizlet export, linked to simulator lessons.">
 <meta property="og:url" content="https://ramalliss.github.io/zarhart/prep/">
 <meta property="og:image" content="https://ramalliss.github.io/zarhart/assets/img/shots/prep.jpg">
 <meta name="twitter:card" content="summary_large_image">
@@ -69,6 +69,8 @@
   </section>
 
   <section id="p-quiz" role="tabpanel" aria-labelledby="tab-quiz" hidden>
+    <p class="eyebrow">Scenario quizzes</p>
+    <div id="qzScen" class="chiprow" aria-label="Scenario quizzes"></div>
     <div class="toolbar">
       <label>Mode <select id="qzMode"><option value="smart">Smart review: weakest first</option><option value="random">Random</option><option value="missed">Questions I missed</option><option value="new">Questions I haven't seen</option></select></label>
       <label>Deck <select id="qzDeck"></select></label>
@@ -85,7 +87,10 @@
       <h2>Practice knowledge test</h2>
       <p class="lede">60 questions, 2 hours 30 minutes, no feedback until you submit. That's the same format as the FAA test at a PSI center. Your report groups misses by topic and ACS area.</p>
       <ul class="rules"><li>Questions are drawn from every topic in proportion to the real test: most from regulations and weather, fewer from wake turbulence.</li><li>Choices are shuffled every time.</li><li>Jump between questions with the number grid.</li><li>Scores stay on this device only.</li></ul>
-      <button class="btn primary" id="exStart">Start the practice exam</button>
+      <h3>Ten practice tests</h3>
+      <p class="dnote">Each test is a fixed set of 60 questions with the same topic mix as the real exam, and the ten barely overlap. Your best score on each one is saved on this device. Pass mark: 70%.</p>
+      <div id="exForms" class="forms"></div>
+      <button class="btn primary" id="exStart">Or take a random practice exam</button>
     </div>
   </section>
 
