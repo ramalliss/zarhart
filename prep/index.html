@@ -3,13 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>FAA Private Pilot Written Test Prep: 175 Practice Questions · Zarhart</title>
+<title>FAA Private Pilot Written Test Prep: 600+ Practice Questions · Zarhart</title>
 <meta name="author" content="Sophia Ramalli">
 <meta name="description" content="Free FAA Private Pilot (PAR) written-test prep: study guide, flashcards, quizzes, a timed 60-question practice exam and Quizlet export, linked to simulator lessons.">
 <link rel="canonical" href="https://ramalliss.github.io/zarhart/prep/">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Zarhart">
-<meta property="og:title" content="FAA Private Pilot written-test prep: 175 practice questions">
+<meta property="og:title" content="FAA Private Pilot written-test prep: 600+ practice questions">
 <meta property="og:description" content="Free FAA Private Pilot (PAR) written-test prep: study guide, flashcards, quizzes, a timed 60-question practice exam and Quizlet export, linked to simulator lessons.">
 <meta property="og:url" content="https://ramalliss.github.io/zarhart/prep/">
 <meta property="og:image" content="https://ramalliss.github.io/zarhart/assets/img/shots/prep.jpg">
@@ -35,7 +35,7 @@
   <section class="phead">
     <p class="eyebrow">FAA Private Pilot · Airplane (PAR) knowledge test</p>
     <h1>Written-test prep</h1>
-    <p class="lede"><b id="count">175</b> practice questions with answers and explanations, organized by the topics the test covers. Every topic links to the FAA handbook chapter and to a simulator lesson where you can fly it. Pass mark: 70%.</p>
+    <p class="lede"><b id="count">600+</b> practice questions with answers and explanations, organized by the topics the test covers. Every topic links to the FAA handbook chapter and to a simulator lesson where you can fly it. Pass mark: 70%.</p>
   </section>
 
   <nav class="tabs" role="tablist" aria-label="Study modes">
@@ -66,9 +66,11 @@
 
   <section id="p-quiz" role="tabpanel" aria-labelledby="tab-quiz" hidden>
     <div class="toolbar">
+      <label>Mode <select id="qzMode"><option value="smart">Smart review: weakest first</option><option value="random">Random</option><option value="missed">Questions I missed</option><option value="new">Questions I haven't seen</option></select></label>
       <label>Deck <select id="qzDeck"></select></label>
       <label>Topic <select id="qzTopic"></select></label>
       <label>Length <select id="qzLen"><option value="10">10</option><option value="20">20</option><option value="40">40</option><option value="999">All</option></select></label>
+      <label class="chk"><input type="checkbox" id="qzTimed"> 30 s per question</label>
       <button class="btn primary small" id="qzStart">New quiz</button>
     </div>
     <div id="qzStage"></div>
@@ -77,8 +79,8 @@
   <section id="p-exam" role="tabpanel" aria-labelledby="tab-exam" hidden>
     <div id="exStage" class="examintro">
       <h2>Practice knowledge test</h2>
-      <p class="lede">60 random questions, 2 hours 30 minutes, no feedback until you submit. That's the same format as the FAA test at a PSI center. Your report groups misses by topic and ACS area.</p>
-      <ul class="rules"><li>Choices are shuffled every time.</li><li>Jump between questions with the number grid.</li><li>Scores stay on this device only.</li></ul>
+      <p class="lede">60 questions, 2 hours 30 minutes, no feedback until you submit. That's the same format as the FAA test at a PSI center. Your report groups misses by topic and ACS area.</p>
+      <ul class="rules"><li>Questions are drawn from every topic in proportion to the real test: most from regulations and weather, fewer from wake turbulence.</li><li>Choices are shuffled every time.</li><li>Jump between questions with the number grid.</li><li>Scores stay on this device only.</li></ul>
       <button class="btn primary" id="exStart">Start the practice exam</button>
     </div>
   </section>

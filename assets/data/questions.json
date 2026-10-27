@@ -11,7 +11,12 @@
     "Runway/runway hold position sign (red, e.g. 15-33) marks an intersecting runway.",
     "VASI guarantees obstruction clearance within ±10° of centerline out to 4 NM. In Class D airspace, stay at or above the glide slope (91.129). Red over white = on glidepath.",
     "Segmented circle: pick the runway most aligned with the wind. The short leg of the L shows which way the pattern turns.",
-    "Emergency and not talking to ATC: squawk 7700 and call on 121.5 MHz."
+    "Emergency and not talking to ATC: squawk 7700 and call on 121.5 MHz.",
+    "Airport beacon: white-green = civil land airport, white-yellow = water, two white flashes then green = military. A daytime beacon in Class B–E surface areas often means the weather is below VFR minimums.",
+    "Lights: runway edge white (yellow on the last 2,000 ft of instrument runways), threshold green toward you, runway end red. Taxiway edge blue, centerline green.",
+    "Displaced threshold (arrows): taxi, take off and roll out, but don't touch down before it. Chevrons: don't use at all. A yellow or white X: closed.",
+    "Transponder: 1200 VFR, 7500 hijack, 7600 lost communications, 7700 emergency. 121.5 MHz is the emergency frequency.",
+    "Scan in 10° sectors, about 1 second each. An aircraft with no relative motion is on a collision course."
    ]
   },
   {
@@ -23,7 +28,15 @@
     "Class A (18,000 ft MSL to FL600) is IFR only. VFR flight is prohibited.",
     "ADS-B Out is required in Class A, B and C airspace, inside the 30 NM Mode C veil, and at or above 10,000 ft MSL (except at or below 2,500 ft AGL).",
     "Preflight action (91.103), NWKRAFT: NOTAMs, Weather, Known ATC delays, Runway lengths, Alternatives, Fuel, Takeoff and landing distances.",
-    "Alert area: every pilot inside is responsible for collision avoidance."
+    "Alert area: every pilot inside is responsible for collision avoidance.",
+    "Medical: third class lasts 60 months if you were under 40 at the exam, 24 months at 40 or older. Flight review: every 24 calendar months (1 h ground + 1 h flight).",
+    "Passengers: 3 takeoffs and landings in the last 90 days; at night (1 h after sunset to 1 h before sunrise) they must be full-stop.",
+    "Alcohol: 8 hours bottle to throttle and under 0.04 BAC. Fuel reserve: 30 minutes day, 45 minutes night.",
+    "Right-of-way: aircraft in distress first; converging, the one on the right; head-on, both turn right; overtaking, pass on the right; balloon > glider > airship > airplane.",
+    "Inspections: annual every 12 calendar months, 100-hour if used for hire, transponder every 24 months, ELT every 12 months (battery after 1 h of use or 50% of its life).",
+    "Oxygen: crew above 12,500 ft after 30 minutes, crew at all times above 14,000 ft, every occupant provided oxygen above 15,000 ft.",
+    "Paperwork on board: ARROW. Day VFR equipment: ATOMATOFLAMES; night adds FLAPS.",
+    "VFR cruising more than 3,000 ft AGL: magnetic course 0–179° odd thousands + 500, 180–359° even thousands + 500."
    ]
   },
   {
@@ -35,7 +48,12 @@
     "Ground effect works within about one wingspan of the surface. Less downwash and wingtip vortex means less induced drag, so you float if you're fast in the flare.",
     "Leaving ground effect brings induced drag back. If you're below climb speed, the airplane can settle back onto the runway.",
     "A heavier airplane stalls at a higher speed, needs longer takeoff and landing rolls, and climbs more slowly.",
-    "A spin needs a stall: both wings stalled, one more than the other."
+    "A spin needs a stall: both wings stalled, one more than the other.",
+    "Load factor = 1 ÷ cos(bank): 1.41 G at 45°, 2 G at 60°. Stall speed rises with √G (about +41% at 60°).",
+    "Maneuvering speed (Va) decreases as weight decreases. Normal category limits: +3.8 G and −1.52 G.",
+    "Forward CG: more stable, higher stall speed, harder to flare. Aft CG: less stable, harder stall and spin recovery.",
+    "Left-turning tendencies: torque, P-factor, spiraling slipstream and gyroscopic precession.",
+    "Airspeed arcs: white Vs0–Vfe, green Vs1–Vno, yellow Vno–Vne (smooth air only), red line Vne. Va isn't marked."
    ]
   },
   {
@@ -46,7 +64,10 @@
     "Vortices sink 300 to 500 fpm and level off 500 to 1,000 ft below the flight path. A light quartering tailwind is the worst case.",
     "Landing behind a large aircraft: stay at or above its path and touch down beyond its touchdown point. Taking off behind one: lift off before its rotation point.",
     "Strongest vortices: heavy, clean (gear and flaps up) and slow.",
-    "Daytime scan: short steps of about 10°, pausing about 1 second on each. Night: scan slowly and use off-center viewing."
+    "Daytime scan: short steps of about 10°, pausing about 1 second on each. Night: scan slowly and use off-center viewing.",
+    "Vortices start at rotation and end at touchdown. They are strongest when the airplane is heavy, clean and slow.",
+    "They sink 300–500 fpm, level off 500–1,000 ft below the flight path and drift 2–3 kt near the ground. A light quartering tailwind is the worst case.",
+    "Land beyond a jet's touchdown point. Take off before its rotation point (or past its touchdown point if it just landed)."
    ]
   },
   {
@@ -56,7 +77,12 @@
     "Vy = most altitude in the least time. Vx = most altitude in the least distance (obstacles).",
     "Moment = weight × arm. CG = total moment ÷ total weight. Avgas weighs 6 lb/gal.",
     "To move the CG aft, add weight aft or move it aft. To move it forward, do the reverse.",
-    "High, hot and humid = high density altitude = longer takeoff roll and weaker climb."
+    "High, hot and humid = high density altitude = longer takeoff roll and weaker climb.",
+    "Pressure altitude = elevation + (29.92 − altimeter setting) × 1,000. Density altitude ≈ pressure altitude + 120 ft per °C above standard (15°C at sea level, −2°C per 1,000 ft).",
+    "Hot, high and humid means high density altitude: longer takeoff and a weaker climb.",
+    "A 10% headwind cuts takeoff distance about 19%; a 10% tailwind adds about 21%; 10% more weight adds at least 21%.",
+    "Moment = weight × arm; CG = total moment ÷ total weight. Shifting weight: weight moved ÷ total weight = CG change ÷ distance moved.",
+    "Avgas 6 lb/gal, oil 7.5 lb/gal. Crosswind ≈ wind × sin(angle): 30° → 50%, 45° → 70%, 60° → 90%."
    ]
   },
   {
@@ -67,7 +93,12 @@
     "Attitude indicator: the knob moves the miniature airplane. In level flight, align it with the horizon bar.",
     "Pilot-adjustable: altimeter (Kollsman window), heading indicator (realign with the compass about every 15 min), and the attitude indicator's miniature airplane. The airspeed indicator and VSI have no pilot adjustment.",
     "Static port blocked: altimeter freezes, VSI reads zero, airspeed is wrong. Pitot blocked: only the airspeed indicator is affected.",
-    "GPS altitude is geometric. It's a cross-check only, so fly the barometric altimeter."
+    "GPS altitude is geometric. It's a cross-check only, so fly the barometric altimeter.",
+    "Airspeed indicator uses pitot and static; altimeter and VSI use static only. Pitot and drain blocked: the ASI acts like an altimeter. Static blocked: the altimeter freezes.",
+    "High to low (pressure or temperature), look out below: your true altitude is lower than indicated.",
+    "Compass errors: UNOS (undershoot north, overshoot south in turns), ANDS (accelerate north, decelerate south on east-west headings).",
+    "Carb ice: 20–70°F with high humidity; first sign is an RPM drop with a fixed-pitch prop. Carb heat makes the mixture richer.",
+    "Detonation: lower the nose, enrich the mixture, reduce power. Never use a lower grade of fuel than specified. 100LL is blue."
    ]
   },
   {
@@ -77,7 +108,13 @@
     "METAR and TAF winds are TRUE. ATIS and tower winds are MAGNETIC.",
     "Wind code dddssGggKT: 11012G18KT = from 110° true at 12 kt, gusting to 18 kt.",
     "Significant Weather Prog charts are forecasts. Use them to find areas to avoid (turbulence, freezing levels, IFR).",
-    "Ceiling = the lowest BKN or OVC layer (or VV). Heights are in hundreds of feet AGL."
+    "Ceiling = the lowest BKN or OVC layer (or VV). Heights are in hundreds of feet AGL.",
+    "Standard lapse rate: 2°C per 1,000 ft. Cumulus base ≈ temperature/dew point spread ÷ 2.5°C (or ÷ 4.4°F) × 1,000 ft.",
+    "Stable air: stratiform clouds, smooth air, poor visibility, steady rain. Unstable air: cumuliform clouds, turbulence, good visibility, showers.",
+    "Thunderstorms need moisture, instability and lift. Stages: cumulus (updrafts), mature (rain at the surface), dissipating (downdrafts). Avoid severe ones by 20 NM.",
+    "Fog: radiation (clear calm nights), advection (moist air moving over a cold surface, needs wind), upslope, steam.",
+    "AIRMET Sierra (IFR, mountain obscuration), Tango (turbulence, surface winds ≥ 30 kt), Zulu (icing). SIGMET: severe icing or turbulence, dust or sand, volcanic ash.",
+    "Winds aloft (FB): true direction, knots and °C. A direction code above 36 means subtract 50 from the direction and add 100 kt. 9900 is light and variable."
    ]
   },
   {
@@ -87,7 +124,12 @@
     "Magenta vignette: Class E starts at 700 ft AGL. Blue vignette: 1,200 ft AGL. Dashed magenta: Class E to the surface.",
     "A bracketed number like [29] is the Class D ceiling in hundreds of feet MSL (2,900 ft).",
     "Magenta flags = VFR checkpoints. A frequency followed by ⓒ = CTAF. 'CT – 126.0 ★' = tower frequency, part-time.",
-    "Stay on course with a wind-corrected heading and checkpoints every 10 to 20 NM. If you're lost: Climb, Communicate, Confess, Comply, Conserve."
+    "Stay on course with a wind-corrected heading and checkpoints every 10 to 20 NM. If you're lost: Climb, Communicate, Confess, Comply, Conserve.",
+    "1° of latitude = 60 NM. Measure true course at the meridian near the middle of the route.",
+    "True course ± wind correction = true heading; ± variation (east is least, west is best) = magnetic heading; ± deviation = compass heading.",
+    "VOR radials are magnetic, FROM the station. Full-scale CDI = 10°. VOT and ground checks ±4°, airborne ±6°. A VOT centers at 360 FROM or 180 TO.",
+    "Sectional colors: Class B solid blue, C solid magenta, D dashed blue, E surface dashed magenta, E from 700 ft AGL magenta vignette.",
+    "Lost: climb, communicate, confess, comply (and conserve fuel). An open VFR flight plan triggers a search 30 minutes after your ETA."
    ]
   },
   {
@@ -98,7 +140,13 @@
     "Split flaps: the airplane rolls toward the wing with LESS flap and yaws toward the EXTENDED flap. Use opposite aileron and opposite rudder (cross-controlled), and keep your airspeed up.",
     "Rectangular course: turns onto and off the upwind leg are less than 90° (shallow bank). Turns at the downwind end are more than 90° (steepest bank).",
     "Flaps lower the stall speed and add drag, so slow flight with flaps is slower and needs more power.",
-    "Soft-field takeoff: hold the nose high to get weight off the nosewheel, then stay in ground effect to accelerate."
+    "Soft-field takeoff: hold the nose high to get weight off the nosewheel, then stay in ground effect to accelerate.",
+    "Hypoxia types: hypoxic (altitude), hypemic (carbon monoxide), stagnant (poor circulation), histotoxic (alcohol, drugs).",
+    "Hazardous attitudes and antidotes: anti-authority / follow the rules; impulsivity / not so fast; invulnerability / it could happen to me; macho / taking chances is foolish; resignation / I'm not helpless.",
+    "IMSAFE checks the pilot, PAVE groups the risks, DECIDE and 3P (perceive, process, perform) guide decisions.",
+    "Landing illusions: a narrow or upsloping runway, rain or a black-hole approach make you fly too low; a wide or downsloping runway makes you fly too high.",
+    "Night: 30 minutes to dark-adapt; look slightly off-center. Only a red light = aircraft crossing right to left; white = moving away; red and green = head-on.",
+    "Engine failure: best glide, best field, checklist. Right after takeoff, land roughly straight ahead. Electrical fire: master switch off."
    ]
   }
  ],
@@ -2567,6 +2615,5674 @@
    ],
    "why": "VFR pilots who fly into cloud often lose control within minutes. Turn back early.",
    "ref": "PHAK ch. 17"
+  },
+  {
+   "id": "f1",
+   "src": "faa",
+   "topic": "regs",
+   "q": "How long is a third-class medical certificate valid for private pilot privileges if you were under 40 on the date of the exam?",
+   "c": [
+    "60 calendar months",
+    "24 calendar months",
+    "12 calendar months"
+   ],
+   "why": "Under 40 on the exam date: 60 calendar months. Age 40 or older: 24 calendar months.",
+   "ref": "14 CFR 61.23(d)"
+  },
+  {
+   "id": "f2",
+   "src": "faa",
+   "topic": "regs",
+   "q": "A pilot who was 45 when she passed a third-class medical exam may use it for private pilot privileges until",
+   "c": [
+    "the end of the 24th month after the month of the exam",
+    "the end of the 60th month after the month of the exam",
+    "the end of the 12th month after the month of the exam"
+   ],
+   "why": "At 40 or older, a third-class medical lasts 24 calendar months, ending on the last day of the 24th month.",
+   "ref": "14 CFR 61.23(d)"
+  },
+  {
+   "id": "f3",
+   "src": "faa",
+   "topic": "regs",
+   "q": "A second-class medical certificate issued to a 30-year-old is good for private pilot privileges for",
+   "c": [
+    "60 calendar months",
+    "12 calendar months",
+    "24 calendar months"
+   ],
+   "why": "A second-class medical is valid for commercial privileges for 12 months, then reverts to third-class privileges for the rest of the third-class period.",
+   "ref": "14 CFR 61.23(d)"
+  },
+  {
+   "id": "f4",
+   "src": "faa",
+   "topic": "regs",
+   "q": "To act as pilot in command, a private pilot must have completed a flight review within the preceding",
+   "c": [
+    "24 calendar months",
+    "12 calendar months",
+    "36 calendar months"
+   ],
+   "why": "A flight review is at least 1 hour of flight training and 1 hour of ground training, every 24 calendar months.",
+   "ref": "14 CFR 61.56"
+  },
+  {
+   "id": "f5",
+   "src": "faa",
+   "topic": "regs",
+   "q": "What is the minimum content of a flight review?",
+   "c": [
+    "1 hour of ground training and 1 hour of flight training",
+    "2 hours of flight training",
+    "3 takeoffs and landings to a full stop"
+   ],
+   "why": "At least 1 hour of ground training (Part 91 rules and procedures) and 1 hour of flight training, with a logbook endorsement.",
+   "ref": "14 CFR 61.56(a)"
+  },
+  {
+   "id": "f6",
+   "src": "faa",
+   "topic": "regs",
+   "q": "To carry passengers at night, the three required takeoffs and landings must have been",
+   "c": [
+    "to a full stop, between 1 hour after sunset and 1 hour before sunrise",
+    "touch-and-goes, between sunset and sunrise",
+    "to a full stop, during civil twilight"
+   ],
+   "why": "Night passenger currency needs three full-stop takeoffs and landings in the night period defined as 1 hour after sunset to 1 hour before sunrise, within 90 days.",
+   "ref": "14 CFR 61.57(b)"
+  },
+  {
+   "id": "f7",
+   "src": "faa",
+   "topic": "regs",
+   "q": "For tailwheel airplanes, the three takeoffs and landings needed to carry passengers must be",
+   "c": [
+    "to a full stop",
+    "touch-and-goes or full stops",
+    "flown at night"
+   ],
+   "why": "Tailwheel currency requires full-stop landings.",
+   "ref": "14 CFR 61.57(a)(1)(ii)"
+  },
+  {
+   "id": "f8",
+   "src": "faa",
+   "topic": "regs",
+   "q": "What must a pilot have in their physical possession when acting as pilot in command?",
+   "c": [
+    "A pilot certificate, a medical certificate (or BasicMed documents) and photo identification",
+    "A pilot certificate and the logbook",
+    "A pilot certificate only"
+   ],
+   "why": "You need the pilot certificate, a medical certificate if one is required, and government photo ID such as a driver's license.",
+   "ref": "14 CFR 61.3"
+  },
+  {
+   "id": "f9",
+   "src": "faa",
+   "topic": "regs",
+   "q": "A private pilot may share the operating expenses of a flight with passengers, provided the pilot pays",
+   "c": [
+    "at least an equal (pro rata) share of fuel, oil, airport expenditures or rental fees",
+    "nothing, as long as the passengers are friends",
+    "at least half the total cost regardless of how many passengers"
+   ],
+   "why": "Private pilots may not pay less than the pro rata share of fuel, oil, airport expenditures or rental fees.",
+   "ref": "14 CFR 61.113(c)"
+  },
+  {
+   "id": "f10",
+   "src": "faa",
+   "topic": "regs",
+   "q": "A private pilot may act as pilot in command for compensation",
+   "c": [
+    "only when the flight is incidental to a business or employment and no passengers or property are carried for compensation",
+    "whenever the pilot has more than 200 hours",
+    "never, under any circumstances"
+   ],
+   "why": "The business-incidental exception allows it if the flight is only incidental to the business and carries no passengers or property for compensation or hire.",
+   "ref": "14 CFR 61.113(b)"
+  },
+  {
+   "id": "f11",
+   "src": "faa",
+   "topic": "regs",
+   "q": "To act as pilot in command of a high-performance airplane, you need a one-time endorsement if its engine produces more than",
+   "c": [
+    "200 horsepower",
+    "180 horsepower",
+    "250 horsepower"
+   ],
+   "why": "High performance means an engine of more than 200 horsepower.",
+   "ref": "14 CFR 61.31(f)"
+  },
+  {
+   "id": "f12",
+   "src": "faa",
+   "topic": "regs",
+   "q": "A complex airplane is one with",
+   "c": [
+    "retractable landing gear, flaps and a controllable-pitch propeller (or FADEC)",
+    "more than 200 horsepower",
+    "a tailwheel and a constant-speed propeller"
+   ],
+   "why": "Complex means retractable gear, flaps and a controllable-pitch propeller, or an engine controlled by FADEC.",
+   "ref": "14 CFR 61.1, 61.31(e)"
+  },
+  {
+   "id": "f13",
+   "src": "faa",
+   "topic": "regs",
+   "q": "A student pilot may not carry passengers and may not fly solo in daytime when the flight visibility is less than",
+   "c": [
+    "3 statute miles",
+    "1 statute mile",
+    "5 statute miles"
+   ],
+   "why": "Student solo flight requires at least 3 SM flight visibility by day and 5 SM at night, with visual reference to the surface.",
+   "ref": "14 CFR 61.89"
+  },
+  {
+   "id": "f14",
+   "src": "faa",
+   "topic": "regs",
+   "q": "A student pilot's solo flight endorsement must have been made within the preceding",
+   "c": [
+    "90 days",
+    "12 calendar months",
+    "30 days"
+   ],
+   "why": "The solo endorsement in the logbook must be dated within the 90 days before the flight.",
+   "ref": "14 CFR 61.87(n)"
+  },
+  {
+   "id": "f15",
+   "src": "faa",
+   "topic": "regs",
+   "q": "After an alcohol-related motor vehicle action, a pilot must send a written report to the FAA Security and Investigations Division within",
+   "c": [
+    "60 days",
+    "30 days",
+    "10 days"
+   ],
+   "why": "Each motor vehicle action involving alcohol or drugs must be reported within 60 days.",
+   "ref": "14 CFR 61.15(e)"
+  },
+  {
+   "id": "f16",
+   "src": "faa",
+   "topic": "regs",
+   "q": "What is the minimum time that must pass after drinking alcohol before you may act as a crewmember?",
+   "c": [
+    "8 hours",
+    "4 hours",
+    "12 hours"
+   ],
+   "why": "No flying within 8 hours of drinking alcohol, while under the influence, or with a blood alcohol concentration of 0.04 or more.",
+   "ref": "14 CFR 91.17(a)"
+  },
+  {
+   "id": "f17",
+   "src": "faa",
+   "topic": "regs",
+   "q": "You may not act as a crewmember with a blood alcohol concentration of",
+   "c": [
+    "0.04 percent or more",
+    "0.08 percent or more",
+    "0.02 percent or more"
+   ],
+   "why": "The limit is below 0.04 by weight. Many pilots use a stricter personal rule: 12 to 24 hours, not 8.",
+   "ref": "14 CFR 91.17(a)(4)"
+  },
+  {
+   "id": "f18",
+   "src": "faa",
+   "topic": "regs",
+   "q": "Who is directly responsible for, and is the final authority as to, the operation of an aircraft?",
+   "c": [
+    "The pilot in command",
+    "The aircraft owner",
+    "Air traffic control"
+   ],
+   "why": "The pilot in command is the final authority, and may deviate from any rule in an emergency to the extent needed.",
+   "ref": "14 CFR 91.3"
+  },
+  {
+   "id": "f19",
+   "src": "faa",
+   "topic": "regs",
+   "q": "If you deviate from a rule during an in-flight emergency, the FAA may ask for a written report. You must send it",
+   "c": [
+    "upon request by the Administrator",
+    "within 10 days, even if not requested",
+    "only if ATC gave you priority"
+   ],
+   "why": "A PIC who deviates in an emergency sends a written report if the Administrator requests one.",
+   "ref": "14 CFR 91.3(c)"
+  },
+  {
+   "id": "f20",
+   "src": "faa",
+   "topic": "regs",
+   "q": "Before every flight, the pilot in command must become familiar with all available information. For a flight away from the vicinity of an airport this must include",
+   "c": [
+    "weather reports and forecasts, fuel requirements, alternatives if the flight can't be completed, and known ATC delays",
+    "the aircraft maintenance records for the past year",
+    "a filed flight plan"
+   ],
+   "why": "Preflight action includes weather, fuel requirements, alternatives and known traffic delays, plus runway lengths and takeoff and landing distance data.",
+   "ref": "14 CFR 91.103"
+  },
+  {
+   "id": "f21",
+   "src": "faa",
+   "topic": "regs",
+   "q": "For every flight, the preflight action required by regulation includes",
+   "c": [
+    "runway lengths at the airports of intended use and takeoff and landing distance data",
+    "filing a VFR flight plan",
+    "getting a standard briefing from Flight Service"
+   ],
+   "why": "Runway lengths and takeoff and landing distance information are required for every flight, not only cross-countries.",
+   "ref": "14 CFR 91.103(b)"
+  },
+  {
+   "id": "f22",
+   "src": "faa",
+   "topic": "regs",
+   "q": "On a day VFR flight, an airplane must carry enough fuel to fly to the first point of intended landing and then, at normal cruise speed, for at least",
+   "c": [
+    "30 minutes",
+    "45 minutes",
+    "20 minutes"
+   ],
+   "why": "Day VFR: 30 minutes of reserve fuel at normal cruising speed. Night VFR: 45 minutes.",
+   "ref": "14 CFR 91.151(a)"
+  },
+  {
+   "id": "f23",
+   "src": "faa",
+   "topic": "regs",
+   "q": "Which people must wear a safety belt during taxi, takeoff and landing?",
+   "c": [
+    "Each person on board (a child under 2 may be held by an adult)",
+    "Only the pilot in command",
+    "Only front-seat occupants"
+   ],
+   "why": "Each person must occupy a seat with a safety belt fastened for movement on the surface, takeoff and landing. The PIC must brief passengers on how to use them.",
+   "ref": "14 CFR 91.107"
+  },
+  {
+   "id": "f24",
+   "src": "faa",
+   "topic": "regs",
+   "q": "No pilot may drop an object from an aircraft in flight",
+   "c": [
+    "that creates a hazard to persons or property",
+    "under any circumstances",
+    "unless they have a waiver from ATC"
+   ],
+   "why": "Dropping objects is allowed if reasonable precautions are taken to avoid injury or damage.",
+   "ref": "14 CFR 91.15"
+  },
+  {
+   "id": "f25",
+   "src": "faa",
+   "topic": "regs",
+   "q": "Two aircraft are approaching each other head-on. What should each pilot do?",
+   "c": [
+    "Alter course to the right",
+    "Alter course to the left",
+    "The higher aircraft climbs and the lower one descends"
+   ],
+   "why": "In a head-on approach, each pilot alters course to the right.",
+   "ref": "14 CFR 91.113(e)"
+  },
+  {
+   "id": "f26",
+   "src": "faa",
+   "topic": "regs",
+   "q": "An airplane is overtaking another airplane. Which way should the overtaking pilot pass?",
+   "c": [
+    "To the right",
+    "To the left",
+    "Above"
+   ],
+   "why": "The aircraft being overtaken has the right-of-way; the overtaking aircraft passes well clear on the right.",
+   "ref": "14 CFR 91.113(f)"
+  },
+  {
+   "id": "f27",
+   "src": "faa",
+   "topic": "regs",
+   "q": "Which aircraft has the right-of-way over all other air traffic?",
+   "c": [
+    "An aircraft in distress",
+    "A balloon",
+    "An aircraft on final approach"
+   ],
+   "why": "An aircraft in distress has the right-of-way over all other traffic.",
+   "ref": "14 CFR 91.113(c)"
+  },
+  {
+   "id": "f28",
+   "src": "faa",
+   "topic": "regs",
+   "q": "An airplane and a glider are converging. Which has the right-of-way?",
+   "c": [
+    "The glider",
+    "The airplane",
+    "Whichever is on the right"
+   ],
+   "why": "Less maneuverable aircraft have priority: balloon, then glider, then airship, then airplane and rotorcraft.",
+   "ref": "14 CFR 91.113(d)"
+  },
+  {
+   "id": "f29",
+   "src": "faa",
+   "topic": "regs",
+   "q": "Two aircraft are approaching to land. Which has the right-of-way?",
+   "c": [
+    "The aircraft at the lower altitude, though it may not cut in front of another aircraft on final",
+    "The aircraft at the higher altitude",
+    "The faster aircraft"
+   ],
+   "why": "The lower aircraft has the right-of-way but may not take advantage of that to cut in front of or overtake another.",
+   "ref": "14 CFR 91.113(g)"
+  },
+  {
+   "id": "f30",
+   "src": "faa",
+   "topic": "regs",
+   "q": "Over a sparsely populated area, except for takeoff and landing, an airplane may not be operated closer than",
+   "c": [
+    "500 ft to any person, vessel, vehicle or structure",
+    "1,000 ft to any structure",
+    "500 ft above the highest obstacle within 2,000 ft"
+   ],
+   "why": "Over open water or sparsely populated areas, stay at least 500 ft from any person, vessel, vehicle or structure.",
+   "ref": "14 CFR 91.119(c)"
+  },
+  {
+   "id": "f31",
+   "src": "faa",
+   "topic": "regs",
+   "q": "Anywhere, the minimum altitude rule requires an altitude that allows",
+   "c": [
+    "an emergency landing without undue hazard to persons or property on the surface if a power unit fails",
+    "a glide to the nearest airport",
+    "at least 500 ft of terrain clearance at all times"
+   ],
+   "why": "Everywhere: an altitude allowing an emergency landing without undue hazard to people or property below.",
+   "ref": "14 CFR 91.119(a)"
+  },
+  {
+   "id": "f32",
+   "src": "faa",
+   "topic": "regs",
+   "q": "VFR cruising more than 3,000 ft AGL on a magnetic course of 090°, which altitude is appropriate?",
+   "c": [
+    "Odd thousands plus 500 ft, such as 5,500",
+    "Even thousands plus 500 ft, such as 6,500",
+    "Odd thousands, such as 5,000"
+   ],
+   "why": "Magnetic courses 0° to 179°: odd thousands plus 500 ft. 180° to 359°: even thousands plus 500 ft.",
+   "ref": "14 CFR 91.159"
+  },
+  {
+   "id": "f33",
+   "src": "faa",
+   "topic": "regs",
+   "q": "VFR cruising above 3,000 ft AGL on a magnetic course of 270°, you should fly at",
+   "c": [
+    "even thousands plus 500 ft, such as 4,500",
+    "odd thousands plus 500 ft, such as 5,500",
+    "even thousands, such as 4,000"
+   ],
+   "why": "Westbound (180° to 359° magnetic course): even thousands plus 500 ft.",
+   "ref": "14 CFR 91.159"
+  },
+  {
+   "id": "f34",
+   "src": "faa",
+   "topic": "regs",
+   "q": "The VFR cruising altitude rule is based on",
+   "c": [
+    "magnetic course",
+    "magnetic heading",
+    "true course"
+   ],
+   "why": "It's based on magnetic course, not heading, and applies above 3,000 ft AGL.",
+   "ref": "14 CFR 91.159"
+  },
+  {
+   "id": "f35",
+   "src": "faa",
+   "topic": "regs",
+   "q": "Below 10,000 ft MSL, the maximum indicated airspeed is",
+   "c": [
+    "250 knots",
+    "200 knots",
+    "230 knots"
+   ],
+   "why": "250 KIAS below 10,000 ft MSL, unless authorized.",
+   "ref": "14 CFR 91.117(a)"
+  },
+  {
+   "id": "f36",
+   "src": "faa",
+   "topic": "regs",
+   "q": "At or below 2,500 ft above the surface within 4 NM of the primary airport of a Class C or D airspace area, the maximum indicated airspeed is",
+   "c": [
+    "200 knots",
+    "250 knots",
+    "156 knots"
+   ],
+   "why": "200 KIAS within 4 NM of the primary airport of Class C or D, at or below 2,500 ft AGL, unless authorized.",
+   "ref": "14 CFR 91.117(b)"
+  },
+  {
+   "id": "f37",
+   "src": "faa",
+   "topic": "regs",
+   "q": "Flying beneath the lateral limits of Class B airspace, the maximum indicated airspeed is",
+   "c": [
+    "200 knots",
+    "250 knots",
+    "180 knots"
+   ],
+   "why": "Under a Class B shelf or in a VFR corridor through Class B: 200 KIAS.",
+   "ref": "14 CFR 91.117(c)"
+  },
+  {
+   "id": "f38",
+   "src": "faa",
+   "topic": "regs",
+   "q": "Aerobatic flight is not allowed when the flight visibility is less than",
+   "c": [
+    "3 statute miles",
+    "5 statute miles",
+    "1 statute mile"
+   ],
+   "why": "Aerobatics need at least 3 SM flight visibility.",
+   "ref": "14 CFR 91.303(f)"
+  },
+  {
+   "id": "f39",
+   "src": "faa",
+   "topic": "regs",
+   "q": "No person may operate an aircraft in formation flight",
+   "c": [
+    "except by arrangement with the pilot in command of each aircraft in the formation",
+    "unless both pilots are commercial pilots",
+    "within Class B airspace at any time"
+   ],
+   "why": "Formation flight requires prior arrangement with each PIC, and never for hire with passengers.",
+   "ref": "14 CFR 91.111"
+  },
+  {
+   "id": "f40",
+   "src": "faa",
+   "topic": "regs",
+   "q": "Between sunset and sunrise, an aircraft may not be operated unless it has",
+   "c": [
+    "lighted position (navigation) lights",
+    "a landing light turned on",
+    "strobe lights turned on"
+   ],
+   "why": "Position lights are required from sunset to sunrise. Anticollision lights are required too if the aircraft has them.",
+   "ref": "14 CFR 91.209"
+  },
+  {
+   "id": "f41",
+   "src": "faa",
+   "topic": "regs",
+   "q": "An aircraft's annual inspection is valid for",
+   "c": [
+    "12 calendar months",
+    "100 hours of flight time",
+    "24 calendar months"
+   ],
+   "why": "An annual inspection is required within the preceding 12 calendar months.",
+   "ref": "14 CFR 91.409(a)"
+  },
+  {
+   "id": "f42",
+   "src": "faa",
+   "topic": "regs",
+   "q": "A 100-hour inspection is required for an aircraft that is",
+   "c": [
+    "used to carry passengers for hire or used by a flight instructor who provides the aircraft for flight training",
+    "used for any flight training",
+    "privately owned and flown more than 100 hours a year"
+   ],
+   "why": "100-hour inspections apply to aircraft carrying people for hire, or furnished by the person giving flight instruction for hire.",
+   "ref": "14 CFR 91.409(b)"
+  },
+  {
+   "id": "f43",
+   "src": "faa",
+   "topic": "regs",
+   "q": "The 100-hour inspection limit may be exceeded by not more than",
+   "c": [
+    "10 hours, to reach a place where the inspection can be done",
+    "5 hours, with a ferry permit",
+    "it may never be exceeded"
+   ],
+   "why": "Up to 10 hours, only to reach a place where it can be done. The excess counts toward the next 100 hours.",
+   "ref": "14 CFR 91.409(b)"
+  },
+  {
+   "id": "f44",
+   "src": "faa",
+   "topic": "regs",
+   "q": "A transponder must have been tested and inspected within the preceding",
+   "c": [
+    "24 calendar months",
+    "12 calendar months",
+    "36 calendar months"
+   ],
+   "why": "Transponders need a test and inspection every 24 calendar months.",
+   "ref": "14 CFR 91.413"
+  },
+  {
+   "id": "f45",
+   "src": "faa",
+   "topic": "regs",
+   "q": "An emergency locator transmitter battery must be replaced (or recharged, if rechargeable) after",
+   "c": [
+    "1 cumulative hour of use or 50 percent of its useful life",
+    "every annual inspection",
+    "24 calendar months"
+   ],
+   "why": "Replace or recharge it after 1 cumulative hour of use, or when 50 percent of its useful life (or charge) has expired.",
+   "ref": "14 CFR 91.207(c)"
+  },
+  {
+   "id": "f46",
+   "src": "faa",
+   "topic": "regs",
+   "q": "Who is primarily responsible for keeping an aircraft in an airworthy condition?",
+   "c": [
+    "The owner or operator",
+    "The mechanic who signed the last annual",
+    "The pilot who last flew it"
+   ],
+   "why": "The owner or operator is primarily responsible for maintaining the aircraft in an airworthy condition, including complying with ADs.",
+   "ref": "14 CFR 91.403(a)"
+  },
+  {
+   "id": "f47",
+   "src": "faa",
+   "topic": "regs",
+   "q": "Airworthiness Directives are",
+   "c": [
+    "mandatory corrections for unsafe conditions on aircraft, engines, propellers or appliances",
+    "voluntary service bulletins from the manufacturer",
+    "only for aircraft used for hire"
+   ],
+   "why": "ADs are regulatory and mandatory (14 CFR Part 39). Compliance must be recorded in the maintenance records.",
+   "ref": "14 CFR 39.7; PHAK ch. 9"
+  },
+  {
+   "id": "f48",
+   "src": "faa",
+   "topic": "regs",
+   "q": "The airworthiness certificate must be displayed",
+   "c": [
+    "at the cabin or cockpit entrance, legible to passengers or crew",
+    "in the glove box with the registration",
+    "in the maintenance records"
+   ],
+   "why": "It must be displayed at the cabin or flight deck entrance so it is legible to passengers or crew.",
+   "ref": "14 CFR 91.203(b)"
+  },
+  {
+   "id": "f49",
+   "src": "faa",
+   "topic": "regs",
+   "q": "Which instrument or equipment is required for day VFR flight in a powered airplane?",
+   "c": [
+    "An airspeed indicator, altimeter and magnetic direction indicator",
+    "An attitude indicator and heading indicator",
+    "A turn coordinator and vertical speed indicator"
+   ],
+   "why": "Day VFR (ATOMATOFLAMES): Airspeed, Tachometer, Oil pressure, Manifold pressure (altitude engines), Altimeter, Temperature gauges, Oil temperature, Fuel gauge, Landing gear position, Anticollision lights (if certificated after March 11, 1996), Magnetic compass, ELT, Safety belts.",
+   "ref": "14 CFR 91.205(b)"
+  },
+  {
+   "id": "f50",
+   "src": "faa",
+   "topic": "regs",
+   "q": "For night VFR, in addition to the day VFR equipment, an airplane needs (FLAPS)",
+   "c": [
+    "fuses, landing light (if for hire), anticollision lights, position lights and a source of electrical power",
+    "an attitude indicator, heading indicator and turn coordinator",
+    "a second radio and a transponder"
+   ],
+   "why": "FLAPS: Fuses (spares), Landing light if operated for hire, Anticollision lights, Position lights, Source of electricity.",
+   "ref": "14 CFR 91.205(c)"
+  },
+  {
+   "id": "f51",
+   "src": "faa",
+   "topic": "regs",
+   "q": "Flight crew must use supplemental oxygen for the whole time they are above",
+   "c": [
+    "14,000 ft MSL",
+    "12,500 ft MSL",
+    "10,000 ft MSL"
+   ],
+   "why": "Above 12,500 to 14,000 ft MSL: crew uses oxygen for any time beyond 30 minutes. Above 14,000: crew at all times. Above 15,000: each occupant must be provided oxygen.",
+   "ref": "14 CFR 91.211"
+  },
+  {
+   "id": "f52",
+   "src": "faa",
+   "topic": "regs",
+   "q": "Between 12,500 ft and 14,000 ft MSL, the required flight crew must use oxygen",
+   "c": [
+    "for any part of the flight longer than 30 minutes at those altitudes",
+    "at all times",
+    "only at night"
+   ],
+   "why": "Cabin pressure altitudes above 12,500 ft up to 14,000 ft: oxygen after 30 minutes.",
+   "ref": "14 CFR 91.211(a)(1)"
+  },
+  {
+   "id": "f53",
+   "src": "faa",
+   "topic": "regs",
+   "q": "Above what altitude must each occupant of the aircraft be provided with supplemental oxygen?",
+   "c": [
+    "15,000 ft MSL",
+    "14,000 ft MSL",
+    "12,500 ft MSL"
+   ],
+   "why": "Above 15,000 ft MSL cabin pressure altitude, every occupant must be provided oxygen (they need not use it).",
+   "ref": "14 CFR 91.211(a)(3)"
+  },
+  {
+   "id": "f54",
+   "src": "faa",
+   "topic": "regs",
+   "q": "Unless otherwise authorized, an operable transponder with altitude reporting is required",
+   "c": [
+    "within 30 NM of a Class B primary airport, from the surface up to 10,000 ft MSL",
+    "anywhere above 3,000 ft AGL",
+    "only inside Class D airspace"
+   ],
+   "why": "The Mode C veil: within 30 NM of the primary airport of Class B, from the surface to 10,000 ft MSL. Also in Class A, B and C and above 10,000 ft MSL (excluding at or below 2,500 ft AGL).",
+   "ref": "14 CFR 91.215(b)"
+  },
+  {
+   "id": "f55",
+   "src": "faa",
+   "topic": "regs",
+   "q": "Above what altitude is a Mode C transponder (and ADS-B Out) required in the contiguous US, excluding airspace at and below 2,500 ft AGL?",
+   "c": [
+    "10,000 ft MSL",
+    "12,500 ft MSL",
+    "18,000 ft MSL"
+   ],
+   "why": "Above 10,000 ft MSL, except at and below 2,500 ft AGL.",
+   "ref": "14 CFR 91.215(b)(5), 91.225"
+  },
+  {
+   "id": "f56",
+   "src": "faa",
+   "topic": "regs",
+   "q": "Before entering Class D airspace, a pilot must",
+   "c": [
+    "establish two-way radio communication with the control tower",
+    "receive an explicit clearance to enter",
+    "have a Mode C transponder"
+   ],
+   "why": "Class D requires two-way radio communication before entering. If the controller responds with your call sign, communication is established.",
+   "ref": "14 CFR 91.129(c); AIM 3-2-5"
+  },
+  {
+   "id": "f57",
+   "src": "faa",
+   "topic": "regs",
+   "q": "You call approach control before entering Class C airspace and hear: \"Aircraft calling Charlotte Approach, standby.\" May you enter?",
+   "c": [
+    "No. Your call sign wasn't used, so two-way communication isn't established",
+    "Yes. Any reply from the controller is enough",
+    "Yes, if you have a Mode C transponder"
+   ],
+   "why": "Two-way radio communication requires the controller to respond using your call sign.",
+   "ref": "AIM 3-2-4"
+  },
+  {
+   "id": "f58",
+   "src": "faa",
+   "topic": "regs",
+   "q": "To enter Class B airspace, a VFR pilot needs",
+   "c": [
+    "an ATC clearance",
+    "only two-way radio communication",
+    "only a Mode C transponder"
+   ],
+   "why": "Class B needs a clearance, plus a private certificate (or a student endorsement), a Mode C transponder and ADS-B Out.",
+   "ref": "14 CFR 91.131"
+  },
+  {
+   "id": "f59",
+   "src": "faa",
+   "topic": "regs",
+   "q": "Which equipment is required to operate in Class C airspace?",
+   "c": [
+    "A two-way radio, a Mode C transponder and ADS-B Out",
+    "A two-way radio only",
+    "A VOR receiver and a transponder"
+   ],
+   "why": "Class C: two-way radio, Mode C transponder and ADS-B Out.",
+   "ref": "14 CFR 91.130, 91.215, 91.225"
+  },
+  {
+   "id": "f60",
+   "src": "faa",
+   "topic": "regs",
+   "q": "Which airspace has a floor of 18,000 ft MSL and requires IFR?",
+   "c": [
+    "Class A",
+    "Class B",
+    "Class E"
+   ],
+   "why": "Class A is 18,000 ft MSL up to and including FL600. All operations must be IFR.",
+   "ref": "AIM 3-2-2"
+  },
+  {
+   "id": "f61",
+   "src": "faa",
+   "topic": "regs",
+   "q": "Unless designated lower, Class E airspace begins at",
+   "c": [
+    "1,200 ft AGL",
+    "700 ft AGL",
+    "14,500 ft MSL"
+   ],
+   "why": "Class E generally starts at 1,200 ft AGL unless charted lower (700 ft AGL with a magenta vignette, or at the surface).",
+   "ref": "AIM 3-2-6"
+  },
+  {
+   "id": "f62",
+   "src": "faa",
+   "topic": "regs",
+   "q": "The vertical limit of Class C airspace is normally",
+   "c": [
+    "4,000 ft above the airport elevation",
+    "2,500 ft above the airport elevation",
+    "10,000 ft MSL"
+   ],
+   "why": "Class C: surface area of 5 NM radius up to 4,000 ft above the airport, and a shelf from 5 to 10 NM, 1,200 to 4,000 ft above the airport.",
+   "ref": "AIM 3-2-4"
+  },
+  {
+   "id": "f63",
+   "src": "faa",
+   "topic": "regs",
+   "q": "Class D airspace normally extends from the surface up to",
+   "c": [
+    "2,500 ft above the airport elevation",
+    "4,000 ft above the airport elevation",
+    "1,200 ft above the airport elevation"
+   ],
+   "why": "Class D normally extends to 2,500 ft above the airport, charted in MSL, and is drawn with a dashed blue line.",
+   "ref": "AIM 3-2-5"
+  },
+  {
+   "id": "f64",
+   "src": "faa",
+   "topic": "regs",
+   "q": "When the control tower at a Class D airport closes, the airspace normally becomes",
+   "c": [
+    "Class E or Class G, as shown in the Chart Supplement",
+    "Class C",
+    "a restricted area"
+   ],
+   "why": "Without the tower, the surface area reverts to Class E (if weather reporting is available) or Class G.",
+   "ref": "AIM 3-2-5"
+  },
+  {
+   "id": "f65",
+   "src": "faa",
+   "topic": "regs",
+   "q": "In a prohibited area, flight is",
+   "c": [
+    "not allowed without permission of the using agency, which is rarely given",
+    "allowed with a clearance from ATC",
+    "allowed above 3,000 ft AGL"
+   ],
+   "why": "Prohibited areas (such as P-56 over the White House) are closed to flight for national security.",
+   "ref": "AIM 3-4-2"
+  },
+  {
+   "id": "f66",
+   "src": "faa",
+   "topic": "regs",
+   "q": "Flying through a restricted area that is active requires",
+   "c": [
+    "permission from the controlling agency",
+    "only a Mode C transponder",
+    "staying above 1,500 ft AGL"
+   ],
+   "why": "Restricted areas contain unusual, often invisible hazards like artillery firing. When active, you need authorization from the controlling agency.",
+   "ref": "AIM 3-4-3"
+  },
+  {
+   "id": "f67",
+   "src": "faa",
+   "topic": "regs",
+   "q": "VFR flight through an active Military Operations Area (MOA) is",
+   "c": [
+    "permitted, but pilots should use extreme caution and contact the controlling agency for traffic advisories",
+    "prohibited",
+    "permitted only with an ATC clearance"
+   ],
+   "why": "MOAs separate military training from IFR traffic. VFR pilots may enter but should be vigilant.",
+   "ref": "AIM 3-4-5"
+  },
+  {
+   "id": "f68",
+   "src": "faa",
+   "topic": "regs",
+   "q": "A warning area is airspace",
+   "c": [
+    "extending from 3 NM outward from the US coast, containing activity that may be hazardous",
+    "over national parks where low flight is discouraged",
+    "where flight is always prohibited"
+   ],
+   "why": "Warning areas lie over domestic or international waters beyond 3 NM from the coast.",
+   "ref": "AIM 3-4-4"
+  },
+  {
+   "id": "f69",
+   "src": "faa",
+   "topic": "regs",
+   "q": "On the ground, FAA-designated Wildlife Refuges and National Parks ask pilots to keep a minimum altitude of",
+   "c": [
+    "2,000 ft above the surface",
+    "1,000 ft above the surface",
+    "500 ft above the surface"
+   ],
+   "why": "Pilots are requested to stay at least 2,000 ft AGL over noise-sensitive areas such as national parks and wildlife refuges.",
+   "ref": "AIM 7-5-6"
+  },
+  {
+   "id": "f70",
+   "src": "faa",
+   "topic": "regs",
+   "q": "How are temporary flight restrictions (TFRs) issued?",
+   "c": [
+    "By NOTAM",
+    "On the sectional chart",
+    "In the Chart Supplement"
+   ],
+   "why": "TFRs are issued by NOTAM and can pop up with little notice. Check them before every flight.",
+   "ref": "14 CFR 91.137; AIM 3-5-3"
+  },
+  {
+   "id": "f71",
+   "src": "faa",
+   "topic": "regs",
+   "q": "After an accident, the operator must file the NTSB written report within",
+   "c": [
+    "10 days",
+    "7 days",
+    "30 days"
+   ],
+   "why": "10 days after an accident, or 7 days after an overdue aircraft is still missing.",
+   "ref": "49 CFR 830.15"
+  },
+  {
+   "id": "f72",
+   "src": "faa",
+   "topic": "regs",
+   "q": "Which incident requires immediate notification to the NTSB?",
+   "c": [
+    "An in-flight fire",
+    "A flat tire during taxi",
+    "A bird strike with no damage"
+   ],
+   "why": "830.5 lists incidents such as flight control system failure, in-flight fire, collision in flight and crewmember inability to perform duties.",
+   "ref": "49 CFR 830.5"
+  },
+  {
+   "id": "f73",
+   "src": "faa",
+   "topic": "regs",
+   "q": "Wreckage from an aircraft accident may be moved before the NTSB takes custody",
+   "c": [
+    "only to protect the wreckage from further damage, or to remove people or protect the public",
+    "after the owner gives permission",
+    "to clear a runway, after 24 hours"
+   ],
+   "why": "Preserve wreckage, cargo and records. Disturb them only to remove injured people, protect the wreckage, or protect the public.",
+   "ref": "49 CFR 830.10"
+  },
+  {
+   "id": "f74",
+   "src": "faa",
+   "topic": "regs",
+   "q": "When the FAA receives a NASA Aviation Safety Reporting System (ASRS) report filed within 10 days of an inadvertent violation",
+   "c": [
+    "no civil penalty or certificate suspension is imposed, if the conditions are met",
+    "the pilot is automatically cleared of any wrongdoing",
+    "the report is forwarded to the FAA for enforcement"
+   ],
+   "why": "If the violation was inadvertent, not criminal, not an accident, and you file within 10 days, sanctions are waived (you may still be found in violation).",
+   "ref": "AC 00-46"
+  },
+  {
+   "id": "f75",
+   "src": "faa",
+   "topic": "regs",
+   "q": "Which preflight action is required before flying a cross-country flight with a passenger in a rented airplane?",
+   "c": [
+    "Check weather, fuel requirements, alternatives and known traffic delays",
+    "File a flight plan with Flight Service",
+    "Get a briefing from the airplane's owner"
+   ],
+   "why": "Preflight action under 91.103 covers all available information, including weather, fuel, alternatives and delays.",
+   "ref": "14 CFR 91.103"
+  },
+  {
+   "id": "f76",
+   "src": "faa",
+   "topic": "regs",
+   "q": "An ATC clearance has been received. A pilot may deviate from it",
+   "c": [
+    "in an emergency, or to respond to a TCAS resolution advisory, notifying ATC as soon as possible",
+    "whenever the pilot feels it is safer",
+    "only after filing a written request"
+   ],
+   "why": "You may deviate only in an emergency (or for a TCAS RA) unless an amended clearance is obtained, and must notify ATC.",
+   "ref": "14 CFR 91.123"
+  },
+  {
+   "id": "f77",
+   "src": "faa",
+   "topic": "regs",
+   "q": "If ATC gives you priority in an emergency, you may be asked to submit a detailed report within",
+   "c": [
+    "48 hours, if requested by ATC",
+    "10 days, always",
+    "24 hours, always"
+   ],
+   "why": "A pilot given priority in an emergency submits a report within 48 hours to the ATC facility manager, if requested.",
+   "ref": "14 CFR 91.123(d)"
+  },
+  {
+   "id": "f78",
+   "src": "faa",
+   "topic": "regs",
+   "q": "Unless the airport has a control tower, the traffic pattern direction you must use is",
+   "c": [
+    "left turns, unless the airport shows otherwise with light signals or visual markings",
+    "the direction the first aircraft in the pattern chose",
+    "right turns at airports with more than one runway"
+   ],
+   "why": "At airports without an operating tower, make all turns to the left unless markings or light signals show right turns.",
+   "ref": "14 CFR 91.126(b)"
+  },
+  {
+   "id": "f79",
+   "src": "faa",
+   "topic": "wx",
+   "q": "The standard (average) temperature lapse rate in the lower atmosphere is about",
+   "c": [
+    "2°C (3.5°F) per 1,000 ft",
+    "3°C (5.4°F) per 1,000 ft",
+    "1°C (1.8°F) per 1,000 ft"
+   ],
+   "why": "The standard lapse rate is about 2°C per 1,000 ft. Dry rising air cools faster, about 3°C per 1,000 ft (the dry adiabatic rate).",
+   "ref": "PHAK ch. 12"
+  },
+  {
+   "id": "f80",
+   "src": "faa",
+   "topic": "wx",
+   "q": "Standard sea-level conditions are",
+   "c": [
+    "15°C and 29.92 inHg",
+    "0°C and 29.92 inHg",
+    "15°C and 30.00 inHg"
+   ],
+   "why": "The International Standard Atmosphere at sea level: 15°C (59°F) and 29.92 inHg (1013.2 hPa).",
+   "ref": "PHAK ch. 4"
+  },
+  {
+   "id": "f81",
+   "src": "faa",
+   "topic": "wx",
+   "q": "Surface temperature 20°C, dew point 9°C. About how high are the bases of cumuliform clouds?",
+   "c": [
+    "4,400 ft AGL",
+    "2,500 ft AGL",
+    "8,000 ft AGL"
+   ],
+   "why": "Divide the temperature/dew point spread by 2.5°C (or 4.4°F) per 1,000 ft: 11 ÷ 2.5 ≈ 4.4, so about 4,400 ft AGL.",
+   "ref": "PHAK ch. 12"
+  },
+  {
+   "id": "f82",
+   "src": "faa",
+   "topic": "wx",
+   "q": "Surface temperature 72°F and dew point 50°F. Estimate the base of convective clouds.",
+   "c": [
+    "5,000 ft AGL",
+    "2,200 ft AGL",
+    "9,700 ft AGL"
+   ],
+   "why": "A 22°F spread ÷ 4.4°F per 1,000 ft = 5,000 ft AGL.",
+   "ref": "PHAK ch. 12"
+  },
+  {
+   "id": "f83",
+   "src": "faa",
+   "topic": "wx",
+   "q": "The dew point is",
+   "c": [
+    "the temperature to which air must be cooled to become saturated",
+    "the temperature at which dew can no longer form",
+    "the lowest temperature reached at night"
+   ],
+   "why": "Cool air to its dew point and it's saturated: clouds, fog or dew form. A small spread means fog or low clouds are likely.",
+   "ref": "PHAK ch. 12"
+  },
+  {
+   "id": "f84",
+   "src": "faa",
+   "topic": "wx",
+   "q": "What happens to the amount of water vapor air can hold as its temperature rises?",
+   "c": [
+    "It increases",
+    "It decreases",
+    "It stays the same"
+   ],
+   "why": "Warm air can hold more water vapor than cold air.",
+   "ref": "PHAK ch. 12"
+  },
+  {
+   "id": "f85",
+   "src": "faa",
+   "topic": "wx",
+   "q": "Which characteristics describe an unstable air mass?",
+   "c": [
+    "Cumuliform clouds, turbulence, good visibility outside showers, showery precipitation",
+    "Stratiform clouds, smooth air, poor visibility, continuous precipitation",
+    "Fog and low stratus with calm winds"
+   ],
+   "why": "Unstable air rises on its own: towering clouds, bumpy air and showers, with good visibility between them.",
+   "ref": "PHAK ch. 12"
+  },
+  {
+   "id": "f86",
+   "src": "faa",
+   "topic": "wx",
+   "q": "A temperature inversion is a layer in which",
+   "c": [
+    "temperature increases with altitude",
+    "temperature decreases rapidly with altitude",
+    "temperature stays constant with altitude"
+   ],
+   "why": "In an inversion it gets warmer with height. The air below is very stable, so expect smooth air, haze, smoke and poor visibility.",
+   "ref": "PHAK ch. 12"
+  },
+  {
+   "id": "f87",
+   "src": "faa",
+   "topic": "wx",
+   "q": "A common type of ground-based temperature inversion forms",
+   "c": [
+    "on clear, cool nights with calm or light winds",
+    "during a warm, windy afternoon",
+    "when a cold front passes"
+   ],
+   "why": "On clear calm nights the ground radiates heat away and cools the air next to it, making a surface inversion.",
+   "ref": "PHAK ch. 12"
+  },
+  {
+   "id": "f88",
+   "src": "faa",
+   "topic": "wx",
+   "q": "Which stage of a thunderstorm is marked mainly by continuous updrafts?",
+   "c": [
+    "Cumulus",
+    "Mature",
+    "Dissipating"
+   ],
+   "why": "Cumulus stage: updrafts build the cloud. Mature: precipitation reaches the surface and up- and downdrafts both exist. Dissipating: downdrafts dominate.",
+   "ref": "PHAK ch. 12"
+  },
+  {
+   "id": "f89",
+   "src": "faa",
+   "topic": "wx",
+   "q": "The beginning of the mature stage of a thunderstorm is signaled by",
+   "c": [
+    "precipitation beginning to fall from the cloud base",
+    "the appearance of an anvil top",
+    "a sudden wind shift at the surface hours before the storm"
+   ],
+   "why": "When rain or hail starts falling out of the base, downdrafts have begun: the storm is mature and at its most intense.",
+   "ref": "PHAK ch. 12"
+  },
+  {
+   "id": "f90",
+   "src": "faa",
+   "topic": "wx",
+   "q": "Which thunderstorms generally produce the most intense hazards, such as hail, tornadoes and severe turbulence?",
+   "c": [
+    "Squall line thunderstorms",
+    "Air mass thunderstorms",
+    "Orographic showers"
+   ],
+   "why": "A squall line is a non-frontal band of active thunderstorms, often ahead of a cold front, with the most severe weather.",
+   "ref": "PHAK ch. 12"
+  },
+  {
+   "id": "f91",
+   "src": "faa",
+   "topic": "wx",
+   "q": "You should avoid a severe thunderstorm by at least",
+   "c": [
+    "20 miles",
+    "5 miles",
+    "10 miles"
+   ],
+   "why": "Turbulence and hail can extend well outside the cloud. Give severe storms at least 20 NM, and don't fly under the anvil.",
+   "ref": "AIM 7-1-27"
+  },
+  {
+   "id": "f92",
+   "src": "faa",
+   "topic": "wx",
+   "q": "Lightning is always associated with",
+   "c": [
+    "a thunderstorm",
+    "a cold front",
+    "freezing rain"
+   ],
+   "why": "All thunderstorms produce lightning and have the potential for severe turbulence.",
+   "ref": "PHAK ch. 12"
+  },
+  {
+   "id": "f93",
+   "src": "faa",
+   "topic": "wx",
+   "q": "Which type of fog forms on clear nights with light or calm winds over low, flat land?",
+   "c": [
+    "Radiation fog",
+    "Advection fog",
+    "Upslope fog"
+   ],
+   "why": "Radiation fog forms when the ground cools the air to its dew point on still, clear nights. It usually burns off after sunrise.",
+   "ref": "PHAK ch. 12"
+  },
+  {
+   "id": "f94",
+   "src": "faa",
+   "topic": "wx",
+   "q": "Upslope fog forms when",
+   "c": [
+    "moist, stable air is forced up sloping terrain and cooled",
+    "cold air moves over warm water",
+    "rain falls through cooler air"
+   ],
+   "why": "Air pushed up a slope cools adiabatically to its dew point. Common along the eastern slopes of the Rockies.",
+   "ref": "PHAK ch. 12"
+  },
+  {
+   "id": "f95",
+   "src": "faa",
+   "topic": "wx",
+   "q": "Steam fog forms when",
+   "c": [
+    "cold, dry air moves over warmer water",
+    "warm, moist air moves over cold water",
+    "rain falls through cold air near the surface"
+   ],
+   "why": "Evaporation from the warm water saturates the cold air above it. Steam fog is often associated with low-level turbulence and icing.",
+   "ref": "PHAK ch. 12"
+  },
+  {
+   "id": "f96",
+   "src": "faa",
+   "topic": "wx",
+   "q": "Frost forms on an aircraft when",
+   "c": [
+    "the collecting surface is at or below the dew point of the adjacent air, and the dew point is below freezing",
+    "small drops of rain freeze on contact",
+    "the air temperature is below freezing and there is fog"
+   ],
+   "why": "Frost is water vapor depositing directly as ice. Remove all of it before flight: it disrupts airflow, reduces lift and raises stall speed.",
+   "ref": "PHAK ch. 12"
+  },
+  {
+   "id": "f97",
+   "src": "faa",
+   "topic": "wx",
+   "q": "How does frost on the wings affect an airplane?",
+   "c": [
+    "It spoils the smooth airflow, decreasing lift and increasing drag and stall speed",
+    "It adds weight but doesn't change lift",
+    "It has no effect if the frost is thin"
+   ],
+   "why": "Even a thin, rough layer of frost can prevent takeoff by reducing lift and raising stall speed.",
+   "ref": "PHAK ch. 12"
+  },
+  {
+   "id": "f98",
+   "src": "faa",
+   "topic": "wx",
+   "q": "For structural icing to form, there must be",
+   "c": [
+    "visible moisture and an airframe temperature at or below freezing",
+    "high humidity and temperatures between 20°F and 70°F",
+    "clear skies and below-freezing temperatures"
+   ],
+   "why": "Structural ice needs visible moisture (cloud, rain, drizzle) and a surface at or below 0°C.",
+   "ref": "PHAK ch. 12"
+  },
+  {
+   "id": "f99",
+   "src": "faa",
+   "topic": "wx",
+   "q": "Encountering freezing rain at your altitude is evidence that",
+   "c": [
+    "there is warmer air (above freezing) at a higher altitude",
+    "a cold front has just passed",
+    "the air above you is colder"
+   ],
+   "why": "Rain forms in warmer air aloft and falls into a subfreezing layer. Climbing into the warm layer, or turning back, is the way out.",
+   "ref": "PHAK ch. 12"
+  },
+  {
+   "id": "f100",
+   "src": "faa",
+   "topic": "wx",
+   "q": "When a cold front passes, you typically see",
+   "c": [
+    "a drop in temperature, a wind shift and rising pressure",
+    "a rise in temperature and falling pressure",
+    "steady rain and decreasing visibility for days"
+   ],
+   "why": "Behind a cold front: colder, often clearer air, winds shift (usually to the northwest in the US) and pressure rises.",
+   "ref": "PHAK ch. 12"
+  },
+  {
+   "id": "f101",
+   "src": "faa",
+   "topic": "wx",
+   "q": "One of the most easily recognized discontinuities across a front is",
+   "c": [
+    "a change in temperature",
+    "an increase in cloud coverage",
+    "an increase in relative humidity"
+   ],
+   "why": "Fronts separate air masses of different temperature. Wind direction and pressure changes also occur.",
+   "ref": "PHAK ch. 12"
+  },
+  {
+   "id": "f102",
+   "src": "faa",
+   "topic": "wx",
+   "q": "Weather ahead of a warm front typically includes",
+   "c": [
+    "stratiform clouds, steady precipitation and poor visibility, possibly fog",
+    "towering cumulus and showers with good visibility",
+    "clear skies with gusty winds"
+   ],
+   "why": "Warm air rides gently up over the cold air, giving widespread layered clouds and steady rain ahead of the front.",
+   "ref": "PHAK ch. 12"
+  },
+  {
+   "id": "f103",
+   "src": "faa",
+   "topic": "wx",
+   "q": "In the Northern Hemisphere, air flows around a low-pressure area",
+   "c": [
+    "counterclockwise and inward",
+    "clockwise and outward",
+    "counterclockwise and outward"
+   ],
+   "why": "Around lows the wind flows counterclockwise and converges, rising and often producing clouds. Around highs it flows clockwise and outward.",
+   "ref": "PHAK ch. 12"
+  },
+  {
+   "id": "f104",
+   "src": "faa",
+   "topic": "wx",
+   "q": "Why does the wind near the surface blow at an angle to the isobars, instead of parallel to them as it does aloft?",
+   "c": [
+    "Surface friction slows the wind and reduces the Coriolis force",
+    "The pressure gradient is stronger near the surface",
+    "Temperature differences are larger near the ground"
+   ],
+   "why": "Friction slows surface winds, so Coriolis force is weaker and the wind turns toward lower pressure.",
+   "ref": "PHAK ch. 12"
+  },
+  {
+   "id": "f105",
+   "src": "faa",
+   "topic": "wx",
+   "q": "Wind shear can occur",
+   "c": [
+    "at any altitude, in any direction",
+    "only near thunderstorms",
+    "only near the ground"
+   ],
+   "why": "Wind shear is a sudden change in wind speed or direction over a short distance. It's most dangerous close to the ground.",
+   "ref": "PHAK ch. 12"
+  },
+  {
+   "id": "f106",
+   "src": "faa",
+   "topic": "wx",
+   "q": "Low-level wind shear is possible above a temperature inversion when",
+   "c": [
+    "the winds just above the inversion are 25 knots or more",
+    "the surface winds are calm and the sky is overcast",
+    "the inversion is above 10,000 ft"
+   ],
+   "why": "A strong wind just above a calm, inverted surface layer can cause a sudden airspeed change as you climb or descend through it.",
+   "ref": "PHAK ch. 12"
+  },
+  {
+   "id": "f107",
+   "src": "faa",
+   "topic": "wx",
+   "q": "A microburst's downdraft can be as strong as",
+   "c": [
+    "6,000 feet per minute",
+    "1,500 feet per minute",
+    "500 feet per minute"
+   ],
+   "why": "Microbursts are small (about 1 km or less), short-lived (2 to 4 minutes at peak) downdrafts up to 6,000 fpm, with horizontal winds up to 45 knots.",
+   "ref": "AIM 7-1-24"
+  },
+  {
+   "id": "f108",
+   "src": "faa",
+   "topic": "wx",
+   "q": "Flying into a microburst on approach, you would first expect",
+   "c": [
+    "an increasing headwind and a performance increase",
+    "an immediate strong tailwind",
+    "a downdraft before any change in airspeed"
+   ],
+   "why": "First a headwind (airspeed up, the airplane balloons), then the downdraft, then a tailwind that can leave you low and slow.",
+   "ref": "AIM 7-1-24"
+  },
+  {
+   "id": "f109",
+   "src": "faa",
+   "topic": "wx",
+   "q": "Mountain wave turbulence is likely when",
+   "c": [
+    "strong winds of 25 knots or more blow across a ridge in stable air",
+    "winds are light and the air is unstable",
+    "a warm front approaches the mountains"
+   ],
+   "why": "Stable air flowing over mountains forms standing waves. Look for lenticular and rotor clouds, but waves can exist without them.",
+   "ref": "PHAK ch. 12"
+  },
+  {
+   "id": "f110",
+   "src": "faa",
+   "topic": "wx",
+   "q": "Clouds are classified into four families. Which is one of them?",
+   "c": [
+    "Clouds with extensive vertical development",
+    "Rain clouds",
+    "Frontal clouds"
+   ],
+   "why": "Low, middle, high, and clouds with vertical development (cumulus and cumulonimbus).",
+   "ref": "PHAK ch. 12"
+  },
+  {
+   "id": "f111",
+   "src": "faa",
+   "topic": "wx",
+   "q": "The suffix \"nimbus\" in a cloud name means",
+   "c": [
+    "a rain cloud",
+    "a middle-level cloud",
+    "a cloud with a flat base"
+   ],
+   "why": "Nimbus means rain-bearing, as in nimbostratus and cumulonimbus. Alto means middle; cirro means high.",
+   "ref": "PHAK ch. 12"
+  },
+  {
+   "id": "f112",
+   "src": "faa",
+   "topic": "wx",
+   "q": "Which cloud type would most likely produce severe turbulence and hail?",
+   "c": [
+    "Cumulonimbus",
+    "Cirrostratus",
+    "Altostratus"
+   ],
+   "why": "Cumulonimbus is the thunderstorm cloud: severe turbulence, hail, icing, lightning and wind shear.",
+   "ref": "PHAK ch. 12"
+  },
+  {
+   "id": "f113",
+   "src": "faa",
+   "topic": "wx",
+   "q": "In a METAR, the wind group 27015G25KT means",
+   "c": [
+    "wind from 270° true at 15 knots, gusting to 25 knots",
+    "wind from 270° magnetic at 15 knots, gusting to 25 knots",
+    "wind from 270° true at 25 knots, gusting to 15 knots"
+   ],
+   "why": "METAR winds are true direction and knots. Winds given by ATIS or a tower are magnetic.",
+   "ref": "AC 00-45; PHAK ch. 13"
+  },
+  {
+   "id": "f114",
+   "src": "faa",
+   "topic": "wx",
+   "q": "In a METAR, \"BKN008 OVC015\" means the ceiling is",
+   "c": [
+    "800 ft AGL",
+    "1,500 ft AGL",
+    "800 ft MSL"
+   ],
+   "why": "The ceiling is the lowest broken or overcast layer (or vertical visibility). Heights are hundreds of feet above ground level.",
+   "ref": "PHAK ch. 13"
+  },
+  {
+   "id": "f115",
+   "src": "faa",
+   "topic": "wx",
+   "q": "What does \"+TSRA\" mean in a METAR?",
+   "c": [
+    "Thunderstorm with heavy rain",
+    "Light thunderstorm with rain showers",
+    "Tornado with rain"
+   ],
+   "why": "+ is heavy, - is light, no sign is moderate. TS is thunderstorm, RA is rain.",
+   "ref": "PHAK ch. 13"
+  },
+  {
+   "id": "f116",
+   "src": "faa",
+   "topic": "wx",
+   "q": "In a METAR, \"VV005\" means",
+   "c": [
+    "an indefinite ceiling with vertical visibility of 500 ft",
+    "visibility 5 statute miles",
+    "variable visibility of 1/2 mile"
+   ],
+   "why": "VV is vertical visibility into an obscuration, such as fog. It counts as a ceiling.",
+   "ref": "PHAK ch. 13"
+  },
+  {
+   "id": "f117",
+   "src": "faa",
+   "topic": "wx",
+   "q": "The remark \"RMK AO2\" in a METAR means",
+   "c": [
+    "an automated station with a precipitation discriminator",
+    "the observation was corrected",
+    "the altimeter setting is unreliable"
+   ],
+   "why": "AO1: automated without a precipitation discriminator. AO2: automated with one (it can tell rain from snow).",
+   "ref": "AC 00-45"
+  },
+  {
+   "id": "f118",
+   "src": "faa",
+   "topic": "wx",
+   "q": "In a METAR, \"A2992\" means",
+   "c": [
+    "the altimeter setting is 29.92 inHg",
+    "the airport elevation is 2,992 ft",
+    "the visibility is 2,992 meters"
+   ],
+   "why": "The A group is the altimeter setting in inches of mercury.",
+   "ref": "PHAK ch. 13"
+  },
+  {
+   "id": "f119",
+   "src": "faa",
+   "topic": "wx",
+   "q": "A METAR shows \"M04/M07\". What are the temperature and dew point?",
+   "c": [
+    "−4°C and −7°C",
+    "4°C and 7°C",
+    "−4°F and −7°F"
+   ],
+   "why": "M means minus. METAR temperatures are in degrees Celsius.",
+   "ref": "PHAK ch. 13"
+  },
+  {
+   "id": "f120",
+   "src": "faa",
+   "topic": "wx",
+   "q": "How often are routine METARs issued?",
+   "c": [
+    "Hourly",
+    "Every 3 hours",
+    "Every 6 hours"
+   ],
+   "why": "METARs are hourly. A SPECI is a special report issued when conditions change significantly.",
+   "ref": "PHAK ch. 13"
+  },
+  {
+   "id": "f121",
+   "src": "faa",
+   "topic": "wx",
+   "q": "In a TAF, \"FM1600\" means",
+   "c": [
+    "a rapid change in conditions starting at 1600Z",
+    "conditions forecast from 1600 local time",
+    "temporary conditions lasting less than an hour after 1600Z"
+   ],
+   "why": "FM (from) starts a new forecast period with a significant change at that time.",
+   "ref": "PHAK ch. 13"
+  },
+  {
+   "id": "f122",
+   "src": "faa",
+   "topic": "wx",
+   "q": "In a TAF, \"TEMPO 1520/1523 1SM BR\" means",
+   "c": [
+    "temporary fluctuations to 1 SM in mist, each lasting less than an hour, between 2000Z and 2300Z on the 15th",
+    "a permanent change to 1 SM in mist at 2000Z",
+    "a 40 percent chance of mist"
+   ],
+   "why": "TEMPO is temporary fluctuations of less than an hour, covering less than half the period.",
+   "ref": "PHAK ch. 13"
+  },
+  {
+   "id": "f123",
+   "src": "faa",
+   "topic": "wx",
+   "q": "In a TAF, \"PROB30\" means",
+   "c": [
+    "a 30 percent probability of the conditions during the period",
+    "conditions forecast to last 30 minutes",
+    "visibility 3 SM or less"
+   ],
+   "why": "PROB30 or PROB40 gives the probability of thunderstorms or precipitation in that period.",
+   "ref": "PHAK ch. 13"
+  },
+  {
+   "id": "f124",
+   "src": "faa",
+   "topic": "wx",
+   "q": "In a TAF, \"SKC\" or \"P6SM\" means",
+   "c": [
+    "sky clear and visibility greater than 6 statute miles",
+    "scattered clouds below 6,000 ft",
+    "special VFR with 6 SM visibility"
+   ],
+   "why": "P6SM means plus 6 statute miles: visibility greater than 6 SM.",
+   "ref": "PHAK ch. 13"
+  },
+  {
+   "id": "f125",
+   "src": "faa",
+   "topic": "wx",
+   "q": "AIRMET Sierra describes",
+   "c": [
+    "IFR conditions and extensive mountain obscuration",
+    "moderate turbulence and strong surface winds",
+    "moderate icing and freezing levels"
+   ],
+   "why": "Sierra: IFR and mountain obscuration. Tango: turbulence, sustained surface winds of 30 kt or more, low-level wind shear. Zulu: icing and freezing levels.",
+   "ref": "PHAK ch. 13"
+  },
+  {
+   "id": "f126",
+   "src": "faa",
+   "topic": "wx",
+   "q": "Which AIRMET advises of moderate turbulence and sustained surface winds of 30 knots or more?",
+   "c": [
+    "AIRMET Tango",
+    "AIRMET Sierra",
+    "AIRMET Zulu"
+   ],
+   "why": "Tango covers turbulence, strong surface winds and nonconvective low-level wind shear.",
+   "ref": "PHAK ch. 13"
+  },
+  {
+   "id": "f127",
+   "src": "faa",
+   "topic": "wx",
+   "q": "AIRMET Zulu advises of",
+   "c": [
+    "moderate icing and freezing levels",
+    "IFR conditions",
+    "moderate turbulence"
+   ],
+   "why": "Zulu is icing (and freezing-level heights).",
+   "ref": "PHAK ch. 13"
+  },
+  {
+   "id": "f128",
+   "src": "faa",
+   "topic": "wx",
+   "q": "A convective SIGMET is issued for",
+   "c": [
+    "tornadoes, lines of thunderstorms, embedded thunderstorms, large hail or severe surface winds",
+    "moderate turbulence near thunderstorms",
+    "a single isolated thunderstorm"
+   ],
+   "why": "Convective SIGMETs cover severe convective weather, including hail ≥ 3/4 inch and surface winds ≥ 50 kt. Any convective SIGMET implies severe turbulence, icing and wind shear.",
+   "ref": "PHAK ch. 13"
+  },
+  {
+   "id": "f129",
+   "src": "faa",
+   "topic": "wx",
+   "q": "What is the purpose of a pilot weather report (PIREP)?",
+   "c": [
+    "To report actual weather observed in flight, such as turbulence, icing, cloud tops and bases",
+    "To forecast weather along a route",
+    "To file a VFR flight plan"
+   ],
+   "why": "PIREPs give real conditions aloft. UA is routine; UUA is urgent (severe turbulence, severe icing, wind shear, hail, volcanic ash).",
+   "ref": "PHAK ch. 13; AIM 7-1-18"
+  },
+  {
+   "id": "f130",
+   "src": "faa",
+   "topic": "wx",
+   "q": "On a winds and temperatures aloft forecast (FB), wind direction is given relative to",
+   "c": [
+    "true north, with speed in knots",
+    "magnetic north, with speed in knots",
+    "true north, with speed in miles per hour"
+   ],
+   "why": "Forecast winds aloft are true direction in knots, and temperatures in Celsius.",
+   "ref": "PHAK ch. 13"
+  },
+  {
+   "id": "f131",
+   "src": "faa",
+   "topic": "wx",
+   "q": "Decode the winds aloft group \"7325-07\".",
+   "c": [
+    "Wind 230° true at 125 knots, temperature −7°C",
+    "Wind 730° at 25 knots, temperature −7°C",
+    "Wind 230° true at 25 knots, temperature 7°C"
+   ],
+   "why": "A direction code above 36 means speed is 100 knots or more: subtract 50 from the direction (73 − 50 = 23, so 230°) and add 100 to the speed (25 + 100 = 125 kt).",
+   "ref": "PHAK ch. 13"
+  },
+  {
+   "id": "f132",
+   "src": "faa",
+   "topic": "wx",
+   "q": "On a winds aloft forecast, \"9900\" means",
+   "c": [
+    "light and variable winds (less than 5 knots)",
+    "missing data",
+    "wind from 360° at 99 knots"
+   ],
+   "why": "9900 means light and variable, under 5 knots.",
+   "ref": "PHAK ch. 13"
+  },
+  {
+   "id": "f133",
+   "src": "faa",
+   "topic": "wx",
+   "q": "Why is there no wind forecast for the 3,000 ft level at a station 2,000 ft above sea level?",
+   "c": [
+    "Winds aren't forecast within 1,500 ft of the station elevation",
+    "The station doesn't measure winds below 6,000 ft",
+    "Surface friction makes the forecast useless at all stations"
+   ],
+   "why": "No winds within 1,500 ft of station elevation, and no temperatures for the 3,000 ft level or within 2,500 ft of station elevation.",
+   "ref": "PHAK ch. 13"
+  },
+  {
+   "id": "f134",
+   "src": "faa",
+   "topic": "wx",
+   "q": "A surface analysis chart shows",
+   "c": [
+    "actual positions of fronts, pressure systems and observed weather at the chart time",
+    "forecast fronts for 12 and 24 hours",
+    "areas of forecast turbulence and icing"
+   ],
+   "why": "The surface analysis is an observation: fronts, highs and lows, isobars and station models, updated every 3 hours.",
+   "ref": "PHAK ch. 13"
+  },
+  {
+   "id": "f135",
+   "src": "faa",
+   "topic": "wx",
+   "q": "Closely spaced isobars on a surface analysis chart indicate",
+   "c": [
+    "strong winds (a steep pressure gradient)",
+    "light winds",
+    "an approaching warm front"
+   ],
+   "why": "The closer the isobars, the steeper the pressure gradient and the stronger the wind.",
+   "ref": "PHAK ch. 12"
+  },
+  {
+   "id": "f136",
+   "src": "faa",
+   "topic": "wx",
+   "q": "Prognostic (prog) charts show",
+   "c": [
+    "forecast positions of fronts and pressure systems and expected weather",
+    "observed weather at the time of the chart",
+    "current radar returns"
+   ],
+   "why": "Progs are forecasts, issued for several times such as 12, 24, 48 and 72 hours ahead.",
+   "ref": "PHAK ch. 13"
+  },
+  {
+   "id": "f137",
+   "src": "faa",
+   "topic": "wx",
+   "q": "Which source gives the most complete preflight weather picture, recorded for your flight?",
+   "c": [
+    "A standard briefing from Flight Service (or an equivalent online briefing)",
+    "An abbreviated briefing",
+    "The ATIS at your departure airport"
+   ],
+   "why": "Request a standard briefing if you haven't had one. An abbreviated briefing fills in gaps; an outlook briefing is for flights 6 or more hours away.",
+   "ref": "AIM 7-1-5"
+  },
+  {
+   "id": "f138",
+   "src": "faa",
+   "topic": "wx",
+   "q": "You plan to depart in 8 hours. Which briefing should you request?",
+   "c": [
+    "An outlook briefing",
+    "A standard briefing",
+    "An abbreviated briefing"
+   ],
+   "why": "Outlook briefings are for departures 6 or more hours away. Get a standard briefing closer to the time.",
+   "ref": "AIM 7-1-5"
+  },
+  {
+   "id": "f139",
+   "src": "faa",
+   "topic": "wx",
+   "q": "The Graphical Forecasts for Aviation (GFA) tool shows",
+   "c": [
+    "observations and forecasts of clouds, weather, winds, icing and turbulence for the contiguous US",
+    "only radar returns",
+    "only TAFs and METARs in text form"
+   ],
+   "why": "The GFA (aviationweather.gov) replaced the area forecast for the contiguous US.",
+   "ref": "AC 00-45"
+  },
+  {
+   "id": "f140",
+   "src": "faa",
+   "topic": "wx",
+   "q": "Weather radar on a ground-based radar display mainly shows",
+   "c": [
+    "precipitation",
+    "clouds",
+    "turbulence"
+   ],
+   "why": "Radar sees precipitation, not clouds or turbulence. Heavy precipitation often means strong convection.",
+   "ref": "PHAK ch. 13"
+  },
+  {
+   "id": "f141",
+   "src": "faa",
+   "topic": "wx",
+   "q": "What does a dew point spread that is narrowing late in the evening suggest?",
+   "c": [
+    "Fog or low clouds may form",
+    "Clearing skies and good visibility",
+    "Thunderstorms are developing"
+   ],
+   "why": "When the spread drops to a few degrees, saturation is close. Fog often forms overnight.",
+   "ref": "PHAK ch. 12"
+  },
+  {
+   "id": "f142",
+   "src": "faa",
+   "topic": "wx",
+   "q": "Convective circulation patterns associated with sea breezes are caused by",
+   "c": [
+    "cool, dense air over the water moving inland to replace warm air rising over the land",
+    "warm air over the water moving inland",
+    "pressure differences between two weather systems"
+   ],
+   "why": "Land heats faster during the day; air rises there and cooler sea air flows in. At night the flow reverses (land breeze).",
+   "ref": "PHAK ch. 12"
+  },
+  {
+   "id": "f143",
+   "src": "faa",
+   "topic": "wx",
+   "q": "Turbulence is most likely when flying over",
+   "c": [
+    "plowed fields and paved areas on a hot day",
+    "lakes and forests on a cool day",
+    "snow-covered fields at night"
+   ],
+   "why": "Dark, dry surfaces heat quickly and create rising currents; water and vegetation create sinking or calmer air.",
+   "ref": "PHAK ch. 12"
+  },
+  {
+   "id": "f144",
+   "src": "faa",
+   "topic": "wx",
+   "q": "If the temperature and dew point are close together and you are in an area of high humidity, which is most likely?",
+   "c": [
+    "Carburetor ice, fog or low clouds",
+    "Excellent visibility",
+    "Clear-air turbulence"
+   ],
+   "why": "Close temperature and dew point mean nearly saturated air. Watch for fog, low ceilings and carb ice.",
+   "ref": "PHAK ch. 7, 12"
+  },
+  {
+   "id": "f145",
+   "src": "faa",
+   "topic": "wx",
+   "q": "Hazardous weather information broadcasts (HIWAS) are",
+   "c": [
+    "continuous recorded broadcasts of AIRMETs, SIGMETs and other hazards over selected VORs",
+    "live reports from pilots in flight",
+    "radar updates from a control tower"
+   ],
+   "why": "HIWAS summaries are broadcast over selected VOR frequencies. Not all areas have them.",
+   "ref": "AIM 7-1-8"
+  },
+  {
+   "id": "f146",
+   "src": "faa",
+   "topic": "wx",
+   "q": "Where can you get updates on weather in flight from a Flight Service specialist?",
+   "c": [
+    "On the published Flight Service frequency, such as 122.2 MHz, or a remote communications outlet",
+    "On the ATIS frequency",
+    "Only on 121.5 MHz"
+   ],
+   "why": "Flight Service specialists are reachable on published FSS frequencies (122.2 is common) and RCOs.",
+   "ref": "AIM 4-1-3"
+  },
+  {
+   "id": "f147",
+   "src": "faa",
+   "topic": "nav",
+   "q": "One degree of latitude equals about",
+   "c": [
+    "60 nautical miles",
+    "60 statute miles",
+    "100 nautical miles"
+   ],
+   "why": "1° of latitude is 60 NM, and 1 minute of latitude is 1 NM. Use the latitude scale on a meridian to measure distance.",
+   "ref": "PHAK ch. 16"
+  },
+  {
+   "id": "f148",
+   "src": "faa",
+   "topic": "nav",
+   "q": "Lines of longitude (meridians) run",
+   "c": [
+    "from pole to pole, measuring east and west of the prime meridian",
+    "parallel to the equator, measuring north and south",
+    "along magnetic north"
+   ],
+   "why": "Meridians run north–south and measure longitude east or west of Greenwich. Parallels of latitude run east–west.",
+   "ref": "PHAK ch. 16"
+  },
+  {
+   "id": "f149",
+   "src": "faa",
+   "topic": "nav",
+   "q": "On a sectional chart, a true course should be measured",
+   "c": [
+    "at the meridian nearest the midpoint of the course",
+    "at the departure airport's meridian",
+    "at the destination's meridian"
+   ],
+   "why": "Meridians converge toward the poles, so measure the course angle near the middle of the route.",
+   "ref": "PHAK ch. 16"
+  },
+  {
+   "id": "f150",
+   "src": "faa",
+   "topic": "nav",
+   "q": "True course 105°, variation 10°E. What is the magnetic course?",
+   "c": [
+    "095°",
+    "115°",
+    "105°"
+   ],
+   "why": "\"East is least, west is best\": subtract easterly variation, add westerly. 105 − 10 = 095.",
+   "ref": "PHAK ch. 16"
+  },
+  {
+   "id": "f151",
+   "src": "faa",
+   "topic": "nav",
+   "q": "True course 230°, variation 8°W. What is the magnetic course?",
+   "c": [
+    "238°",
+    "222°",
+    "230°"
+   ],
+   "why": "Add westerly variation: 230 + 8 = 238.",
+   "ref": "PHAK ch. 16"
+  },
+  {
+   "id": "f152",
+   "src": "faa",
+   "topic": "nav",
+   "q": "Magnetic variation is",
+   "c": [
+    "the angle between true north and magnetic north",
+    "the error in a compass caused by the airplane's electrical equipment",
+    "the difference between heading and course"
+   ],
+   "why": "Variation changes with location and is shown by isogonic lines on charts. Deviation is the compass error caused by the airplane itself.",
+   "ref": "PHAK ch. 16"
+  },
+  {
+   "id": "f153",
+   "src": "faa",
+   "topic": "nav",
+   "q": "Compass deviation is caused by",
+   "c": [
+    "magnetic fields within the airplane, such as metal parts and electrical equipment",
+    "the difference between true and magnetic north",
+    "acceleration and turning"
+   ],
+   "why": "Deviation varies with heading and is shown on a compass correction card in the airplane.",
+   "ref": "PHAK ch. 8, 16"
+  },
+  {
+   "id": "f154",
+   "src": "faa",
+   "topic": "nav",
+   "q": "Isogonic lines on a sectional chart connect points of",
+   "c": [
+    "equal magnetic variation",
+    "equal elevation",
+    "equal barometric pressure"
+   ],
+   "why": "Isogonic lines are dashed magenta lines labeled with the variation, such as 5°E. The agonic line has zero variation.",
+   "ref": "PHAK ch. 16"
+  },
+  {
+   "id": "f155",
+   "src": "faa",
+   "topic": "nav",
+   "q": "The order of course and heading corrections from a true course to a compass heading is",
+   "c": [
+    "true course, wind correction, variation, deviation",
+    "true course, deviation, variation, wind correction",
+    "magnetic course, deviation, true heading"
+   ],
+   "why": "TC ± WCA = TH; TH ± variation = MH; MH ± deviation = CH. (\"True virgins make dull company\".)",
+   "ref": "PHAK ch. 16"
+  },
+  {
+   "id": "f156",
+   "src": "faa",
+   "topic": "nav",
+   "q": "Flying a true course of 090° with a wind from the north, you'll need to",
+   "c": [
+    "turn left of course (into the wind) to correct for drift",
+    "turn right of course",
+    "keep the heading equal to the course"
+   ],
+   "why": "Crab into the wind. A north wind pushes you south (right of an eastbound course), so head left of 090.",
+   "ref": "PHAK ch. 16"
+  },
+  {
+   "id": "f157",
+   "src": "faa",
+   "topic": "nav",
+   "q": "How far will you fly in 20 minutes at a groundspeed of 105 knots?",
+   "c": [
+    "35 nautical miles",
+    "21 nautical miles",
+    "52.5 nautical miles"
+   ],
+   "why": "105 kt × 20/60 h = 35 NM.",
+   "ref": "PHAK ch. 16"
+  },
+  {
+   "id": "f158",
+   "src": "faa",
+   "topic": "nav",
+   "q": "How long will it take to fly 84 NM at a groundspeed of 112 knots?",
+   "c": [
+    "45 minutes",
+    "38 minutes",
+    "52 minutes"
+   ],
+   "why": "84 ÷ 112 = 0.75 h = 45 minutes.",
+   "ref": "PHAK ch. 16"
+  },
+  {
+   "id": "f159",
+   "src": "faa",
+   "topic": "nav",
+   "q": "Your airplane burns 9.5 gallons per hour. How much fuel will a 1 hour 20 minute flight use?",
+   "c": [
+    "About 12.7 gallons",
+    "About 11.4 gallons",
+    "About 9.5 gallons"
+   ],
+   "why": "9.5 × 1.333 h ≈ 12.7 gallons, before adding the required reserve.",
+   "ref": "PHAK ch. 16"
+  },
+  {
+   "id": "f160",
+   "src": "faa",
+   "topic": "nav",
+   "q": "You have 40 gallons usable, burn 10 gph and must keep a 30-minute day VFR reserve. What is the maximum flight time?",
+   "c": [
+    "3.5 hours",
+    "4.0 hours",
+    "3.0 hours"
+   ],
+   "why": "40 gallons ÷ 10 gph = 4.0 h total; minus 0.5 h reserve = 3.5 hours.",
+   "ref": "14 CFR 91.151; PHAK ch. 16"
+  },
+  {
+   "id": "f161",
+   "src": "faa",
+   "topic": "nav",
+   "q": "Two checkpoints 15 NM apart take 10 minutes to fly between. What is your groundspeed?",
+   "c": [
+    "90 knots",
+    "150 knots",
+    "120 knots"
+   ],
+   "why": "15 NM in 1/6 hour = 90 knots.",
+   "ref": "PHAK ch. 16"
+  },
+  {
+   "id": "f162",
+   "src": "faa",
+   "topic": "nav",
+   "q": "Using the 1-in-60 rule, you are 2 NM off course after flying 30 NM. How far is your track off course?",
+   "c": [
+    "4°",
+    "2°",
+    "8°"
+   ],
+   "why": "Each NM off course after 60 NM is 1°. 2 NM off after 30 NM = 2 × (60 ÷ 30) = 4°.",
+   "ref": "PHAK ch. 16"
+  },
+  {
+   "id": "f163",
+   "src": "faa",
+   "topic": "nav",
+   "q": "Pilotage is navigation by",
+   "c": [
+    "reference to visible landmarks",
+    "computing heading and time from known wind",
+    "radio aids such as VORs"
+   ],
+   "why": "Pilotage uses landmarks. Dead reckoning uses computed headings, groundspeeds and times. Most VFR flights use both.",
+   "ref": "PHAK ch. 16"
+  },
+  {
+   "id": "f164",
+   "src": "faa",
+   "topic": "nav",
+   "q": "Dead reckoning is navigation based on",
+   "c": [
+    "computations of time, speed, distance and direction",
+    "landmarks seen from the air",
+    "the VOR and GPS only"
+   ],
+   "why": "Dead reckoning predicts your position from heading, true airspeed, wind and elapsed time.",
+   "ref": "PHAK ch. 16"
+  },
+  {
+   "id": "f165",
+   "src": "faa",
+   "topic": "nav",
+   "q": "If you become lost, the recommended actions are the four Cs. Which list matches them?",
+   "c": [
+    "Climb, communicate, confess, comply",
+    "Circle, call, check, continue",
+    "Climb, compute, calculate, continue"
+   ],
+   "why": "Climb for better visibility and radio range, communicate (121.5 or Flight Service), confess you're lost, comply with instructions. Also conserve fuel.",
+   "ref": "PHAK ch. 16"
+  },
+  {
+   "id": "f166",
+   "src": "faa",
+   "topic": "nav",
+   "q": "A VOR radial is",
+   "c": [
+    "a magnetic bearing extending outward from the VOR station",
+    "a true bearing toward the station",
+    "a course defined by two VORs"
+   ],
+   "why": "Radials are FROM the station, referenced to magnetic north. Flying inbound on the 090 radial means a course of 270.",
+   "ref": "PHAK ch. 16"
+  },
+  {
+   "id": "f167",
+   "src": "faa",
+   "topic": "nav",
+   "q": "You want to fly directly to a VOR. The OBS is set so the CDI centers with a TO flag. Your course to the station is",
+   "c": [
+    "the course shown under the OBS index",
+    "the reciprocal of the course shown",
+    "the radial shown under the OBS index"
+   ],
+   "why": "With a TO flag and a centered needle, the OBS course takes you to the station.",
+   "ref": "PHAK ch. 16"
+  },
+  {
+   "id": "f168",
+   "src": "faa",
+   "topic": "nav",
+   "q": "Inbound to a VOR on the 240 radial, what course should you set in the OBS?",
+   "c": [
+    "060°",
+    "240°",
+    "150°"
+   ],
+   "why": "Inbound on the 240 radial, you fly the reciprocal: 060°, with a TO flag.",
+   "ref": "PHAK ch. 16"
+  },
+  {
+   "id": "f169",
+   "src": "faa",
+   "topic": "nav",
+   "q": "The CDI needle on a VOR is deflected fully to one side. How far off the selected course are you?",
+   "c": [
+    "10° or more",
+    "2°",
+    "5°"
+   ],
+   "why": "Full-scale deflection is 10° or more. On the common five-dot display, each dot is 2°.",
+   "ref": "PHAK ch. 16"
+  },
+  {
+   "id": "f170",
+   "src": "faa",
+   "topic": "nav",
+   "q": "What should you hear to identify a VOR?",
+   "c": [
+    "Its three-letter Morse code identifier",
+    "A continuous tone",
+    "A voice announcing the frequency"
+   ],
+   "why": "Always identify the station by its Morse code (sometimes also a voice ID). No identifier can mean the station is under maintenance and unreliable.",
+   "ref": "PHAK ch. 16"
+  },
+  {
+   "id": "f171",
+   "src": "faa",
+   "topic": "nav",
+   "q": "Why might a VOR become unusable at low altitude far from the station?",
+   "c": [
+    "VOR signals are line-of-sight",
+    "VOR signals weaken in clouds",
+    "VOR signals bend around terrain"
+   ],
+   "why": "VHF signals travel in straight lines, so terrain and the earth's curvature block them at low altitude.",
+   "ref": "PHAK ch. 16"
+  },
+  {
+   "id": "f172",
+   "src": "faa",
+   "topic": "nav",
+   "q": "What is the maximum allowable error for a VOR check using a VOT (VOR test signal)?",
+   "c": [
+    "±4°",
+    "±6°",
+    "±2°"
+   ],
+   "why": "VOT and ground checkpoint: ±4°. Airborne checkpoint: ±6°. Dual VOR check: within 4° of each other.",
+   "ref": "14 CFR 91.171"
+  },
+  {
+   "id": "f173",
+   "src": "faa",
+   "topic": "nav",
+   "q": "When using a VOT, the CDI should center with the OBS set to 360° and a flag reading",
+   "c": [
+    "FROM",
+    "TO",
+    "OFF"
+   ],
+   "why": "\"Cessna 182\": 180-TO, 360-FROM. With the OBS on 360°, the VOT check shows FROM.",
+   "ref": "AIM 1-1-4"
+  },
+  {
+   "id": "f174",
+   "src": "faa",
+   "topic": "nav",
+   "q": "Before using GPS for navigation, you should check that",
+   "c": [
+    "the database is current and the receiver has enough satellites (integrity monitoring available)",
+    "the VOR is tuned to the same station",
+    "the transponder is set to 1200"
+   ],
+   "why": "Use a current database and check RAIM (or WAAS integrity). Cross-check against charts.",
+   "ref": "AIM 1-1-17; PHAK ch. 16"
+  },
+  {
+   "id": "f175",
+   "src": "faa",
+   "topic": "nav",
+   "q": "What does ADS-B Out do?",
+   "c": [
+    "Broadcasts the aircraft's GPS position, altitude and other data to ATC and other aircraft",
+    "Displays weather and traffic in the cockpit",
+    "Replaces the need for a transponder everywhere"
+   ],
+   "why": "ADS-B Out transmits; ADS-B In receives traffic (TIS-B) and weather (FIS-B). ADS-B Out is required where Mode C is required.",
+   "ref": "AIM 4-5-7; 14 CFR 91.225"
+  },
+  {
+   "id": "f176",
+   "src": "faa",
+   "topic": "nav",
+   "q": "On a sectional chart, an airport drawn in blue has",
+   "c": [
+    "a control tower",
+    "no control tower",
+    "only a grass runway"
+   ],
+   "why": "Blue airport symbols are towered. Magenta are non-towered.",
+   "ref": "Aeronautical Chart User's Guide"
+  },
+  {
+   "id": "f177",
+   "src": "faa",
+   "topic": "nav",
+   "q": "On a sectional chart, Class B airspace is shown by",
+   "c": [
+    "solid blue lines",
+    "solid magenta lines",
+    "dashed blue lines"
+   ],
+   "why": "Class B: solid blue. Class C: solid magenta. Class D: dashed blue. Class E surface area: dashed magenta.",
+   "ref": "Aeronautical Chart User's Guide"
+  },
+  {
+   "id": "f178",
+   "src": "faa",
+   "topic": "nav",
+   "q": "On a sectional chart, a dashed magenta line around an airport shows",
+   "c": [
+    "Class E airspace beginning at the surface",
+    "Class D airspace",
+    "Class E airspace beginning at 700 ft AGL"
+   ],
+   "why": "A dashed magenta line is a Class E surface area. A faded magenta vignette shows Class E starting at 700 ft AGL.",
+   "ref": "Aeronautical Chart User's Guide"
+  },
+  {
+   "id": "f179",
+   "src": "faa",
+   "topic": "nav",
+   "q": "On a sectional chart, a magenta vignette (shaded band) around an airport shows",
+   "c": [
+    "Class E airspace begins at 700 ft AGL inside the shaded area",
+    "Class G airspace extends to 14,500 ft",
+    "a Mode C veil"
+   ],
+   "why": "Inside the magenta vignette Class E starts at 700 ft AGL. A blue vignette marks where Class E starts at 1,200 ft AGL.",
+   "ref": "Aeronautical Chart User's Guide"
+  },
+  {
+   "id": "f180",
+   "src": "faa",
+   "topic": "nav",
+   "q": "On a sectional chart, \"[45]\" inside Class D airspace means",
+   "c": [
+    "the ceiling of the Class D airspace is 4,500 ft MSL",
+    "the floor of Class D is 4,500 ft",
+    "the field elevation is 4,500 ft"
+   ],
+   "why": "A number in a box (square brackets) inside Class D shows its ceiling in hundreds of feet MSL.",
+   "ref": "Aeronautical Chart User's Guide"
+  },
+  {
+   "id": "f181",
+   "src": "faa",
+   "topic": "nav",
+   "q": "In Class B or C airspace on a sectional, \"70/30\" in a sector means",
+   "c": [
+    "the airspace extends from 3,000 ft MSL to 7,000 ft MSL",
+    "the airspace extends from 7,000 ft to 30,000 ft",
+    "the speed limit is 70 knots below 3,000 ft"
+   ],
+   "why": "Ceiling over floor, in hundreds of feet MSL.",
+   "ref": "Aeronautical Chart User's Guide"
+  },
+  {
+   "id": "f182",
+   "src": "faa",
+   "topic": "nav",
+   "q": "On a sectional chart, an obstruction shown as \"1532 (512)\" has",
+   "c": [
+    "a top at 1,532 ft MSL, 512 ft above the ground",
+    "a top at 512 ft MSL, 1,532 ft above the ground",
+    "a top at 1,532 ft AGL"
+   ],
+   "why": "The bold number is the top in feet MSL; the number in parentheses is its height AGL.",
+   "ref": "Aeronautical Chart User's Guide"
+  },
+  {
+   "id": "f183",
+   "src": "faa",
+   "topic": "nav",
+   "q": "The maximum elevation figure (MEF) in each quadrangle of a sectional chart shows",
+   "c": [
+    "the highest elevation of terrain or obstacles in that quadrangle, rounded up, in thousands and hundreds of feet MSL",
+    "the minimum safe altitude for IFR flight",
+    "the highest airport elevation in the area"
+   ],
+   "why": "The large blue number (such as 3⁵ = 3,500 ft MSL) covers the highest terrain or obstruction, plus a buffer.",
+   "ref": "Aeronautical Chart User's Guide"
+  },
+  {
+   "id": "f184",
+   "src": "faa",
+   "topic": "nav",
+   "q": "On a sectional chart, a military training route labeled \"IR 1206\" is flown",
+   "c": [
+    "under IFR, at or below 1,500 ft AGL",
+    "under VFR, above 1,500 ft AGL",
+    "under IFR, above 1,500 ft AGL"
+   ],
+   "why": "IR is IFR, VR is VFR. Four-digit numbers: at or below 1,500 ft AGL. Three digits: some segments above 1,500 ft AGL. Military jets can fly them over 250 knots.",
+   "ref": "AIM 3-5-2"
+  },
+  {
+   "id": "f185",
+   "src": "faa",
+   "topic": "nav",
+   "q": "The airport data \"122.8 C\" on a sectional chart shows",
+   "c": [
+    "a CTAF (common traffic advisory frequency) of 122.8",
+    "a control tower frequency",
+    "a Class C frequency"
+   ],
+   "why": "A C in a solid circle marks the CTAF. A star after the frequency means it's part-time.",
+   "ref": "Aeronautical Chart User's Guide"
+  },
+  {
+   "id": "f186",
+   "src": "faa",
+   "topic": "nav",
+   "q": "Where would you find an airport's pattern altitude, fuel available and runway details?",
+   "c": [
+    "The Chart Supplement",
+    "The sectional chart legend",
+    "The METAR for the airport"
+   ],
+   "why": "The Chart Supplement (formerly the Airport/Facility Directory) lists airport details, frequencies and remarks.",
+   "ref": "AIM 9-1-4"
+  },
+  {
+   "id": "f187",
+   "src": "faa",
+   "topic": "nav",
+   "q": "Before flying near a Class B or C airport, which chart gives the most detail about its airspace and VFR checkpoints?",
+   "c": [
+    "A terminal area chart (TAC)",
+    "A world aeronautical chart",
+    "An IFR enroute low-altitude chart"
+   ],
+   "why": "Terminal area charts are 1:250,000 scale (twice the detail of a sectional) for Class B areas.",
+   "ref": "AIM 9-1-4"
+  },
+  {
+   "id": "f188",
+   "src": "faa",
+   "topic": "nav",
+   "q": "Sectional charts are drawn at a scale of",
+   "c": [
+    "1:500,000 (about 1 inch = 7 NM)",
+    "1:250,000",
+    "1:1,000,000"
+   ],
+   "why": "Sectionals are 1:500,000; terminal area charts are 1:250,000.",
+   "ref": "Aeronautical Chart User's Guide"
+  },
+  {
+   "id": "f189",
+   "src": "faa",
+   "topic": "nav",
+   "q": "An airplane's true airspeed is 110 knots and the wind is a direct headwind of 20 knots. What is the groundspeed?",
+   "c": [
+    "90 knots",
+    "130 knots",
+    "110 knots"
+   ],
+   "why": "A direct headwind subtracts from true airspeed: 110 − 20 = 90 knots.",
+   "ref": "PHAK ch. 16"
+  },
+  {
+   "id": "f190",
+   "src": "faa",
+   "topic": "nav",
+   "q": "A VFR flight plan is",
+   "c": [
+    "optional, but it starts search and rescue if you don't arrive and close it",
+    "required for every cross-country flight",
+    "required only at night"
+   ],
+   "why": "VFR flight plans are filed with Flight Service. If not closed within 30 minutes after your ETA, search procedures begin.",
+   "ref": "AIM 5-1-5"
+  },
+  {
+   "id": "f191",
+   "src": "faa",
+   "topic": "nav",
+   "q": "If you don't close your VFR flight plan, search and rescue procedures normally begin",
+   "c": [
+    "30 minutes after your estimated time of arrival",
+    "1 hour after your departure time",
+    "2 hours after your ETA"
+   ],
+   "why": "Flight Service starts looking for you 30 minutes after your ETA. Close the plan as soon as you land.",
+   "ref": "AIM 5-1-14"
+  },
+  {
+   "id": "f192",
+   "src": "faa",
+   "topic": "nav",
+   "q": "To receive VFR flight following (radar traffic advisories) en route, you",
+   "c": [
+    "contact ATC and request it; it's provided on a workload-permitting basis",
+    "must file an IFR flight plan",
+    "must squawk 1200 and monitor 121.5"
+   ],
+   "why": "Flight following is a basic radar service for VFR aircraft, workload permitting.",
+   "ref": "AIM 4-1-15"
+  },
+  {
+   "id": "f193",
+   "src": "faa",
+   "topic": "aero",
+   "q": "In straight-and-level, unaccelerated flight",
+   "c": [
+    "lift equals weight and thrust equals drag",
+    "lift is greater than weight and thrust is greater than drag",
+    "the four forces are unrelated"
+   ],
+   "why": "In steady flight the opposing forces balance: the sum of the upward forces equals the downward forces, and thrust equals drag.",
+   "ref": "PHAK ch. 5"
+  },
+  {
+   "id": "f194",
+   "src": "faa",
+   "topic": "aero",
+   "q": "The angle of attack is the angle between",
+   "c": [
+    "the wing's chord line and the relative wind",
+    "the longitudinal axis and the horizon",
+    "the chord line and the longitudinal axis"
+   ],
+   "why": "The angle between chord line and relative wind. The angle of incidence is between the chord line and the longitudinal axis, and the pilot can't change it.",
+   "ref": "PHAK ch. 4"
+  },
+  {
+   "id": "f195",
+   "src": "faa",
+   "topic": "aero",
+   "q": "The relative wind is",
+   "c": [
+    "opposite and parallel to the airplane's flightpath",
+    "always horizontal",
+    "parallel to the longitudinal axis"
+   ],
+   "why": "Relative wind flows opposite to the direction the wing moves through the air.",
+   "ref": "PHAK ch. 4"
+  },
+  {
+   "id": "f196",
+   "src": "faa",
+   "topic": "aero",
+   "q": "Bernoulli's principle states that as the velocity of a fluid increases, its pressure",
+   "c": [
+    "decreases",
+    "increases",
+    "stays the same"
+   ],
+   "why": "Faster-moving air over the curved upper surface has lower pressure, which contributes to lift.",
+   "ref": "PHAK ch. 4"
+  },
+  {
+   "id": "f197",
+   "src": "faa",
+   "topic": "aero",
+   "q": "An airplane can stall",
+   "c": [
+    "at any airspeed, in any attitude, at any power setting",
+    "only at low airspeed with the nose high",
+    "only with power off"
+   ],
+   "why": "A stall happens whenever the critical angle of attack is exceeded, regardless of airspeed, attitude or weight.",
+   "ref": "PHAK ch. 5"
+  },
+  {
+   "id": "f198",
+   "src": "faa",
+   "topic": "aero",
+   "q": "If airspeed decreases in level flight, the angle of attack must",
+   "c": [
+    "increase to maintain the same lift",
+    "decrease to maintain the same lift",
+    "stay the same"
+   ],
+   "why": "Lift depends on angle of attack and airspeed squared. Slower means a higher angle of attack, until the critical angle is reached.",
+   "ref": "PHAK ch. 5"
+  },
+  {
+   "id": "f199",
+   "src": "faa",
+   "topic": "aero",
+   "q": "If airspeed is doubled, lift (at the same angle of attack) becomes",
+   "c": [
+    "four times as much",
+    "twice as much",
+    "half as much"
+   ],
+   "why": "Lift varies with the square of the velocity.",
+   "ref": "PHAK ch. 5"
+  },
+  {
+   "id": "f200",
+   "src": "faa",
+   "topic": "aero",
+   "q": "Which drag increases as airspeed decreases?",
+   "c": [
+    "Induced drag",
+    "Parasite drag",
+    "Form drag"
+   ],
+   "why": "Induced drag is a byproduct of lift and is greatest at high angles of attack (low speed). Parasite drag grows with the square of airspeed.",
+   "ref": "PHAK ch. 5"
+  },
+  {
+   "id": "f201",
+   "src": "faa",
+   "topic": "aero",
+   "q": "Total drag is lowest at the airspeed where",
+   "c": [
+    "induced drag and parasite drag are equal",
+    "induced drag is greatest",
+    "parasite drag is zero"
+   ],
+   "why": "That point is L/Dmax, which gives the best glide (and, for propeller airplanes, about the best range).",
+   "ref": "PHAK ch. 5"
+  },
+  {
+   "id": "f202",
+   "src": "faa",
+   "topic": "aero",
+   "q": "Wingtip vortices are strongest when the generating airplane is",
+   "c": [
+    "heavy, clean and slow",
+    "light, dirty and fast",
+    "heavy, dirty and fast"
+   ],
+   "why": "Vortex strength depends on weight, speed and wing shape: heavy, clean (flaps up) and slow at a high angle of attack is worst.",
+   "ref": "AIM 7-4-3"
+  },
+  {
+   "id": "f203",
+   "src": "faa",
+   "topic": "aero",
+   "q": "Ground effect is most noticeable when the airplane is",
+   "c": [
+    "within about one-half of its wingspan above the ground",
+    "within about two wingspans above the ground",
+    "above 500 ft AGL"
+   ],
+   "why": "Ground effect reduces induced drag and wingtip vortices within about one wingspan, and is significant below about half a span.",
+   "ref": "PHAK ch. 5"
+  },
+  {
+   "id": "f204",
+   "src": "faa",
+   "topic": "aero",
+   "q": "What does ground effect do?",
+   "c": [
+    "Reduces induced drag, so the airplane may float on landing or lift off below the recommended speed",
+    "Increases induced drag and makes the airplane sink",
+    "Increases stall speed"
+   ],
+   "why": "Less induced drag in ground effect: the airplane floats on landing and may become airborne too early on takeoff, then settle when it climbs out of it.",
+   "ref": "PHAK ch. 5"
+  },
+  {
+   "id": "f205",
+   "src": "faa",
+   "topic": "aero",
+   "q": "An airplane leaving ground effect after takeoff will",
+   "c": [
+    "need a higher angle of attack for the same lift, with more induced drag",
+    "need less thrust to maintain airspeed",
+    "experience a decrease in stall speed"
+   ],
+   "why": "Out of ground effect, induced drag increases and the airplane may settle if it lifted off too slowly.",
+   "ref": "PHAK ch. 5"
+  },
+  {
+   "id": "f206",
+   "src": "faa",
+   "topic": "aero",
+   "q": "At a load factor of 2, the stall speed increases by about",
+   "c": [
+    "41 percent",
+    "100 percent",
+    "20 percent"
+   ],
+   "why": "Stall speed grows with the square root of the load factor: √2 ≈ 1.41, so about 41% higher.",
+   "ref": "PHAK ch. 5"
+  },
+  {
+   "id": "f207",
+   "src": "faa",
+   "topic": "aero",
+   "q": "An airplane stalls at 50 knots in level flight. About what is its stall speed in a level 60° bank turn?",
+   "c": [
+    "71 knots",
+    "100 knots",
+    "60 knots"
+   ],
+   "why": "50 × √2 ≈ 70.7 knots.",
+   "ref": "PHAK ch. 5"
+  },
+  {
+   "id": "f208",
+   "src": "faa",
+   "topic": "aero",
+   "q": "Maneuvering speed (Va) is",
+   "c": [
+    "the maximum speed at which full, abrupt control movement won't overstress the airplane",
+    "the speed for the best rate of climb",
+    "the maximum speed in turbulence for passenger comfort"
+   ],
+   "why": "At or below Va, the airplane stalls before exceeding its limit load factor. Va decreases as weight decreases.",
+   "ref": "PHAK ch. 5"
+  },
+  {
+   "id": "f209",
+   "src": "faa",
+   "topic": "aero",
+   "q": "As an airplane's weight decreases, maneuvering speed",
+   "c": [
+    "decreases",
+    "increases",
+    "stays the same"
+   ],
+   "why": "A lighter airplane reaches the critical angle of attack, and the limit load, at a lower speed.",
+   "ref": "PHAK ch. 5"
+  },
+  {
+   "id": "f210",
+   "src": "faa",
+   "topic": "aero",
+   "q": "The limit load factor for a normal category airplane is",
+   "c": [
+    "+3.8 G and −1.52 G",
+    "+4.4 G and −1.76 G",
+    "+6.0 G and −3.0 G"
+   ],
+   "why": "Normal: +3.8/−1.52. Utility: +4.4/−1.76. Acrobatic: +6.0/−3.0.",
+   "ref": "PHAK ch. 5"
+  },
+  {
+   "id": "f211",
+   "src": "faa",
+   "topic": "aero",
+   "q": "What causes an airplane (except a T-tail) to pitch nose down when power is reduced, with no trim change?",
+   "c": [
+    "Less downwash on the horizontal stabilizer from the propeller slipstream",
+    "The center of gravity moves forward",
+    "Thrust acts below the center of gravity"
+   ],
+   "why": "Slipstream over the tail produces a downward force; less power means less of it, so the nose pitches down.",
+   "ref": "PHAK ch. 5"
+  },
+  {
+   "id": "f212",
+   "src": "faa",
+   "topic": "aero",
+   "q": "An airplane loaded with the CG forward of the forward limit will",
+   "c": [
+    "have a higher stall speed and be harder to flare",
+    "stall at a lower speed",
+    "become less stable"
+   ],
+   "why": "A forward CG needs more tail-down force: more effective weight, higher stall speed, and elevator authority may run out in the flare.",
+   "ref": "PHAK ch. 5, 10"
+  },
+  {
+   "id": "f213",
+   "src": "faa",
+   "topic": "aero",
+   "q": "An airplane loaded with the CG aft of the aft limit will",
+   "c": [
+    "be less stable, with poor or impossible stall and spin recovery",
+    "be more stable and have a higher stall speed",
+    "fly slower in cruise"
+   ],
+   "why": "An aft CG reduces longitudinal stability and can make recovery from a stall or spin impossible.",
+   "ref": "PHAK ch. 5, 10"
+  },
+  {
+   "id": "f214",
+   "src": "faa",
+   "topic": "aero",
+   "q": "Longitudinal stability is about which axis?",
+   "c": [
+    "The lateral axis (pitch)",
+    "The longitudinal axis (roll)",
+    "The vertical axis (yaw)"
+   ],
+   "why": "Stability in pitch is longitudinal stability, governed by the CG position relative to the center of lift and the horizontal tail.",
+   "ref": "PHAK ch. 5"
+  },
+  {
+   "id": "f215",
+   "src": "faa",
+   "topic": "aero",
+   "q": "Positive static stability means that, after being displaced, an airplane",
+   "c": [
+    "initially tends to return to its original attitude",
+    "continues moving away from its original attitude",
+    "stays in the new attitude"
+   ],
+   "why": "Static stability is the initial tendency. Dynamic stability describes what happens over time.",
+   "ref": "PHAK ch. 5"
+  },
+  {
+   "id": "f216",
+   "src": "faa",
+   "topic": "aero",
+   "q": "Which of these is a left-turning tendency in a single-engine propeller airplane?",
+   "c": [
+    "P-factor",
+    "Adverse yaw",
+    "Dihedral effect"
+   ],
+   "why": "Torque, P-factor (asymmetric propeller thrust), spiraling slipstream and gyroscopic precession all yaw a clockwise-turning (from the cockpit) propeller airplane left.",
+   "ref": "PHAK ch. 5"
+  },
+  {
+   "id": "f217",
+   "src": "faa",
+   "topic": "aero",
+   "q": "P-factor causes the airplane to yaw left when it is at",
+   "c": [
+    "high angles of attack with high power",
+    "high airspeed with low power",
+    "low angles of attack"
+   ],
+   "why": "The descending right-side propeller blade has a higher angle of attack and makes more thrust than the ascending blade.",
+   "ref": "PHAK ch. 5"
+  },
+  {
+   "id": "f218",
+   "src": "faa",
+   "topic": "aero",
+   "q": "Gyroscopic precession is most noticeable",
+   "c": [
+    "when the tail of a tailwheel airplane is raised during the takeoff roll",
+    "in level cruise flight",
+    "when lowering the flaps"
+   ],
+   "why": "Pitching the spinning propeller disk down applies a force that acts 90° later in rotation, yawing the airplane left.",
+   "ref": "PHAK ch. 5"
+  },
+  {
+   "id": "f219",
+   "src": "faa",
+   "topic": "aero",
+   "q": "Adverse yaw is caused by",
+   "c": [
+    "more induced drag on the outside (raised) wing when the ailerons are deflected",
+    "torque from the engine",
+    "a forward center of gravity"
+   ],
+   "why": "The wing whose aileron goes down makes more lift and more induced drag, yawing the nose away from the turn. Coordinate with rudder.",
+   "ref": "PHAK ch. 6"
+  },
+  {
+   "id": "f220",
+   "src": "faa",
+   "topic": "aero",
+   "q": "In a skidding turn, the ball of the turn coordinator is",
+   "c": [
+    "displaced toward the outside of the turn",
+    "displaced toward the inside of the turn",
+    "centered"
+   ],
+   "why": "In a skid the rate of turn is too great for the bank, so the ball goes to the outside. In a slip it goes to the inside. Step on the ball.",
+   "ref": "PHAK ch. 8"
+  },
+  {
+   "id": "f221",
+   "src": "faa",
+   "topic": "aero",
+   "q": "Why is a skidding turn near the ground (for example, base to final) especially dangerous?",
+   "c": [
+    "It can lead to a cross-controlled stall and an incipient spin with little altitude to recover",
+    "It increases the airplane's stability",
+    "It reduces stall speed"
+   ],
+   "why": "Too much inside rudder with opposite aileron in a turn can stall the inside wing first and start a spin.",
+   "ref": "AFH ch. 5"
+  },
+  {
+   "id": "f222",
+   "src": "faa",
+   "topic": "aero",
+   "q": "For a spin to occur, the airplane must be",
+   "c": [
+    "stalled and yawing",
+    "at a high airspeed with full power",
+    "in a steep bank above maneuvering speed"
+   ],
+   "why": "A spin is an aggravated stall with autorotation: both wings stalled, one more deeply than the other, plus yaw.",
+   "ref": "AFH ch. 5"
+  },
+  {
+   "id": "f223",
+   "src": "faa",
+   "topic": "aero",
+   "q": "The standard spin recovery for most light airplanes (PARE) begins with",
+   "c": [
+    "power to idle, ailerons neutral, full opposite rudder, then elevator forward",
+    "full power and full back elevator",
+    "ailerons against the spin, then rudder with the spin"
+   ],
+   "why": "PARE: Power idle, Ailerons neutral, Rudder opposite the spin, Elevator forward to break the stall. Always follow the POH.",
+   "ref": "AFH ch. 5"
+  },
+  {
+   "id": "f224",
+   "src": "faa",
+   "topic": "aero",
+   "q": "Lowering the flaps",
+   "c": [
+    "increases lift and drag, allowing a steeper approach and a lower stall speed",
+    "decreases lift and drag",
+    "increases the stall speed"
+   ],
+   "why": "Flaps raise the wing's maximum lift coefficient and add drag, so you can approach slower and steeper.",
+   "ref": "PHAK ch. 6"
+  },
+  {
+   "id": "f225",
+   "src": "faa",
+   "topic": "aero",
+   "q": "Wing washout (twist) is designed so that",
+   "c": [
+    "the wing root stalls before the tip, keeping aileron control during a stall",
+    "the tip stalls before the root",
+    "both parts stall at the same time"
+   ],
+   "why": "The tip has a lower angle of incidence, so the root stalls first and the ailerons keep working.",
+   "ref": "PHAK ch. 5"
+  },
+  {
+   "id": "f226",
+   "src": "faa",
+   "topic": "aero",
+   "q": "Why is a propeller blade twisted along its length?",
+   "c": [
+    "Because each section moves at a different speed, the twist gives a more uniform angle of attack and thrust along the blade",
+    "To reduce noise",
+    "To make the propeller lighter"
+   ],
+   "why": "The tip travels much faster than the hub, so the blade angle decreases toward the tip.",
+   "ref": "PHAK ch. 7"
+  },
+  {
+   "id": "f227",
+   "src": "faa",
+   "topic": "aero",
+   "q": "The term \"angle of incidence\" refers to the angle between",
+   "c": [
+    "the wing chord line and the airplane's longitudinal axis",
+    "the wing chord line and the relative wind",
+    "the airplane's longitudinal axis and the horizon"
+   ],
+   "why": "It's fixed by design, unlike the angle of attack.",
+   "ref": "PHAK ch. 4"
+  },
+  {
+   "id": "f228",
+   "src": "faa",
+   "topic": "aero",
+   "q": "Best glide speed gives",
+   "c": [
+    "the greatest distance per foot of altitude lost (L/Dmax)",
+    "the minimum sink rate",
+    "the longest time in the air"
+   ],
+   "why": "Best glide is at L/Dmax. Minimum sink is slower and gives the most time aloft but less distance.",
+   "ref": "AFH ch. 18"
+  },
+  {
+   "id": "f229",
+   "src": "faa",
+   "topic": "aero",
+   "q": "If you glide at a speed slower than best glide speed, the glide distance will be",
+   "c": [
+    "shorter",
+    "longer",
+    "the same"
+   ],
+   "why": "Any speed other than best glide, faster or slower, shortens the glide.",
+   "ref": "AFH ch. 18"
+  },
+  {
+   "id": "f230",
+   "src": "faa",
+   "topic": "aero",
+   "q": "A headwind during a power-off glide will",
+   "c": [
+    "decrease the distance covered over the ground",
+    "increase the distance covered",
+    "not affect the distance"
+   ],
+   "why": "The glide ratio through the air is the same, but groundspeed is lower, so you cover less ground. Many pilots glide slightly faster into a strong headwind.",
+   "ref": "AFH ch. 18"
+  },
+  {
+   "id": "f231",
+   "src": "faa",
+   "topic": "aero",
+   "q": "Vx is the airspeed that gives",
+   "c": [
+    "the greatest altitude gain in a given distance (best angle of climb)",
+    "the greatest altitude gain in a given time",
+    "the best fuel economy"
+   ],
+   "why": "Use Vx to clear obstacles after takeoff, Vy for the best rate of climb.",
+   "ref": "PHAK ch. 11"
+  },
+  {
+   "id": "f232",
+   "src": "faa",
+   "topic": "aero",
+   "q": "As altitude increases, Vx and Vy",
+   "c": [
+    "converge until they meet at the airplane's absolute ceiling",
+    "both decrease and diverge",
+    "stay the same"
+   ],
+   "why": "Vx (indicated) increases slightly and Vy decreases until they are equal at the absolute ceiling.",
+   "ref": "PHAK ch. 11"
+  },
+  {
+   "id": "f233",
+   "src": "faa",
+   "topic": "aero",
+   "q": "The airspeed indicator's white arc shows",
+   "c": [
+    "the flap operating range, from Vs0 to Vfe",
+    "the normal operating range",
+    "the caution range for smooth air only"
+   ],
+   "why": "White: flap operating range. Green: normal range (Vs1 to Vno). Yellow: caution, smooth air only (Vno to Vne). Red line: Vne.",
+   "ref": "PHAK ch. 8"
+  },
+  {
+   "id": "f234",
+   "src": "faa",
+   "topic": "aero",
+   "q": "The lower limit of the green arc on the airspeed indicator is",
+   "c": [
+    "Vs1, the stall speed in a specified configuration (usually clean)",
+    "Vs0, the stall speed in landing configuration",
+    "Vx"
+   ],
+   "why": "Vs1 is the bottom of the green arc. Vs0 is the bottom of the white arc.",
+   "ref": "PHAK ch. 8"
+  },
+  {
+   "id": "f235",
+   "src": "faa",
+   "topic": "aero",
+   "q": "The upper limit of the green arc on the airspeed indicator is",
+   "c": [
+    "Vno, the maximum structural cruising speed",
+    "Vne, the never-exceed speed",
+    "Va, the maneuvering speed"
+   ],
+   "why": "Vno tops the green arc. Fly in the yellow arc only in smooth air.",
+   "ref": "PHAK ch. 8"
+  },
+  {
+   "id": "f236",
+   "src": "faa",
+   "topic": "aero",
+   "q": "Which V-speed is not marked on the airspeed indicator?",
+   "c": [
+    "Maneuvering speed (Va)",
+    "Never-exceed speed (Vne)",
+    "Maximum flap extended speed (Vfe)"
+   ],
+   "why": "Va isn't color-coded because it varies with weight. Find it in the POH or on a placard.",
+   "ref": "PHAK ch. 8"
+  },
+  {
+   "id": "f237",
+   "src": "faa",
+   "topic": "aero",
+   "q": "Frost, dirt or ice on the wing surfaces will",
+   "c": [
+    "reduce lift and increase stall speed",
+    "increase lift by adding roughness",
+    "only matter at high altitude"
+   ],
+   "why": "Contamination disrupts the smooth airflow, reducing the maximum lift and raising stall speed.",
+   "ref": "PHAK ch. 12"
+  },
+  {
+   "id": "f238",
+   "src": "faa",
+   "topic": "aero",
+   "q": "In a steep turn, if you don't add back pressure, the airplane will",
+   "c": [
+    "lose altitude",
+    "climb",
+    "keep the same altitude"
+   ],
+   "why": "Banking tilts the lift vector, so the vertical component is less than weight. Increase the angle of attack (and often power) to hold altitude.",
+   "ref": "AFH ch. 10"
+  },
+  {
+   "id": "f239",
+   "src": "faa",
+   "topic": "aero",
+   "q": "In a steep turn (more than about 30° of bank), the overbanking tendency means",
+   "c": [
+    "the bank tends to keep steepening, so you may need slight opposite aileron to hold it",
+    "the airplane tends to roll back to wings level",
+    "the bank stays constant with the controls neutral"
+   ],
+   "why": "In a steep bank the outer wing travels faster and makes more lift than the inner wing, so the bank tends to increase.",
+   "ref": "PHAK ch. 5"
+  },
+  {
+   "id": "f240",
+   "src": "faa",
+   "topic": "perf",
+   "q": "Pressure altitude is the altitude shown on the altimeter when it is set to",
+   "c": [
+    "29.92 inHg",
+    "the local altimeter setting",
+    "field elevation"
+   ],
+   "why": "Pressure altitude is height above the standard datum plane (29.92 inHg). It's used in performance charts and in Class A.",
+   "ref": "PHAK ch. 8, 11"
+  },
+  {
+   "id": "f241",
+   "src": "faa",
+   "topic": "perf",
+   "q": "Density altitude is",
+   "c": [
+    "pressure altitude corrected for nonstandard temperature",
+    "the altitude above ground level",
+    "true altitude corrected for wind"
+   ],
+   "why": "Density altitude is the altitude in the standard atmosphere that has the same air density. The airplane performs as if it were at that altitude.",
+   "ref": "PHAK ch. 11"
+  },
+  {
+   "id": "f242",
+   "src": "faa",
+   "topic": "perf",
+   "q": "Field elevation 1,380 ft, altimeter setting 30.12 inHg. What is the pressure altitude?",
+   "c": [
+    "1,180 ft",
+    "1,580 ft",
+    "1,380 ft"
+   ],
+   "why": "PA = elevation + (29.92 − setting) × 1,000 = 1,380 + (−0.20 × 1,000) = 1,180 ft.",
+   "ref": "PHAK ch. 11"
+  },
+  {
+   "id": "f243",
+   "src": "faa",
+   "topic": "perf",
+   "q": "Field elevation 5,250 ft, altimeter setting 29.70 inHg. What is the pressure altitude?",
+   "c": [
+    "5,470 ft",
+    "5,030 ft",
+    "5,250 ft"
+   ],
+   "why": "PA = 5,250 + (29.92 − 29.70) × 1,000 = 5,250 + 220 = 5,470 ft.",
+   "ref": "PHAK ch. 11"
+  },
+  {
+   "id": "f244",
+   "src": "faa",
+   "topic": "perf",
+   "q": "Pressure altitude 5,000 ft and OAT 30°C. Using the rule of thumb, what is the density altitude?",
+   "c": [
+    "About 8,000 ft",
+    "About 6,500 ft",
+    "About 3,500 ft"
+   ],
+   "why": "Standard temperature at 5,000 ft is 15 − (2 × 5) = 5°C. DA ≈ PA + 120 × (OAT − ISA) = 5,000 + 120 × 25 = 8,000 ft.",
+   "ref": "PHAK ch. 11"
+  },
+  {
+   "id": "f245",
+   "src": "faa",
+   "topic": "perf",
+   "q": "What is the standard temperature at a pressure altitude of 6,000 ft?",
+   "c": [
+    "3°C",
+    "9°C",
+    "−3°C"
+   ],
+   "why": "15°C minus 2°C per 1,000 ft: 15 − 12 = 3°C.",
+   "ref": "PHAK ch. 11"
+  },
+  {
+   "id": "f246",
+   "src": "faa",
+   "topic": "perf",
+   "q": "Which combination gives the highest density altitude?",
+   "c": [
+    "High elevation, high temperature, high humidity",
+    "Low elevation, low temperature, low humidity",
+    "High elevation, low temperature, low humidity"
+   ],
+   "why": "Hot, high and humid air is least dense, so it has the highest density altitude and the worst performance.",
+   "ref": "PHAK ch. 11"
+  },
+  {
+   "id": "f247",
+   "src": "faa",
+   "topic": "perf",
+   "q": "How does high humidity affect density altitude?",
+   "c": [
+    "It increases density altitude",
+    "It decreases density altitude",
+    "It has no effect"
+   ],
+   "why": "Water vapor is lighter than the dry air it displaces, so humid air is less dense.",
+   "ref": "PHAK ch. 11"
+  },
+  {
+   "id": "f248",
+   "src": "faa",
+   "topic": "perf",
+   "q": "At a high density altitude, you should expect",
+   "c": [
+    "a longer takeoff roll and a reduced rate of climb",
+    "a shorter takeoff roll and a better rate of climb",
+    "no change if you use the same indicated airspeeds"
+   ],
+   "why": "Less dense air means less engine power, less propeller thrust and less lift, so a higher true airspeed is needed for the same indicated airspeed.",
+   "ref": "PHAK ch. 11"
+  },
+  {
+   "id": "f249",
+   "src": "faa",
+   "topic": "perf",
+   "q": "At a high-elevation airport on a hot day, the indicated airspeed for liftoff and approach should be",
+   "c": [
+    "the same as usual, but the true airspeed and groundspeed will be higher",
+    "higher than usual",
+    "lower than usual"
+   ],
+   "why": "Fly the normal indicated airspeeds. Your true airspeed and groundspeed will be higher, so takeoff and landing distances are longer.",
+   "ref": "PHAK ch. 11"
+  },
+  {
+   "id": "f250",
+   "src": "faa",
+   "topic": "perf",
+   "q": "A headwind of 10 percent of the takeoff airspeed will reduce the takeoff distance by about",
+   "c": [
+    "19 percent",
+    "10 percent",
+    "5 percent"
+   ],
+   "why": "PHAK: a 10% headwind cuts takeoff distance about 19%; a 10% tailwind increases it about 21%.",
+   "ref": "PHAK ch. 11"
+  },
+  {
+   "id": "f251",
+   "src": "faa",
+   "topic": "perf",
+   "q": "A tailwind of 10 percent of the takeoff airspeed will increase the takeoff distance by about",
+   "c": [
+    "21 percent",
+    "10 percent",
+    "50 percent"
+   ],
+   "why": "Tailwinds hurt more than headwinds help: about 21% longer for a 10% tailwind.",
+   "ref": "PHAK ch. 11"
+  },
+  {
+   "id": "f252",
+   "src": "faa",
+   "topic": "perf",
+   "q": "A 10 percent increase in takeoff weight increases the takeoff distance by at least",
+   "c": [
+    "21 percent",
+    "10 percent",
+    "5 percent"
+   ],
+   "why": "About 5% higher takeoff speed, at least 9% less acceleration and at least 21% more distance.",
+   "ref": "PHAK ch. 11"
+  },
+  {
+   "id": "f253",
+   "src": "faa",
+   "topic": "perf",
+   "q": "Which runway condition increases the takeoff distance?",
+   "c": [
+    "Tall grass, soft ground or an upslope",
+    "A paved, dry, downhill runway",
+    "A headwind"
+   ],
+   "why": "Rolling friction and gravity both slow acceleration on soft, grassy or uphill surfaces.",
+   "ref": "PHAK ch. 11"
+  },
+  {
+   "id": "f254",
+   "src": "faa",
+   "topic": "perf",
+   "q": "The minimum speed for dynamic hydroplaning with tires inflated to 36 psi is about",
+   "c": [
+    "54 knots",
+    "36 knots",
+    "72 knots"
+   ],
+   "why": "Hydroplaning speed ≈ 9 × √(tire pressure in psi) = 9 × 6 = 54 knots.",
+   "ref": "PHAK ch. 11"
+  },
+  {
+   "id": "f255",
+   "src": "faa",
+   "topic": "perf",
+   "q": "The maximum demonstrated crosswind velocity in the POH is",
+   "c": [
+    "the highest crosswind tested during certification, not a structural limit",
+    "a regulatory limit you may never exceed",
+    "the maximum wind for taxiing"
+   ],
+   "why": "It isn't a limitation, but exceeding it means you're beyond what test pilots demonstrated.",
+   "ref": "PHAK ch. 11"
+  },
+  {
+   "id": "f256",
+   "src": "faa",
+   "topic": "perf",
+   "q": "Runway 01 (010°), wind 040° at 20 knots. What is the crosswind component?",
+   "c": [
+    "10 knots",
+    "17 knots",
+    "20 knots"
+   ],
+   "why": "Angle 30°. Crosswind = 20 × sin 30° = 10 knots. Headwind = 20 × cos 30° ≈ 17 knots.",
+   "ref": "PHAK ch. 11"
+  },
+  {
+   "id": "f257",
+   "src": "faa",
+   "topic": "perf",
+   "q": "Runway 27, wind 330° at 15 knots. What is the crosswind component?",
+   "c": [
+    "About 13 knots",
+    "About 7.5 knots",
+    "15 knots"
+   ],
+   "why": "Angle 60°. Crosswind = 15 × sin 60° ≈ 13 knots. Headwind = 15 × cos 60° = 7.5 knots.",
+   "ref": "PHAK ch. 11"
+  },
+  {
+   "id": "f258",
+   "src": "faa",
+   "topic": "perf",
+   "q": "Runway 18, wind 180° at 12 knots. What is the crosswind component?",
+   "c": [
+    "0 knots",
+    "12 knots",
+    "6 knots"
+   ],
+   "why": "The wind is straight down the runway: all headwind, no crosswind.",
+   "ref": "PHAK ch. 11"
+  },
+  {
+   "id": "f259",
+   "src": "faa",
+   "topic": "perf",
+   "q": "Rule of thumb: with the wind 45° off the runway, the crosswind component is about",
+   "c": [
+    "70 percent of the wind speed",
+    "50 percent of the wind speed",
+    "100 percent of the wind speed"
+   ],
+   "why": "sin 30° = 0.5, sin 45° ≈ 0.7, sin 60° ≈ 0.9. At 90° it's all crosswind.",
+   "ref": "PHAK ch. 11"
+  },
+  {
+   "id": "f260",
+   "src": "faa",
+   "topic": "perf",
+   "q": "A 10:1 glide ratio from 6,000 ft above the ground covers about",
+   "c": [
+    "10 nautical miles",
+    "6 nautical miles",
+    "60 nautical miles"
+   ],
+   "why": "6,000 ft × 10 = 60,000 ft, and 60,000 ÷ 6,076 ft per NM ≈ 10 NM (in still air).",
+   "ref": "AFH ch. 18"
+  },
+  {
+   "id": "f261",
+   "src": "faa",
+   "topic": "perf",
+   "q": "Moment equals",
+   "c": [
+    "weight × arm",
+    "weight ÷ arm",
+    "arm ÷ weight"
+   ],
+   "why": "Moment (lb-in) = weight (lb) × arm (in). CG = total moment ÷ total weight.",
+   "ref": "PHAK ch. 10"
+  },
+  {
+   "id": "f262",
+   "src": "faa",
+   "topic": "perf",
+   "q": "A 120-lb passenger sits at an arm of 85 inches. What is the moment?",
+   "c": [
+    "10,200 lb-in",
+    "1,412 lb-in",
+    "205 lb-in"
+   ],
+   "why": "120 × 85 = 10,200 lb-in.",
+   "ref": "PHAK ch. 10"
+  },
+  {
+   "id": "f263",
+   "src": "faa",
+   "topic": "perf",
+   "q": "The datum used for weight and balance is",
+   "c": [
+    "an imaginary vertical plane, chosen by the manufacturer, from which all arms are measured",
+    "always the nose of the airplane",
+    "the center of gravity"
+   ],
+   "why": "The datum may be at the firewall, the nose or even ahead of the airplane. Arms aft of it are positive.",
+   "ref": "PHAK ch. 10"
+  },
+  {
+   "id": "f264",
+   "src": "faa",
+   "topic": "perf",
+   "q": "Aviation gasoline (avgas) weighs about",
+   "c": [
+    "6 pounds per gallon",
+    "7.5 pounds per gallon",
+    "8.35 pounds per gallon"
+   ],
+   "why": "Avgas 6 lb/gal, oil 7.5 lb/gal, water 8.35 lb/gal, jet fuel about 6.7 lb/gal.",
+   "ref": "PHAK ch. 10"
+  },
+  {
+   "id": "f265",
+   "src": "faa",
+   "topic": "perf",
+   "q": "How much do 38 gallons of avgas weigh?",
+   "c": [
+    "228 pounds",
+    "285 pounds",
+    "190 pounds"
+   ],
+   "why": "38 × 6 = 228 pounds.",
+   "ref": "PHAK ch. 10"
+  },
+  {
+   "id": "f266",
+   "src": "faa",
+   "topic": "perf",
+   "q": "Engine oil weighs about 7.5 pounds per gallon. How much do 8 quarts weigh?",
+   "c": [
+    "15 pounds",
+    "60 pounds",
+    "8 pounds"
+   ],
+   "why": "8 quarts = 2 gallons; 2 × 7.5 = 15 pounds.",
+   "ref": "PHAK ch. 10"
+  },
+  {
+   "id": "f267",
+   "src": "faa",
+   "topic": "perf",
+   "q": "Basic empty weight includes",
+   "c": [
+    "the standard empty weight plus optional equipment, unusable fuel and full engine oil",
+    "the airplane, pilot and full fuel",
+    "only the airframe and engine"
+   ],
+   "why": "Basic empty weight = standard empty weight + optional equipment. It includes unusable fuel and full operating fluids, including full oil.",
+   "ref": "PHAK ch. 10"
+  },
+  {
+   "id": "f268",
+   "src": "faa",
+   "topic": "perf",
+   "q": "Useful load is",
+   "c": [
+    "the maximum gross weight minus the basic empty weight",
+    "the weight of the passengers and baggage only",
+    "the weight of the usable fuel"
+   ],
+   "why": "Useful load = pilot, passengers, baggage and usable fuel. Payload is the part that isn't fuel or crew.",
+   "ref": "PHAK ch. 10"
+  },
+  {
+   "id": "f269",
+   "src": "faa",
+   "topic": "perf",
+   "q": "Maximum gross weight 2,400 lb, basic empty weight 1,610 lb. What is the useful load?",
+   "c": [
+    "790 lb",
+    "1,610 lb",
+    "4,010 lb"
+   ],
+   "why": "2,400 − 1,610 = 790 lb, shared between people, baggage and usable fuel.",
+   "ref": "PHAK ch. 10"
+  },
+  {
+   "id": "f270",
+   "src": "faa",
+   "topic": "perf",
+   "q": "Given: empty weight 1,500 lb at arm 38 in; front seats 340 lb at 37 in; rear seat 180 lb at 73 in; fuel 240 lb at 48 in; baggage 50 lb at 95 in. What is the CG?",
+   "c": [
+    "About 42.9 in aft of datum",
+    "About 40.2 in aft of datum",
+    "About 45.6 in aft of datum"
+   ],
+   "why": "Moments: 57,000 + 12,580 + 13,140 + 11,520 + 4,750 = 98,990 lb-in. Weight: 2,310 lb. CG = 98,990 ÷ 2,310 ≈ 42.9 in.",
+   "ref": "PHAK ch. 10"
+  },
+  {
+   "id": "f271",
+   "src": "faa",
+   "topic": "perf",
+   "q": "Using the loading in the previous problem (total 2,310 lb), the maximum gross weight is 2,300 lb. What should you do?",
+   "c": [
+    "Remove at least 10 lb, for example fuel or baggage, and recompute the CG",
+    "Nothing; 10 lb over is within tolerance",
+    "Move the baggage forward to fix the weight"
+   ],
+   "why": "Moving weight changes the CG, not the total weight. You must offload at least 10 lb.",
+   "ref": "PHAK ch. 10"
+  },
+  {
+   "id": "f272",
+   "src": "faa",
+   "topic": "perf",
+   "q": "Total weight 2,400 lb, CG 45.0 in. How much baggage must move from a 120-in arm to a 40-in arm to move the CG to 44.0 in?",
+   "c": [
+    "30 lb",
+    "24 lb",
+    "60 lb"
+   ],
+   "why": "Weight shifted ÷ total weight = CG change ÷ distance moved. W = 2,400 × 1.0 ÷ 80 = 30 lb.",
+   "ref": "PHAK ch. 10"
+  },
+  {
+   "id": "f273",
+   "src": "faa",
+   "topic": "perf",
+   "q": "Total weight 2,000 lb, CG 40 in. A 100-lb passenger moves from an arm of 36 in to an arm of 76 in. What is the new CG?",
+   "c": [
+    "42 in",
+    "38 in",
+    "44 in"
+   ],
+   "why": "CG change = 100 × 40 ÷ 2,000 = 2 in aft, so 42 in.",
+   "ref": "PHAK ch. 10"
+  },
+  {
+   "id": "f274",
+   "src": "faa",
+   "topic": "perf",
+   "q": "Fuel is stored at an arm aft of the airplane's loaded CG. As fuel burns, the CG",
+   "c": [
+    "moves forward",
+    "moves aft",
+    "doesn't move"
+   ],
+   "why": "Removing weight that is aft of the CG moves the CG forward. Check that the CG stays within limits for the whole flight.",
+   "ref": "PHAK ch. 10"
+  },
+  {
+   "id": "f275",
+   "src": "faa",
+   "topic": "perf",
+   "q": "Adding weight aft of the current CG will",
+   "c": [
+    "move the CG aft",
+    "move the CG forward",
+    "not change the CG"
+   ],
+   "why": "The CG moves toward added weight and away from removed weight.",
+   "ref": "PHAK ch. 10"
+  },
+  {
+   "id": "f276",
+   "src": "faa",
+   "topic": "perf",
+   "q": "Which is an effect of overloading an airplane?",
+   "c": [
+    "Higher takeoff speed, longer takeoff run, reduced climb rate and higher stall speed",
+    "Lower stall speed and shorter takeoff",
+    "Better stability and range"
+   ],
+   "why": "Excess weight degrades nearly every aspect of performance and can overstress the structure.",
+   "ref": "PHAK ch. 10"
+  },
+  {
+   "id": "f277",
+   "src": "faa",
+   "topic": "perf",
+   "q": "Why does the POH list a maximum ramp weight higher than the maximum takeoff weight?",
+   "c": [
+    "It allows for fuel burned during engine start, taxi and run-up",
+    "It allows for passengers who board at the runway",
+    "It is the weight limit for landing"
+   ],
+   "why": "Ramp weight includes start, taxi and run-up fuel that will be burned before takeoff.",
+   "ref": "PHAK ch. 10"
+  },
+  {
+   "id": "f278",
+   "src": "faa",
+   "topic": "perf",
+   "q": "What happens to the landing distance at a high density altitude?",
+   "c": [
+    "It increases, because the true airspeed and groundspeed at touchdown are higher",
+    "It decreases, because the air is thinner",
+    "It doesn't change if you use the normal indicated approach speed"
+   ],
+   "why": "The same indicated airspeed is a higher true airspeed, so there is more energy to dissipate on the ground.",
+   "ref": "PHAK ch. 11"
+  },
+  {
+   "id": "f279",
+   "src": "faa",
+   "topic": "perf",
+   "q": "Absolute ceiling is the altitude at which",
+   "c": [
+    "the airplane can no longer climb",
+    "the airplane can climb at 100 fpm",
+    "supplemental oxygen is required"
+   ],
+   "why": "Absolute ceiling: zero rate of climb. Service ceiling: maximum rate of climb is 100 fpm.",
+   "ref": "PHAK ch. 11"
+  },
+  {
+   "id": "f280",
+   "src": "faa",
+   "topic": "perf",
+   "q": "Service ceiling is the altitude at which",
+   "c": [
+    "the best rate of climb is 100 fpm",
+    "the airplane can no longer climb",
+    "the airplane must use oxygen"
+   ],
+   "why": "Service ceiling: 100 fpm best rate of climb. Absolute ceiling: no climb at all.",
+   "ref": "PHAK ch. 11"
+  },
+  {
+   "id": "f281",
+   "src": "faa",
+   "topic": "perf",
+   "q": "When using a takeoff performance chart, you should normally enter it with",
+   "c": [
+    "pressure altitude and temperature, then correct for weight, wind and runway",
+    "true altitude and density altitude",
+    "indicated altitude and dew point"
+   ],
+   "why": "Charts are built on pressure altitude and temperature (which together give density altitude).",
+   "ref": "PHAK ch. 11"
+  },
+  {
+   "id": "f282",
+   "src": "faa",
+   "topic": "inst",
+   "q": "Which instruments use the pitot-static system?",
+   "c": [
+    "Airspeed indicator, altimeter and vertical speed indicator",
+    "Attitude indicator, heading indicator and turn coordinator",
+    "Airspeed indicator, attitude indicator and altimeter"
+   ],
+   "why": "The ASI uses pitot and static pressure; the altimeter and VSI use static pressure only. The gyro instruments don't use the pitot-static system.",
+   "ref": "PHAK ch. 8"
+  },
+  {
+   "id": "f283",
+   "src": "faa",
+   "topic": "inst",
+   "q": "If the pitot tube's ram air inlet and drain hole are both blocked, the airspeed indicator will",
+   "c": [
+    "act like an altimeter, reading higher as you climb and lower as you descend",
+    "drop to zero",
+    "read normally"
+   ],
+   "why": "Trapped pitot pressure stays constant while static pressure changes with altitude.",
+   "ref": "PHAK ch. 8"
+  },
+  {
+   "id": "f284",
+   "src": "faa",
+   "topic": "inst",
+   "q": "If only the pitot tube's ram air inlet is blocked (the drain hole is open), the airspeed indicator will",
+   "c": [
+    "drop to zero",
+    "act like an altimeter",
+    "read normally"
+   ],
+   "why": "Pitot pressure leaks out through the drain hole until it equals static pressure, so the ASI reads zero.",
+   "ref": "PHAK ch. 8"
+  },
+  {
+   "id": "f285",
+   "src": "faa",
+   "topic": "inst",
+   "q": "If the static ports become blocked while you are in level flight, the altimeter will",
+   "c": [
+    "freeze at the altitude where the blockage occurred",
+    "read zero",
+    "read higher than actual"
+   ],
+   "why": "The altimeter freezes and the VSI reads zero. The ASI becomes unreliable: it reads low when climbing and high when descending.",
+   "ref": "PHAK ch. 8"
+  },
+  {
+   "id": "f286",
+   "src": "faa",
+   "topic": "inst",
+   "q": "With a blocked static system, as you descend the airspeed indicator will read",
+   "c": [
+    "higher than the actual airspeed",
+    "lower than the actual airspeed",
+    "accurately"
+   ],
+   "why": "Trapped static pressure is lower than the real static pressure as you descend, so the ASI overreads.",
+   "ref": "PHAK ch. 8"
+  },
+  {
+   "id": "f287",
+   "src": "faa",
+   "topic": "inst",
+   "q": "Using the alternate static source (cabin air) in an unpressurized airplane usually makes the altimeter and airspeed indicator read",
+   "c": [
+    "slightly higher than normal",
+    "slightly lower than normal",
+    "exactly the same"
+   ],
+   "why": "Cabin pressure is a little lower than outside static pressure. The VSI briefly shows a climb when you switch over.",
+   "ref": "PHAK ch. 8"
+  },
+  {
+   "id": "f288",
+   "src": "faa",
+   "topic": "inst",
+   "q": "Indicated altitude is",
+   "c": [
+    "the altitude read directly from the altimeter when set to the current altimeter setting",
+    "height above the ground",
+    "height above the standard datum plane"
+   ],
+   "why": "Indicated altitude approximates true altitude (MSL) when the altimeter is set to the local setting. Absolute altitude is height above ground.",
+   "ref": "PHAK ch. 8"
+  },
+  {
+   "id": "f289",
+   "src": "faa",
+   "topic": "inst",
+   "q": "True altitude is",
+   "c": [
+    "the actual height above mean sea level",
+    "the height above the airport",
+    "the altitude shown with 29.92 set"
+   ],
+   "why": "True altitude is MSL. Obstacles and terrain on charts are shown in true altitude.",
+   "ref": "PHAK ch. 8"
+  },
+  {
+   "id": "f290",
+   "src": "faa",
+   "topic": "inst",
+   "q": "Absolute altitude is",
+   "c": [
+    "the height above the surface (AGL)",
+    "the height above sea level",
+    "pressure altitude corrected for temperature"
+   ],
+   "why": "Absolute altitude is height above ground level.",
+   "ref": "PHAK ch. 8"
+  },
+  {
+   "id": "f291",
+   "src": "faa",
+   "topic": "inst",
+   "q": "You fly from an area of high pressure to an area of low pressure without resetting the altimeter. Your true altitude will be",
+   "c": [
+    "lower than indicated",
+    "higher than indicated",
+    "the same as indicated"
+   ],
+   "why": "\"High to low, look out below.\" Reset the altimeter to the local setting en route.",
+   "ref": "PHAK ch. 8"
+  },
+  {
+   "id": "f292",
+   "src": "faa",
+   "topic": "inst",
+   "q": "When flying in air colder than standard, the altimeter shows an altitude",
+   "c": [
+    "higher than your true altitude",
+    "lower than your true altitude",
+    "equal to your true altitude"
+   ],
+   "why": "Cold air is denser, so the pressure levels sit lower: you are lower than indicated. Hot to cold, look out below too.",
+   "ref": "PHAK ch. 8"
+  },
+  {
+   "id": "f293",
+   "src": "faa",
+   "topic": "inst",
+   "q": "If the altimeter setting is changed from 29.92 to 30.12, the indicated altitude will",
+   "c": [
+    "increase by about 200 ft",
+    "decrease by about 200 ft",
+    "not change"
+   ],
+   "why": "Each 0.01 inHg is about 10 ft. Turning the setting up raises the indicated altitude.",
+   "ref": "PHAK ch. 8"
+  },
+  {
+   "id": "f294",
+   "src": "faa",
+   "topic": "inst",
+   "q": "If no altimeter setting is available before departure, set the altimeter to",
+   "c": [
+    "the field elevation",
+    "29.92 inHg",
+    "zero"
+   ],
+   "why": "Setting field elevation gives the best estimate of the local setting.",
+   "ref": "14 CFR 91.121"
+  },
+  {
+   "id": "f295",
+   "src": "faa",
+   "topic": "inst",
+   "q": "The vertical speed indicator shows",
+   "c": [
+    "a trend immediately and an accurate rate after about 6 to 9 seconds",
+    "an accurate rate instantly",
+    "only climbs, not descents"
+   ],
+   "why": "The VSI compares current static pressure with pressure in a calibrated leak. Its rate lags behind trend.",
+   "ref": "PHAK ch. 8"
+  },
+  {
+   "id": "f296",
+   "src": "faa",
+   "topic": "inst",
+   "q": "Gyroscopic instruments work on which two principles?",
+   "c": [
+    "Rigidity in space and precession",
+    "Bernoulli's principle and Newton's third law",
+    "Pressure differential and magnetism"
+   ],
+   "why": "The attitude and heading indicators use rigidity in space; the turn coordinator uses precession.",
+   "ref": "PHAK ch. 8"
+  },
+  {
+   "id": "f297",
+   "src": "faa",
+   "topic": "inst",
+   "q": "In most light airplanes, the attitude and heading indicators are powered by",
+   "c": [
+    "the vacuum system",
+    "the electrical system",
+    "the pitot-static system"
+   ],
+   "why": "Usually a vacuum (suction) pump drives the AI and HI, while the turn coordinator is electric, so one failure won't take out all the gyros.",
+   "ref": "PHAK ch. 8"
+  },
+  {
+   "id": "f298",
+   "src": "faa",
+   "topic": "inst",
+   "q": "How often should the heading indicator be checked against the magnetic compass in flight?",
+   "c": [
+    "About every 15 minutes, in straight-and-level unaccelerated flight",
+    "Only before takeoff",
+    "Every hour"
+   ],
+   "why": "Precession (friction) makes the HI drift. Realign it with the compass when the compass is steady.",
+   "ref": "PHAK ch. 8"
+  },
+  {
+   "id": "f299",
+   "src": "faa",
+   "topic": "inst",
+   "q": "The turn coordinator shows",
+   "c": [
+    "the rate of roll and the rate of turn",
+    "the bank angle directly",
+    "the pitch attitude"
+   ],
+   "why": "Its canted gyro senses roll and yaw. Aligned with the index mark, you're in a standard-rate turn (3° per second).",
+   "ref": "PHAK ch. 8"
+  },
+  {
+   "id": "f300",
+   "src": "faa",
+   "topic": "inst",
+   "q": "A standard-rate turn is",
+   "c": [
+    "3° per second, a 360° turn in 2 minutes",
+    "6° per second",
+    "1.5° per second"
+   ],
+   "why": "Standard rate: 3° per second. Bank angle for it ≈ (TAS ÷ 10) + 7.",
+   "ref": "PHAK ch. 8"
+  },
+  {
+   "id": "f301",
+   "src": "faa",
+   "topic": "inst",
+   "q": "When turning to the north in the Northern Hemisphere, the magnetic compass will",
+   "c": [
+    "lag behind the turn, so roll out before the compass reaches north",
+    "lead the turn, so roll out after the compass reaches north",
+    "show the heading accurately"
+   ],
+   "why": "Northerly turning error: UNOS, Undershoot North, Overshoot South.",
+   "ref": "PHAK ch. 8"
+  },
+  {
+   "id": "f302",
+   "src": "faa",
+   "topic": "inst",
+   "q": "On an easterly or westerly heading, accelerating makes the magnetic compass show a turn toward the",
+   "c": [
+    "north",
+    "south",
+    "east"
+   ],
+   "why": "ANDS: Accelerate North, Decelerate South.",
+   "ref": "PHAK ch. 8"
+  },
+  {
+   "id": "f303",
+   "src": "faa",
+   "topic": "inst",
+   "q": "Magnetic compass errors from turning and acceleration are caused mainly by",
+   "c": [
+    "magnetic dip",
+    "magnetic variation",
+    "deviation"
+   ],
+   "why": "The compass card tilts toward the earth's magnetic field lines (dip), which causes turning and acceleration errors.",
+   "ref": "PHAK ch. 8"
+  },
+  {
+   "id": "f304",
+   "src": "faa",
+   "topic": "inst",
+   "q": "In a fixed-pitch propeller airplane, the first indication of carburetor ice is usually",
+   "c": [
+    "a loss of RPM",
+    "a rise in oil temperature",
+    "a drop in manifold pressure"
+   ],
+   "why": "With a fixed-pitch prop, RPM drops. With a constant-speed prop, manifold pressure drops.",
+   "ref": "PHAK ch. 7"
+  },
+  {
+   "id": "f305",
+   "src": "faa",
+   "topic": "inst",
+   "q": "When you apply carburetor heat, the fuel/air mixture becomes",
+   "c": [
+    "richer, because warm air is less dense",
+    "leaner",
+    "unchanged"
+   ],
+   "why": "Warm air is less dense, so the same fuel meets less air. RPM drops slightly at first; if there was ice, it then rises as the ice melts.",
+   "ref": "PHAK ch. 7"
+  },
+  {
+   "id": "f306",
+   "src": "faa",
+   "topic": "inst",
+   "q": "Carburetor ice is most likely when the outside air temperature is",
+   "c": [
+    "between about 20°F and 70°F with high humidity",
+    "below 0°F",
+    "above 90°F with low humidity"
+   ],
+   "why": "Fuel evaporation and the venturi can cool the air by 60°F or more, so carb ice forms even on warm, humid days, especially at low power.",
+   "ref": "PHAK ch. 7"
+  },
+  {
+   "id": "f307",
+   "src": "faa",
+   "topic": "inst",
+   "q": "Compared with carburetors, fuel injection systems are",
+   "c": [
+    "much less susceptible to induction icing",
+    "more susceptible to induction icing",
+    "equally susceptible to carburetor ice"
+   ],
+   "why": "No venturi or carburetor means no carburetor ice, though impact ice on the air filter is still possible.",
+   "ref": "PHAK ch. 7"
+  },
+  {
+   "id": "f308",
+   "src": "faa",
+   "topic": "inst",
+   "q": "As you climb, the fuel/air mixture tends to become",
+   "c": [
+    "richer, because the air is less dense",
+    "leaner",
+    "unchanged"
+   ],
+   "why": "The carburetor meters fuel by volume of air, but the air gets thinner. Lean the mixture as you climb (per the POH).",
+   "ref": "PHAK ch. 7"
+  },
+  {
+   "id": "f309",
+   "src": "faa",
+   "topic": "inst",
+   "q": "Detonation is",
+   "c": [
+    "the sudden, explosive combustion of the fuel/air mixture in the cylinder",
+    "the fuel igniting before the spark plug fires",
+    "a normal part of engine operation"
+   ],
+   "why": "Detonation can damage the engine quickly. Causes include low-grade fuel, a too-lean mixture, high power at high temperatures and a too-steep climb.",
+   "ref": "PHAK ch. 7"
+  },
+  {
+   "id": "f310",
+   "src": "faa",
+   "topic": "inst",
+   "q": "If you suspect detonation during a climb, you should",
+   "c": [
+    "lower the nose to increase airspeed and cooling, and enrich the mixture",
+    "lean the mixture and climb more steeply",
+    "apply carburetor heat"
+   ],
+   "why": "Reduce cylinder temperatures: more cooling airflow, a richer mixture and, if needed, less power.",
+   "ref": "PHAK ch. 7"
+  },
+  {
+   "id": "f311",
+   "src": "faa",
+   "topic": "inst",
+   "q": "Preignition is",
+   "c": [
+    "the fuel/air mixture igniting before the normal spark, often from a hot spot in the cylinder",
+    "a sudden explosion after the spark",
+    "the engine running after the ignition is off because of a fuel leak"
+   ],
+   "why": "Hot carbon deposits or a cracked spark plug can ignite the charge early, reducing power and causing roughness.",
+   "ref": "PHAK ch. 7"
+  },
+  {
+   "id": "f312",
+   "src": "faa",
+   "topic": "inst",
+   "q": "If the grade of fuel specified for an engine isn't available, it's acceptable to use",
+   "c": [
+    "the next higher grade",
+    "the next lower grade",
+    "automotive gasoline in any engine"
+   ],
+   "why": "A lower grade can cause detonation. Use only a higher grade, or an approved STC fuel.",
+   "ref": "PHAK ch. 7"
+  },
+  {
+   "id": "f313",
+   "src": "faa",
+   "topic": "inst",
+   "q": "Why should you drain fuel from the sumps before flight?",
+   "c": [
+    "To check for water and contaminants, which settle at the low points",
+    "To make sure the tanks are not overfilled",
+    "To check the fuel's octane"
+   ],
+   "why": "Water is heavier than fuel and sinks to the sumps.",
+   "ref": "PHAK ch. 7"
+  },
+  {
+   "id": "f314",
+   "src": "faa",
+   "topic": "inst",
+   "q": "Fuel tanks should be filled after the last flight of the day mainly to",
+   "c": [
+    "prevent moisture from condensing in the tanks",
+    "reduce the chance of vapor lock",
+    "keep the airplane's CG within limits"
+   ],
+   "why": "Full tanks leave less air space for water vapor to condense overnight.",
+   "ref": "PHAK ch. 7"
+  },
+  {
+   "id": "f315",
+   "src": "faa",
+   "topic": "inst",
+   "q": "Dual magnetos in an aircraft engine provide",
+   "c": [
+    "improved engine performance and a backup ignition system",
+    "electrical power for the radios",
+    "a way to start the engine without the battery"
+   ],
+   "why": "Two magnetos and two spark plugs per cylinder burn the mixture more completely and give redundancy.",
+   "ref": "PHAK ch. 7"
+  },
+  {
+   "id": "f316",
+   "src": "faa",
+   "topic": "inst",
+   "q": "If a magneto's ground wire is broken, the engine",
+   "c": [
+    "could start if the propeller is turned by hand, even with the ignition switch off",
+    "won't start",
+    "will run on only one magneto"
+   ],
+   "why": "A broken P-lead leaves the magneto \"hot\". Always treat a propeller as if the ignition is on.",
+   "ref": "PHAK ch. 7"
+  },
+  {
+   "id": "f317",
+   "src": "faa",
+   "topic": "inst",
+   "q": "Engine oil does all of these except",
+   "c": [
+    "provide fuel for combustion",
+    "cool the engine",
+    "lubricate and seal moving parts"
+   ],
+   "why": "Oil lubricates, cools, seals and cleans. Air-cooled engines rely on it heavily for cooling.",
+   "ref": "PHAK ch. 7"
+  },
+  {
+   "id": "f318",
+   "src": "faa",
+   "topic": "inst",
+   "q": "Excessively high engine temperatures can cause",
+   "c": [
+    "loss of power, excessive oil consumption and possible permanent engine damage",
+    "carburetor ice",
+    "a decrease in oil temperature"
+   ],
+   "why": "Common causes: low oil, too lean a mixture, a long climb at low airspeed, or operating with high power.",
+   "ref": "PHAK ch. 7"
+  },
+  {
+   "id": "f319",
+   "src": "faa",
+   "topic": "inst",
+   "q": "On an ammeter, a positive (right) needle deflection after engine start usually means",
+   "c": [
+    "the alternator is charging the battery",
+    "the battery is discharging",
+    "the alternator has failed"
+   ],
+   "why": "Right after start the battery recharges, so the ammeter shows a charge that then decreases.",
+   "ref": "PHAK ch. 7"
+  },
+  {
+   "id": "f320",
+   "src": "faa",
+   "topic": "inst",
+   "q": "If the ammeter shows a steady discharge in flight, you should",
+   "c": [
+    "reduce electrical load and plan to land, because the alternator may have failed",
+    "ignore it if the engine is running normally",
+    "turn on more electrical equipment to test it"
+   ],
+   "why": "The battery is running everything. Shed load (lights, unneeded radios) and land as soon as practical.",
+   "ref": "PHAK ch. 7"
+  },
+  {
+   "id": "f321",
+   "src": "faa",
+   "topic": "inst",
+   "q": "If the alternator fails, the engine will",
+   "c": [
+    "keep running, because the magnetos don't need the electrical system",
+    "stop within a few minutes",
+    "run only on one magneto"
+   ],
+   "why": "Magnetos generate their own spark. Electrically driven things (radios, flaps, lights, fuel gauges) will eventually stop.",
+   "ref": "PHAK ch. 7"
+  },
+  {
+   "id": "f322",
+   "src": "faa",
+   "topic": "inst",
+   "q": "A circuit breaker that pops in flight",
+   "c": [
+    "may be reset once, after a short cooling period, if the system is needed",
+    "should be held in to keep the system working",
+    "should be reset as many times as needed"
+   ],
+   "why": "Popped breakers protect against overloads and fires. Reset once, after cooling; if it pops again, leave it out.",
+   "ref": "PHAK ch. 7"
+  },
+  {
+   "id": "f323",
+   "src": "faa",
+   "topic": "inst",
+   "q": "A fixed-pitch propeller is most efficient",
+   "c": [
+    "at one combination of airspeed and RPM",
+    "at all airspeeds",
+    "only during takeoff"
+   ],
+   "why": "Climb props are best for climbs, cruise props for cruise. Constant-speed props stay efficient over a range of speeds.",
+   "ref": "PHAK ch. 7"
+  },
+  {
+   "id": "f324",
+   "src": "faa",
+   "topic": "inst",
+   "q": "In an airplane with a constant-speed propeller, engine power is shown by the",
+   "c": [
+    "manifold pressure gauge (with the tachometer)",
+    "tachometer only",
+    "ammeter"
+   ],
+   "why": "The throttle controls manifold pressure and the propeller control sets RPM.",
+   "ref": "PHAK ch. 7"
+  },
+  {
+   "id": "f325",
+   "src": "faa",
+   "topic": "inst",
+   "q": "To avoid overstressing the cylinders in a constant-speed propeller airplane, avoid",
+   "c": [
+    "high manifold pressure with low RPM",
+    "low manifold pressure with high RPM",
+    "any change in RPM"
+   ],
+   "why": "When increasing power, increase RPM first, then manifold pressure. When reducing power, reduce manifold pressure first, then RPM.",
+   "ref": "PHAK ch. 7"
+  },
+  {
+   "id": "f326",
+   "src": "faa",
+   "topic": "inst",
+   "q": "An abnormally high oil temperature combined with low oil pressure may mean",
+   "c": [
+    "a low oil supply or a failing oil system",
+    "the engine is too cold",
+    "the mixture is too rich"
+   ],
+   "why": "Low pressure and high temperature together suggest oil loss. Plan to land soon.",
+   "ref": "PHAK ch. 7"
+  },
+  {
+   "id": "f327",
+   "src": "faa",
+   "topic": "inst",
+   "q": "The purpose of the fuel tank vents is to",
+   "c": [
+    "let air replace fuel as it's used, so fuel keeps flowing",
+    "drain water from the tanks",
+    "keep fuel from overheating"
+   ],
+   "why": "A blocked vent can create a vacuum in the tank and starve the engine.",
+   "ref": "PHAK ch. 7"
+  },
+  {
+   "id": "f328",
+   "src": "faa",
+   "topic": "inst",
+   "q": "Vapor lock is most likely",
+   "c": [
+    "on hot days, when fuel vaporizes in the fuel lines and blocks the flow",
+    "in cold weather with a lean mixture",
+    "when using a higher grade of fuel"
+   ],
+   "why": "Vapor bubbles in the lines interrupt fuel flow. Fuel pumps and electric boost pumps help prevent it.",
+   "ref": "PHAK ch. 7"
+  },
+  {
+   "id": "f329",
+   "src": "faa",
+   "topic": "inst",
+   "q": "What is the purpose of the primer?",
+   "c": [
+    "To spray fuel into the intake for engine starting",
+    "To clean the spark plugs",
+    "To lubricate the engine before start"
+   ],
+   "why": "The primer delivers fuel directly to the cylinders' intake ports to help a cold start.",
+   "ref": "PHAK ch. 7"
+  },
+  {
+   "id": "f330",
+   "src": "faa",
+   "topic": "ops",
+   "q": "A rotating beacon that alternates white and green identifies",
+   "c": [
+    "a lighted civilian land airport",
+    "a military airport",
+    "a water (seaplane) airport"
+   ],
+   "why": "White-green: civil land airport. White-yellow: water airport. Two quick white flashes then green: military. Green-yellow-white: heliport.",
+   "ref": "AIM 2-1-9"
+  },
+  {
+   "id": "f331",
+   "src": "faa",
+   "topic": "ops",
+   "q": "A military airport's beacon shows",
+   "c": [
+    "two quick white flashes alternating with a green flash",
+    "alternating white and green",
+    "alternating white and yellow"
+   ],
+   "why": "Military airfields use dual-peaked white flashes between green flashes.",
+   "ref": "AIM 2-1-9"
+  },
+  {
+   "id": "f332",
+   "src": "faa",
+   "topic": "ops",
+   "q": "The rotating beacon at an airport in Class B, C, D or E surface airspace operating during daylight hours often means",
+   "c": [
+    "the ceiling is below 1,000 ft or the visibility is below 3 miles",
+    "the control tower is closed",
+    "the airport is closed"
+   ],
+   "why": "A daytime beacon often signals that the weather is below basic VFR minimums. Don't rely on it; there's no requirement to turn it on.",
+   "ref": "AIM 2-1-9"
+  },
+  {
+   "id": "f333",
+   "src": "faa",
+   "topic": "ops",
+   "q": "Runway edge lights are",
+   "c": [
+    "white, with yellow replacing white on the last 2,000 ft of instrument runways",
+    "blue",
+    "green"
+   ],
+   "why": "White edge lights; the caution zone (last 2,000 ft or half the runway) shows yellow on instrument runways.",
+   "ref": "AIM 2-1-4"
+  },
+  {
+   "id": "f334",
+   "src": "faa",
+   "topic": "ops",
+   "q": "Taxiway edge lights are",
+   "c": [
+    "blue",
+    "white",
+    "green"
+   ],
+   "why": "Taxiway edge lights are blue; taxiway centerline lights are green.",
+   "ref": "AIM 2-1-10"
+  },
+  {
+   "id": "f335",
+   "src": "faa",
+   "topic": "ops",
+   "q": "From the approach end of a runway, threshold lights appear",
+   "c": [
+    "green",
+    "red",
+    "white"
+   ],
+   "why": "Threshold lights show green toward approaching aircraft and red toward aircraft at the departure end.",
+   "ref": "AIM 2-1-4"
+  },
+  {
+   "id": "f336",
+   "src": "faa",
+   "topic": "ops",
+   "q": "Arrows on a runway leading to a white threshold bar mark",
+   "c": [
+    "a displaced threshold: usable for takeoff and landing rollout, but not for landing touchdown",
+    "a closed runway",
+    "a blast pad that may not be used at all"
+   ],
+   "why": "Before a displaced threshold you may taxi, take off and roll out after landing, but not touch down.",
+   "ref": "AIM 2-3-3"
+  },
+  {
+   "id": "f337",
+   "src": "faa",
+   "topic": "ops",
+   "q": "Yellow chevrons before a runway's threshold mark",
+   "c": [
+    "a blast pad or stopway, not usable for taxi, takeoff or landing",
+    "a displaced threshold usable for takeoff",
+    "a taxiway"
+   ],
+   "why": "Chevron areas aren't for normal operations: they can't support aircraft.",
+   "ref": "AIM 2-3-3"
+  },
+  {
+   "id": "f338",
+   "src": "faa",
+   "topic": "ops",
+   "q": "A large yellow or white X on a runway means",
+   "c": [
+    "the runway is closed",
+    "the runway is for emergency use only",
+    "a displaced threshold"
+   ],
+   "why": "X marks closed runways and taxiways.",
+   "ref": "AIM 2-3-6"
+  },
+  {
+   "id": "f339",
+   "src": "faa",
+   "topic": "ops",
+   "q": "The runway holding position markings (two solid and two dashed yellow lines across a taxiway) mean",
+   "c": [
+    "stop on the solid side unless cleared onto or across the runway",
+    "stop on the dashed side",
+    "yield to aircraft on the taxiway"
+   ],
+   "why": "From the solid side you need a clearance to cross at a towered airport. From the dashed side you may cross without stopping when exiting the runway.",
+   "ref": "AIM 2-3-5"
+  },
+  {
+   "id": "f340",
+   "src": "faa",
+   "topic": "ops",
+   "q": "When exiting a runway after landing, you are clear of the runway when",
+   "c": [
+    "the whole airplane is past the holding position markings",
+    "the nose is past the runway edge line",
+    "you have turned onto the taxiway"
+   ],
+   "why": "Taxi until all parts of the airplane are beyond the hold line, then stop unless told otherwise.",
+   "ref": "AIM 4-3-21"
+  },
+  {
+   "id": "f341",
+   "src": "faa",
+   "topic": "ops",
+   "q": "A red sign with white letters reading \"15-33\" is",
+   "c": [
+    "a mandatory runway holding position sign",
+    "a location sign",
+    "a direction sign"
+   ],
+   "why": "Red with white text: mandatory instruction. Never cross it without a clearance at a towered airport.",
+   "ref": "AIM 2-3-8"
+  },
+  {
+   "id": "f342",
+   "src": "faa",
+   "topic": "ops",
+   "q": "A black sign with a yellow \"B\" and a yellow border tells you",
+   "c": [
+    "you are on taxiway B",
+    "taxiway B is ahead and to the right",
+    "runway B is closed"
+   ],
+   "why": "Black with yellow text: location sign. Yellow with black text and arrows: direction signs.",
+   "ref": "AIM 2-3-9"
+  },
+  {
+   "id": "f343",
+   "src": "faa",
+   "topic": "ops",
+   "q": "The tetrahedron wind indicator points",
+   "c": [
+    "into the wind (the small end points into the wind)",
+    "with the wind",
+    "toward the active runway"
+   ],
+   "why": "Like a weather vane, its small end points into the wind, the direction to land. A wind sock's large open end also faces into the wind.",
+   "ref": "AIM 4-3-4"
+  },
+  {
+   "id": "f344",
+   "src": "faa",
+   "topic": "ops",
+   "q": "Unless otherwise published, the recommended traffic pattern altitude for light airplanes is",
+   "c": [
+    "1,000 ft AGL",
+    "800 ft AGL",
+    "1,500 ft AGL"
+   ],
+   "why": "Recommended pattern altitude is 1,000 ft AGL for propeller airplanes, unless the Chart Supplement says otherwise.",
+   "ref": "AC 90-66; AIM 4-3-3"
+  },
+  {
+   "id": "f345",
+   "src": "faa",
+   "topic": "ops",
+   "q": "The recommended entry to the traffic pattern at a non-towered airport is",
+   "c": [
+    "45° to the downwind leg, abeam the midpoint of the runway, at pattern altitude",
+    "straight in on final",
+    "crossing over the runway at pattern altitude"
+   ],
+   "why": "Enter at a 45° angle to downwind, abeam midfield, at pattern altitude.",
+   "ref": "AC 90-66; AIM 4-3-3"
+  },
+  {
+   "id": "f346",
+   "src": "faa",
+   "topic": "ops",
+   "q": "When should you make your first call on the CTAF when approaching a non-towered airport?",
+   "c": [
+    "About 10 miles out",
+    "When entering downwind",
+    "Over the airport"
+   ],
+   "why": "Self-announce about 10 miles out, then on downwind, base, final and when leaving the runway.",
+   "ref": "AIM 4-1-9"
+  },
+  {
+   "id": "f347",
+   "src": "faa",
+   "topic": "ops",
+   "q": "At an airport without a tower, FSS or UNICOM, you should self-announce on",
+   "c": [
+    "MULTICOM, 122.9 MHz",
+    "121.5 MHz",
+    "122.0 MHz"
+   ],
+   "why": "With no other facility, use MULTICOM on 122.9.",
+   "ref": "AIM 4-1-9"
+  },
+  {
+   "id": "f348",
+   "src": "faa",
+   "topic": "ops",
+   "q": "The Automatic Terminal Information Service (ATIS) provides",
+   "c": [
+    "recorded non-control information such as weather, active runway and NOTAMs",
+    "taxi clearances",
+    "a list of traffic in the pattern"
+   ],
+   "why": "Tell the controller you have the information by its phonetic letter, such as \"with Bravo\".",
+   "ref": "AIM 4-1-13"
+  },
+  {
+   "id": "f349",
+   "src": "faa",
+   "topic": "ops",
+   "q": "How should the altitude 4,500 ft be spoken on the radio?",
+   "c": [
+    "\"Four thousand five hundred\"",
+    "\"Forty-five hundred\"",
+    "\"Four point five\""
+   ],
+   "why": "Altitudes below 18,000 ft are spoken in thousands and hundreds. Numbers are said digit by digit, as with \"one two zero point five\".",
+   "ref": "AIM 4-2-9"
+  },
+  {
+   "id": "f350",
+   "src": "faa",
+   "topic": "ops",
+   "q": "How is a frequency of 121.75 spoken?",
+   "c": [
+    "\"One two one point seven five\"",
+    "\"One twenty-one seventy-five\"",
+    "\"One two one decimal seven five zero\""
+   ],
+   "why": "Each digit is spoken separately, with \"point\" for the decimal.",
+   "ref": "AIM 4-2-8"
+  },
+  {
+   "id": "f351",
+   "src": "faa",
+   "topic": "ops",
+   "q": "The phonetic alphabet word for the letter \"Q\" is",
+   "c": [
+    "Quebec",
+    "Queen",
+    "Quick"
+   ],
+   "why": "Alfa, Bravo, Charlie, Delta, Echo, Foxtrot, Golf, Hotel, India, Juliett, Kilo, Lima, Mike, November, Oscar, Papa, Quebec, Romeo, Sierra, Tango, Uniform, Victor, Whiskey, X-ray, Yankee, Zulu.",
+   "ref": "AIM 4-2-7"
+  },
+  {
+   "id": "f352",
+   "src": "faa",
+   "topic": "ops",
+   "q": "A tower controller says \"Cessna 23H, cleared for the option.\" You may",
+   "c": [
+    "make a touch-and-go, low approach, missed approach, stop-and-go or full-stop landing",
+    "only land to a full stop",
+    "only make a low pass"
+   ],
+   "why": "The option lets you choose any of these. Tell the tower your intentions if asked.",
+   "ref": "AIM 4-3-23"
+  },
+  {
+   "id": "f353",
+   "src": "faa",
+   "topic": "ops",
+   "q": "\"Line up and wait\" means",
+   "c": [
+    "taxi onto the runway and wait for takeoff clearance",
+    "you're cleared for takeoff",
+    "hold short of the runway"
+   ],
+   "why": "It is not a takeoff clearance. Stay alert for traffic and ask if you've waited too long.",
+   "ref": "Pilot/Controller Glossary"
+  },
+  {
+   "id": "f354",
+   "src": "faa",
+   "topic": "ops",
+   "q": "If you're told to \"hold short\" of a runway, you must",
+   "c": [
+    "stop before the holding position markings and read back the instruction",
+    "cross the runway without stopping",
+    "wait on the runway"
+   ],
+   "why": "Hold short instructions must be read back.",
+   "ref": "AIM 4-3-18"
+  },
+  {
+   "id": "f355",
+   "src": "faa",
+   "topic": "ops",
+   "q": "Land and hold short operations (LAHSO) may be accepted by a student pilot",
+   "c": [
+    "never; student pilots should not participate in LAHSO",
+    "always",
+    "only at night"
+   ],
+   "why": "The AIM says student pilots shouldn't participate in LAHSO. Any pilot may decline a LAHSO clearance.",
+   "ref": "AIM 4-3-11"
+  },
+  {
+   "id": "f356",
+   "src": "faa",
+   "topic": "ops",
+   "q": "A pilot may decline a land and hold short (LAHSO) clearance",
+   "c": [
+    "at any time, for any reason, before accepting it",
+    "never, once offered",
+    "only if the runway is wet"
+   ],
+   "why": "The PIC has final authority. Decline if you aren't sure you can stop in the available distance.",
+   "ref": "AIM 4-3-11"
+  },
+  {
+   "id": "f357",
+   "src": "faa",
+   "topic": "ops",
+   "q": "When must you contact Clearance Delivery or Ground Control before taxiing at a towered airport?",
+   "c": [
+    "Before moving onto the movement area (taxiways and runways)",
+    "Only before entering a runway",
+    "Only after the run-up"
+   ],
+   "why": "Ground Control controls the movement area. Ramps and aprons are non-movement areas.",
+   "ref": "AIM 4-3-14"
+  },
+  {
+   "id": "f358",
+   "src": "faa",
+   "topic": "ops",
+   "q": "Which is the right way to scan for other aircraft during the day?",
+   "c": [
+    "A series of short, regularly spaced eye movements, each covering about 10°, for about 1 second each",
+    "A continuous sweep from left to right",
+    "Staring straight ahead and relying on peripheral vision"
+   ],
+   "why": "The eyes need to stop to detect objects. Scan sector by sector.",
+   "ref": "AIM 8-1-6"
+  },
+  {
+   "id": "f359",
+   "src": "faa",
+   "topic": "ops",
+   "q": "An aircraft that appears to have no relative motion and keeps growing larger is",
+   "c": [
+    "on a collision course",
+    "moving away from you",
+    "not a threat"
+   ],
+   "why": "No apparent movement means a constant bearing: you will collide unless someone changes course. It may also seem to grow slowly, then rapidly.",
+   "ref": "AIM 8-1-8"
+  },
+  {
+   "id": "f360",
+   "src": "faa",
+   "topic": "ops",
+   "q": "Prior to starting each maneuver, such as a stall or steep turn, a pilot should",
+   "c": [
+    "make clearing turns to check for traffic",
+    "contact the nearest control tower",
+    "climb to 10,000 ft"
+   ],
+   "why": "Clearing turns (usually two 90° turns) let you see the area around you before a maneuver.",
+   "ref": "AFH ch. 4"
+  },
+  {
+   "id": "f361",
+   "src": "faa",
+   "topic": "ops",
+   "q": "Most midair collisions occur",
+   "c": [
+    "in good weather, during the day, near airports",
+    "at night in clouds",
+    "at high altitude over the ocean"
+   ],
+   "why": "Most happen in VFR weather near airports, often in the pattern, when pilots aren't looking out enough.",
+   "ref": "AC 90-48"
+  },
+  {
+   "id": "f362",
+   "src": "faa",
+   "topic": "ops",
+   "q": "The transponder code 1200 is used for",
+   "c": [
+    "VFR flight when no other code has been assigned",
+    "radio failure",
+    "emergencies"
+   ],
+   "why": "1200 VFR. 7500 hijack, 7600 lost communications, 7700 emergency.",
+   "ref": "AIM 4-1-20"
+  },
+  {
+   "id": "f363",
+   "src": "faa",
+   "topic": "ops",
+   "q": "If you have an emergency, you should set the transponder to",
+   "c": [
+    "7700",
+    "7600",
+    "7500"
+   ],
+   "why": "7700 alerts every radar facility in range. Avoid passing through 7500, 7600 or 7700 when changing codes in normal operations.",
+   "ref": "AIM 6-2-2"
+  },
+  {
+   "id": "f364",
+   "src": "faa",
+   "topic": "ops",
+   "q": "The emergency frequency monitored by most ATC facilities and many airliners is",
+   "c": [
+    "121.5 MHz",
+    "122.8 MHz",
+    "123.45 MHz"
+   ],
+   "why": "121.5 is the VHF guard frequency. ELTs also transmit on 121.5 (and 406 MHz).",
+   "ref": "AIM 6-3-1"
+  },
+  {
+   "id": "f365",
+   "src": "faa",
+   "topic": "ops",
+   "q": "Where do you find NOTAMs for an airport you plan to use?",
+   "c": [
+    "From Flight Service or an online briefing source such as the FAA NOTAM search",
+    "On the sectional chart",
+    "Only on the ATIS"
+   ],
+   "why": "NOTAMs cover runway closures, TFRs, lighting outages and more. Check them as part of every preflight.",
+   "ref": "AIM 5-1-3"
+  },
+  {
+   "id": "f366",
+   "src": "faa",
+   "topic": "ops",
+   "q": "VASI lights showing red over red mean you are",
+   "c": [
+    "below the glide path",
+    "above the glide path",
+    "on the glide path"
+   ],
+   "why": "Red over white: all right. White over white: high. Red over red: low.",
+   "ref": "AIM 2-1-2"
+  },
+  {
+   "id": "f367",
+   "src": "faa",
+   "topic": "ops",
+   "q": "On a four-light PAPI, two white and two red lights mean you are",
+   "c": [
+    "on the glide path",
+    "slightly high",
+    "slightly low"
+   ],
+   "why": "Two white, two red: on path. More white: high. More red: low. Four red: well below.",
+   "ref": "AIM 2-1-2"
+  },
+  {
+   "id": "f368",
+   "src": "faa",
+   "topic": "ops",
+   "q": "Which airport light colors are correct for taxiway centerline lights?",
+   "c": [
+    "Green",
+    "Blue",
+    "Yellow"
+   ],
+   "why": "Taxiway centerline lights are green; edge lights are blue. Runway guard lights (wig-wags) are flashing yellow.",
+   "ref": "AIM 2-1-10"
+  },
+  {
+   "id": "f369",
+   "src": "faa",
+   "topic": "ops",
+   "q": "When taxiing in a strong quartering headwind from the left, hold the ailerons",
+   "c": [
+    "left aileron up (yoke turned left, into the wind)",
+    "neutral",
+    "left aileron down (yoke turned right)"
+   ],
+   "why": "\"Climb into a headwind, dive away from a tailwind.\" Headwind: aileron up on the wind side, elevator neutral. Tailwind: aileron down on the wind side, elevator down.",
+   "ref": "AFH ch. 2"
+  },
+  {
+   "id": "f370",
+   "src": "faa",
+   "topic": "adm",
+   "q": "Hypoxia is",
+   "c": [
+    "a state of oxygen deficiency in the body sufficient to impair brain and other organ function",
+    "an excess of carbon dioxide in the blood",
+    "a fear of heights"
+   ],
+   "why": "Symptoms creep in unnoticed: euphoria, headache, poor judgment, blue fingernails, tunnel vision. Use oxygen and descend.",
+   "ref": "PHAK ch. 17"
+  },
+  {
+   "id": "f371",
+   "src": "faa",
+   "topic": "adm",
+   "q": "Hypoxic hypoxia is caused by",
+   "c": [
+    "the low partial pressure of oxygen at altitude",
+    "carbon monoxide poisoning",
+    "the effects of alcohol"
+   ],
+   "why": "Hypoxic: not enough oxygen available (altitude). Hypemic: blood can't carry it (CO, anemia). Stagnant: poor circulation (G-forces, cold). Histotoxic: cells can't use it (alcohol, drugs).",
+   "ref": "PHAK ch. 17"
+  },
+  {
+   "id": "f372",
+   "src": "faa",
+   "topic": "adm",
+   "q": "Carbon monoxide poisoning causes which type of hypoxia?",
+   "c": [
+    "Hypemic",
+    "Hypoxic",
+    "Histotoxic"
+   ],
+   "why": "CO binds to hemoglobin far more readily than oxygen, so the blood can't carry enough oxygen.",
+   "ref": "PHAK ch. 17"
+  },
+  {
+   "id": "f373",
+   "src": "faa",
+   "topic": "adm",
+   "q": "Alcohol and some drugs that interfere with the body's use of oxygen cause",
+   "c": [
+    "histotoxic hypoxia",
+    "stagnant hypoxia",
+    "hypemic hypoxia"
+   ],
+   "why": "Histotoxic hypoxia: the cells can't use the oxygen delivered to them.",
+   "ref": "PHAK ch. 17"
+  },
+  {
+   "id": "f374",
+   "src": "faa",
+   "topic": "adm",
+   "q": "Large accumulations of carbon monoxide in the body result in",
+   "c": [
+    "loss of muscular power",
+    "an increased sense of well-being",
+    "tolerance to hypoxia"
+   ],
+   "why": "Symptoms include headache, drowsiness, dizziness and loss of muscle power. Turn off the heater, open the vents and land.",
+   "ref": "PHAK ch. 17"
+  },
+  {
+   "id": "f375",
+   "src": "faa",
+   "topic": "adm",
+   "q": "Hyperventilation is",
+   "c": [
+    "an abnormal increase in breathing that removes too much carbon dioxide",
+    "a lack of oxygen at altitude",
+    "the result of breathing too slowly"
+   ],
+   "why": "Often caused by stress or anxiety. Symptoms: lightheadedness, tingling, muscle spasms. Slow your breathing, talk aloud or breathe into a bag.",
+   "ref": "PHAK ch. 17"
+  },
+  {
+   "id": "f376",
+   "src": "faa",
+   "topic": "adm",
+   "q": "Which action helps a pilot recover from hyperventilation?",
+   "c": [
+    "Slowing the breathing rate, or breathing into a paper bag or talking aloud",
+    "Breathing faster",
+    "Climbing to a higher altitude"
+   ],
+   "why": "Restoring the carbon dioxide level stops the symptoms.",
+   "ref": "PHAK ch. 17"
+  },
+  {
+   "id": "f377",
+   "src": "faa",
+   "topic": "adm",
+   "q": "After a prolonged coordinated turn, an abrupt correction to level flight may create the illusion of",
+   "c": [
+    "banking in the opposite direction (the leans)",
+    "climbing",
+    "descending"
+   ],
+   "why": "The inner ear stops sensing a long, steady turn; rolling level then feels like a bank the other way.",
+   "ref": "PHAK ch. 17"
+  },
+  {
+   "id": "f378",
+   "src": "faa",
+   "topic": "adm",
+   "q": "The graveyard spiral illusion happens when",
+   "c": [
+    "in a prolonged descending turn, the pilot senses wings level and pulls back, tightening the spiral",
+    "the pilot sees a false horizon from sloping clouds",
+    "the pilot flies over featureless terrain"
+   ],
+   "why": "Pulling back without leveling the wings increases the turn rate and descent.",
+   "ref": "PHAK ch. 17"
+  },
+  {
+   "id": "f379",
+   "src": "faa",
+   "topic": "adm",
+   "q": "Abrupt head movement during a prolonged constant-rate turn in IMC can cause",
+   "c": [
+    "the Coriolis illusion, a strong sense of tumbling",
+    "the leans",
+    "a false horizon"
+   ],
+   "why": "The Coriolis illusion is the most overwhelming of the vestibular illusions. Avoid head movements in turns.",
+   "ref": "PHAK ch. 17"
+  },
+  {
+   "id": "f380",
+   "src": "faa",
+   "topic": "adm",
+   "q": "A runway that is narrower than usual can make you fly a final approach that is",
+   "c": [
+    "lower than normal, because you think you're too high",
+    "higher than normal",
+    "faster than normal"
+   ],
+   "why": "A narrow runway looks like a higher approach; you may descend too low. A wide runway has the opposite effect.",
+   "ref": "PHAK ch. 17"
+  },
+  {
+   "id": "f381",
+   "src": "faa",
+   "topic": "adm",
+   "q": "An upsloping runway can create the illusion that you are",
+   "c": [
+    "higher than you actually are, leading to a lower approach",
+    "lower than you actually are",
+    "on a normal glide path"
+   ],
+   "why": "Upslope: illusion of being high, so pilots fly low. Downslope: illusion of being low, so pilots fly high.",
+   "ref": "PHAK ch. 17"
+  },
+  {
+   "id": "f382",
+   "src": "faa",
+   "topic": "adm",
+   "q": "Rain on the windscreen can create the illusion of being",
+   "c": [
+    "at a higher altitude, which can lead to a low approach",
+    "at a lower altitude",
+    "farther from the runway"
+   ],
+   "why": "Rain distorts the view and makes the runway look as if you're higher than you are.",
+   "ref": "PHAK ch. 17"
+  },
+  {
+   "id": "f383",
+   "src": "faa",
+   "topic": "adm",
+   "q": "Haze can create the illusion of being",
+   "c": [
+    "farther from the runway than you actually are",
+    "closer to the runway",
+    "lower than you actually are"
+   ],
+   "why": "Objects look farther away in haze, and you may fly a low approach.",
+   "ref": "PHAK ch. 17"
+  },
+  {
+   "id": "f384",
+   "src": "faa",
+   "topic": "adm",
+   "q": "Flying a night approach over water or featureless terrain toward a lighted runway (a black-hole approach) can lead you to fly",
+   "c": [
+    "lower than normal",
+    "higher than normal",
+    "a normal glide path"
+   ],
+   "why": "Without ground references you may feel too high and descend too low. Use the VASI/PAPI and the altimeter.",
+   "ref": "PHAK ch. 17"
+  },
+  {
+   "id": "f385",
+   "src": "faa",
+   "topic": "adm",
+   "q": "At night, the most effective way to see a dim object is to look",
+   "c": [
+    "slightly off-center from the object",
+    "directly at the object",
+    "at the object through a scanning motion only"
+   ],
+   "why": "The rods, which work best in dim light, are around the edge of the retina, not in the center.",
+   "ref": "PHAK ch. 17"
+  },
+  {
+   "id": "f386",
+   "src": "faa",
+   "topic": "adm",
+   "q": "At night you see a steady red light and a flashing red light ahead at your altitude. The other aircraft is",
+   "c": [
+    "crossing from your right to your left",
+    "crossing from your left to your right",
+    "flying toward you head-on"
+   ],
+   "why": "The red position light is on the left wingtip. Seeing only red means you're looking at its left side, so it moves to your left.",
+   "ref": "PHAK ch. 17"
+  },
+  {
+   "id": "f387",
+   "src": "faa",
+   "topic": "adm",
+   "q": "At night you see a steady white light and a flashing red light ahead at your altitude. The other aircraft is",
+   "c": [
+    "flying away from you",
+    "flying toward you",
+    "crossing from left to right"
+   ],
+   "why": "The white position light is on the tail. You're behind it.",
+   "ref": "PHAK ch. 17"
+  },
+  {
+   "id": "f388",
+   "src": "faa",
+   "topic": "adm",
+   "q": "At night you see steady red and green lights ahead at your altitude. The other aircraft is",
+   "c": [
+    "approaching you head-on",
+    "flying away from you",
+    "crossing in front of you"
+   ],
+   "why": "Red is on the left wing, green on the right. Seeing both means it's heading toward you. Turn right.",
+   "ref": "PHAK ch. 17"
+  },
+  {
+   "id": "f389",
+   "src": "faa",
+   "topic": "adm",
+   "q": "Small amounts of alcohol, at altitude, cause",
+   "c": [
+    "greater impairment than at sea level",
+    "less impairment than at sea level",
+    "the same impairment as at sea level"
+   ],
+   "why": "Alcohol impairs judgment and makes the body more vulnerable to hypoxia. There is no safe amount when flying.",
+   "ref": "PHAK ch. 17"
+  },
+  {
+   "id": "f390",
+   "src": "faa",
+   "topic": "adm",
+   "q": "Before flying while taking any medication, you should",
+   "c": [
+    "check with an aviation medical examiner, since many over-the-counter drugs can impair you",
+    "assume any over-the-counter drug is safe",
+    "double the time since the last dose"
+   ],
+   "why": "14 CFR 91.17 prohibits flying under the influence of any drug that affects your faculties. Antihistamines and sleep aids are common culprits.",
+   "ref": "14 CFR 91.17; PHAK ch. 17"
+  },
+  {
+   "id": "f391",
+   "src": "faa",
+   "topic": "adm",
+   "q": "What should you do if you feel ear pain during a descent from a cold?",
+   "c": [
+    "Swallow, yawn or use the Valsalva maneuver, and avoid flying with a cold",
+    "Climb immediately and stay at altitude",
+    "Descend faster to equalize the pressure"
+   ],
+   "why": "A blocked Eustachian tube can't equalize pressure. Ear block can rupture the eardrum.",
+   "ref": "PHAK ch. 17"
+  },
+  {
+   "id": "f392",
+   "src": "faa",
+   "topic": "adm",
+   "q": "The IMSAFE checklist is used to assess",
+   "c": [
+    "the pilot's fitness for flight",
+    "the airplane's airworthiness",
+    "the weather along the route"
+   ],
+   "why": "Illness, Medication, Stress, Alcohol, Fatigue, Emotion (or Eating).",
+   "ref": "PHAK ch. 2"
+  },
+  {
+   "id": "f393",
+   "src": "faa",
+   "topic": "adm",
+   "q": "The DECIDE model of decision making begins with",
+   "c": [
+    "Detect that a change has occurred",
+    "Decide on a course of action",
+    "Delegate tasks to passengers"
+   ],
+   "why": "Detect, Estimate, Choose, Identify, Do, Evaluate.",
+   "ref": "PHAK ch. 2"
+  },
+  {
+   "id": "f394",
+   "src": "faa",
+   "topic": "adm",
+   "q": "The 3P model of risk management is",
+   "c": [
+    "Perceive, Process, Perform",
+    "Plan, Prepare, Proceed",
+    "Pilot, Plane, Programming"
+   ],
+   "why": "Perceive hazards, Process their risk, Perform risk management. Repeat it throughout the flight.",
+   "ref": "PHAK ch. 2"
+  },
+  {
+   "id": "f395",
+   "src": "faa",
+   "topic": "adm",
+   "q": "Which hazardous attitude is described by \"Don't tell me\"?",
+   "c": [
+    "Anti-authority",
+    "Impulsivity",
+    "Resignation"
+   ],
+   "why": "Antidote: \"Follow the rules. They are usually right.\"",
+   "ref": "PHAK ch. 2"
+  },
+  {
+   "id": "f396",
+   "src": "faa",
+   "topic": "adm",
+   "q": "Which hazardous attitude is described by \"Do it quickly\"?",
+   "c": [
+    "Impulsivity",
+    "Macho",
+    "Invulnerability"
+   ],
+   "why": "Antidote: \"Not so fast. Think first.\"",
+   "ref": "PHAK ch. 2"
+  },
+  {
+   "id": "f397",
+   "src": "faa",
+   "topic": "adm",
+   "q": "Which hazardous attitude is described by \"It won't happen to me\"?",
+   "c": [
+    "Invulnerability",
+    "Resignation",
+    "Anti-authority"
+   ],
+   "why": "Antidote: \"It could happen to me.\"",
+   "ref": "PHAK ch. 2"
+  },
+  {
+   "id": "f398",
+   "src": "faa",
+   "topic": "adm",
+   "q": "Which hazardous attitude is described by \"I can do it\"?",
+   "c": [
+    "Macho",
+    "Impulsivity",
+    "Invulnerability"
+   ],
+   "why": "Antidote: \"Taking chances is foolish.\"",
+   "ref": "PHAK ch. 2"
+  },
+  {
+   "id": "f399",
+   "src": "faa",
+   "topic": "adm",
+   "q": "Which hazardous attitude is described by \"What's the use?\"",
+   "c": [
+    "Resignation",
+    "Anti-authority",
+    "Macho"
+   ],
+   "why": "Antidote: \"I'm not helpless. I can make a difference.\"",
+   "ref": "PHAK ch. 2"
+  },
+  {
+   "id": "f400",
+   "src": "faa",
+   "topic": "adm",
+   "q": "The antidote for an impulsive attitude is",
+   "c": [
+    "\"Not so fast. Think first.\"",
+    "\"Follow the rules.\"",
+    "\"It could happen to me.\""
+   ],
+   "why": "Match each hazardous attitude with its antidote.",
+   "ref": "PHAK ch. 2"
+  },
+  {
+   "id": "f401",
+   "src": "faa",
+   "topic": "adm",
+   "q": "\"Get-there-itis\" (plan continuation bias) is dangerous because it",
+   "c": [
+    "makes pilots continue toward a destination despite deteriorating conditions",
+    "makes pilots turn back too early",
+    "causes hypoxia"
+   ],
+   "why": "Set personal minimums before the flight and have a plan B.",
+   "ref": "PHAK ch. 2"
+  },
+  {
+   "id": "f402",
+   "src": "faa",
+   "topic": "adm",
+   "q": "Scud running is",
+   "c": [
+    "pushing VFR flight into lowering ceilings and visibility to keep visual contact with the ground",
+    "flying above a cloud layer",
+    "flying in the traffic pattern at night"
+   ],
+   "why": "It often ends with flight into terrain or into IMC. One of the classic ADM pitfalls.",
+   "ref": "PHAK ch. 2"
+  },
+  {
+   "id": "f403",
+   "src": "faa",
+   "topic": "adm",
+   "q": "Single-pilot resource management (SRM) is about",
+   "c": [
+    "using all available resources, including ATC, passengers and automation, to manage the flight",
+    "flying without any outside help",
+    "only managing the airplane's systems"
+   ],
+   "why": "SRM covers task management, automation, risk management, situational awareness and CFIT awareness.",
+   "ref": "PHAK ch. 2"
+  },
+  {
+   "id": "f404",
+   "src": "faa",
+   "topic": "adm",
+   "q": "A risk assessment matrix rates risk by combining",
+   "c": [
+    "the likelihood of an event and the severity of its outcome",
+    "the weather and the time of day",
+    "the pilot's age and experience"
+   ],
+   "why": "High likelihood and catastrophic severity is the highest risk. Mitigate or don't go.",
+   "ref": "PHAK ch. 2"
+  },
+  {
+   "id": "f405",
+   "src": "faa",
+   "topic": "adm",
+   "q": "Setting personal minimums is useful because they",
+   "c": [
+    "give a pre-made, objective go/no-go standard above the legal minimums",
+    "replace the regulations",
+    "only apply to student pilots"
+   ],
+   "why": "Decide on your ceiling, visibility and wind limits on the ground, when you aren't under pressure.",
+   "ref": "PHAK ch. 2"
+  },
+  {
+   "id": "f406",
+   "src": "faa",
+   "topic": "adm",
+   "q": "If the engine fails shortly after takeoff, the generally recommended action is to",
+   "c": [
+    "lower the nose to keep airspeed and land more or less straight ahead",
+    "turn back to the runway immediately",
+    "pull the nose up to stretch the glide"
+   ],
+   "why": "Turning back at low altitude often leads to a stall-spin. Pick a spot within about 30° of straight ahead.",
+   "ref": "AFH ch. 18"
+  },
+  {
+   "id": "f407",
+   "src": "faa",
+   "topic": "adm",
+   "q": "When the engine fails in cruise, what should you do first?",
+   "c": [
+    "Establish best glide speed",
+    "Call ATC on 121.5",
+    "Try to restart the engine"
+   ],
+   "why": "Aviate first: ABC is Airspeed (best glide), Best field, Checklist. Then communicate.",
+   "ref": "AFH ch. 18"
+  },
+  {
+   "id": "f408",
+   "src": "faa",
+   "topic": "adm",
+   "q": "In an emergency landing in rough terrain, it's generally better to touch down",
+   "c": [
+    "at the slowest possible speed under control, wings level",
+    "fast, to keep good control",
+    "nose-down, to stop quickly"
+   ],
+   "why": "Kinetic energy grows with the square of speed. Touch down as slowly as you can while still in control.",
+   "ref": "AFH ch. 18"
+  },
+  {
+   "id": "f409",
+   "src": "faa",
+   "topic": "adm",
+   "q": "Which statement is true about an off-airport forced landing?",
+   "c": [
+    "The airframe absorbs energy, so keeping the cabin intact matters more than saving the airplane",
+    "Landing gear should always be retracted on a smooth field",
+    "It's best to land with a tailwind to keep groundspeed high"
+   ],
+   "why": "Land into the wind, as slowly as possible, and let the wings and gear absorb energy.",
+   "ref": "AFH ch. 18"
+  },
+  {
+   "id": "f410",
+   "src": "faa",
+   "topic": "adm",
+   "q": "If an engine fire starts in flight, the usual first step (check the POH) is to",
+   "c": [
+    "shut off the fuel supply: mixture idle cutoff and fuel selector off",
+    "open the cabin vents",
+    "climb to put out the fire"
+   ],
+   "why": "Starve the fire of fuel, then land as soon as possible. A steep descent at higher speed may help extinguish it.",
+   "ref": "AFH ch. 18"
+  },
+  {
+   "id": "f411",
+   "src": "faa",
+   "topic": "adm",
+   "q": "If you smell burning insulation (an electrical fire), the usual first action is to",
+   "c": [
+    "turn off the master switch",
+    "turn off the magnetos",
+    "turn on the cabin heat"
+   ],
+   "why": "Then turn off all other switches (except ignition), close vents, and land as soon as possible.",
+   "ref": "AFH ch. 18"
+  },
+  {
+   "id": "f412",
+   "src": "faa",
+   "topic": "adm",
+   "q": "If you inadvertently fly into IMC as a VFR pilot, the generally recommended action is to",
+   "c": [
+    "keep the wings level on the instruments and make a gentle 180° turn back to VFR",
+    "descend quickly to get below the clouds",
+    "climb steeply to get on top"
+   ],
+   "why": "Trust the attitude indicator, make a standard-rate (or shallower) turn and ask ATC for help.",
+   "ref": "AFH ch. 17"
+  },
+  {
+   "id": "f413",
+   "src": "faa",
+   "topic": "adm",
+   "q": "The ELT in most US aircraft transmits on",
+   "c": [
+    "121.5 MHz and 406 MHz",
+    "122.8 MHz",
+    "118.0 MHz"
+   ],
+   "why": "Satellites monitor only 406 MHz signals. 121.5 is used for homing.",
+   "ref": "AIM 6-2-4"
+  },
+  {
+   "id": "f414",
+   "src": "faa",
+   "topic": "adm",
+   "q": "When flying at night, a pilot should use",
+   "c": [
+    "the position lights, anticollision lights and, near airports, the landing light",
+    "only the landing light",
+    "no lights to preserve night vision"
+   ],
+   "why": "Position lights are required from sunset to sunrise. Landing lights make you more visible.",
+   "ref": "14 CFR 91.209; AIM 4-3-24"
+  },
+  {
+   "id": "f415",
+   "src": "faa",
+   "topic": "adm",
+   "q": "Slow flight is practised to help you",
+   "c": [
+    "recognize the airplane's handling near the stall and maintain control at high angles of attack",
+    "fly the fastest possible traffic pattern",
+    "improve fuel efficiency"
+   ],
+   "why": "Near the stall the controls feel mushy and more power and rudder are needed. ACS: altitude ±100 ft, airspeed +10/−0 kt, no stall warning.",
+   "ref": "AFH ch. 5"
+  },
+  {
+   "id": "f416",
+   "src": "faa",
+   "topic": "adm",
+   "q": "The first step in recovering from any stall is to",
+   "c": [
+    "reduce the angle of attack",
+    "add full power",
+    "level the wings with aileron"
+   ],
+   "why": "Pitch nose down to reduce the angle of attack, level the wings, then add power as needed. Add right rudder for the power.",
+   "ref": "AFH ch. 5"
+  },
+  {
+   "id": "f417",
+   "src": "faa",
+   "topic": "adm",
+   "q": "A go-around should begin with",
+   "c": [
+    "applying takeoff power and adjusting pitch to stop the descent",
+    "retracting all the flaps at once",
+    "turning toward the downwind leg"
+   ],
+   "why": "Power first, pitch to climb attitude, then clean up flaps in stages. Retracting all flaps at once can make the airplane sink.",
+   "ref": "AFH ch. 9"
+  },
+  {
+   "id": "f418",
+   "src": "faa",
+   "topic": "adm",
+   "q": "During a forward slip, the airplane's",
+   "c": [
+    "longitudinal axis points at an angle to its flight path, increasing drag and descent rate",
+    "nose stays aligned with the flight path",
+    "airspeed increases rapidly"
+   ],
+   "why": "A forward slip uses opposite aileron and rudder to lose altitude without gaining airspeed. A sideslip corrects for crosswind on landing.",
+   "ref": "AFH ch. 8"
+  },
+  {
+   "id": "f419",
+   "src": "faa",
+   "topic": "adm",
+   "q": "In a crosswind landing using the wing-low method, you lower the",
+   "c": [
+    "upwind wing and use opposite rudder to keep the nose aligned with the runway",
+    "downwind wing with rudder toward the wind",
+    "upwind wing and rudder toward the wind"
+   ],
+   "why": "Aileron into the wind stops the drift; opposite rudder aligns the nose. Touch down on the upwind main wheel first.",
+   "ref": "AFH ch. 8"
+  },
+  {
+   "id": "f420",
+   "src": "faa",
+   "topic": "adm",
+   "q": "On a soft-field takeoff, you should",
+   "c": [
+    "keep weight off the nosewheel, lift off as soon as possible and accelerate in ground effect",
+    "hold the airplane on the ground until well above Vy",
+    "use full flaps for every soft-field takeoff"
+   ],
+   "why": "Get the nosewheel off the soft surface early, lift off at a low speed, then accelerate to Vx or Vy in ground effect.",
+   "ref": "AFH ch. 6"
+  },
+  {
+   "id": "f421",
+   "src": "faa",
+   "topic": "adm",
+   "q": "On a short-field takeoff over an obstacle, you should climb at",
+   "c": [
+    "Vx until clear of the obstacle, then Vy",
+    "Vy from liftoff",
+    "the highest speed possible"
+   ],
+   "why": "Vx gives the most altitude per distance. Once clear, transition to Vy.",
+   "ref": "AFH ch. 6"
+  },
+  {
+   "id": "f422",
+   "src": "faa",
+   "topic": "adm",
+   "q": "The ACS standard for altitude during steep turns for a private pilot is",
+   "c": [
+    "±100 ft",
+    "±200 ft",
+    "±50 ft"
+   ],
+   "why": "Steep turns: 45° bank ±5°, altitude ±100 ft, airspeed ±10 kt, roll out on heading ±10°.",
+   "ref": "FAA-S-ACS-6"
+  },
+  {
+   "id": "f423",
+   "src": "faa",
+   "topic": "adm",
+   "q": "When practicing ground reference maneuvers such as turns around a point, the steepest bank occurs when",
+   "c": [
+    "the airplane is headed directly downwind",
+    "the airplane is headed directly upwind",
+    "the airplane is crosswind"
+   ],
+   "why": "Groundspeed is highest downwind, so the bank must be steepest there to keep a constant radius.",
+   "ref": "AFH ch. 7"
+  },
+  {
+   "id": "f424",
+   "src": "faa",
+   "topic": "wake",
+   "q": "Wingtip vortices tend to",
+   "c": [
+    "sink and spread out behind the airplane",
+    "rise above the flight path",
+    "stay at the generating aircraft's altitude"
+   ],
+   "why": "They sink about 300 to 500 fpm and level off 500 to 1,000 ft below the flight path.",
+   "ref": "AIM 7-4-4"
+  },
+  {
+   "id": "f425",
+   "src": "faa",
+   "topic": "wake",
+   "q": "Near the ground, wake vortices drift outward at about",
+   "c": [
+    "2 to 3 knots",
+    "10 to 15 knots",
+    "they don't move once on the ground"
+   ],
+   "why": "Within 100 to 200 ft of the ground they move laterally at 2 to 3 knots. A light crosswind can stall one vortex over the runway.",
+   "ref": "AIM 7-4-4"
+  },
+  {
+   "id": "f426",
+   "src": "faa",
+   "topic": "wake",
+   "q": "Which wind condition is most likely to keep a wake vortex over the landing runway?",
+   "c": [
+    "A light quartering tailwind",
+    "A strong headwind",
+    "A strong crosswind"
+   ],
+   "why": "A light quartering tailwind can move the vortices into the touchdown zone of the following aircraft.",
+   "ref": "AIM 7-4-4"
+  },
+  {
+   "id": "f427",
+   "src": "faa",
+   "topic": "wake",
+   "q": "Departing behind a large jet that just took off, you should",
+   "c": [
+    "lift off before the jet's rotation point and climb above its flight path",
+    "lift off after its rotation point",
+    "wait 30 seconds and depart normally"
+   ],
+   "why": "Its vortices start at rotation, so be airborne before that point and stay above its path, or wait.",
+   "ref": "AIM 7-4-6"
+  },
+  {
+   "id": "f428",
+   "src": "faa",
+   "topic": "wake",
+   "q": "Taking off behind a large jet that just landed, you should lift off",
+   "c": [
+    "beyond the point where the jet touched down",
+    "before the point where the jet touched down",
+    "at any point, since vortices stop at touchdown"
+   ],
+   "why": "The landing jet's vortices exist up to its touchdown point. Lift off past it.",
+   "ref": "AIM 7-4-6"
+  },
+  {
+   "id": "f429",
+   "src": "faa",
+   "topic": "wake",
+   "q": "Which aircraft generates the strongest wake turbulence?",
+   "c": [
+    "A heavy airplane, in a clean configuration, flying slowly",
+    "A light airplane at high speed",
+    "A heavy airplane with full flaps at high speed"
+   ],
+   "why": "Weight, slow speed and a clean wing produce the strongest vortices.",
+   "ref": "AIM 7-4-3"
+  },
+  {
+   "id": "f430",
+   "src": "faa",
+   "topic": "wake",
+   "q": "Hovering and slow-moving helicopters produce",
+   "c": [
+    "a strong downwash and vortices that can be as dangerous as an airplane's",
+    "no wake turbulence",
+    "turbulence only above the helicopter"
+   ],
+   "why": "Avoid taxiing or flying within three rotor diameters of a hovering helicopter.",
+   "ref": "AIM 7-4-7"
+  },
+  {
+   "id": "f431",
+   "src": "faa",
+   "topic": "wake",
+   "q": "Wake turbulence separation for a light aircraft departing behind a heavy jet from the same runway is normally",
+   "c": [
+    "2 minutes (or 3 minutes from an intersection), applied by ATC",
+    "30 seconds",
+    "no separation is applied"
+   ],
+   "why": "ATC applies time-based wake separation, but you can request more. The pilot still owns wake avoidance.",
+   "ref": "AIM 7-4-9"
+  },
+  {
+   "id": "f432",
+   "src": "faa",
+   "topic": "wake",
+   "q": "When ATC issues \"caution wake turbulence\", the responsibility for avoiding the wake is",
+   "c": [
+    "the pilot's",
+    "ATC's",
+    "shared equally with the other pilot"
+   ],
+   "why": "Pilots are expected to adjust their flight path to avoid wake encounters.",
+   "ref": "AIM 7-4-8"
+  },
+  {
+   "id": "f433",
+   "src": "faa",
+   "topic": "wake",
+   "q": "Crossing behind a large jet en route, you should",
+   "c": [
+    "fly above its flight path or wait, rather than crossing below and behind it",
+    "cross below its flight path",
+    "cross immediately behind it at the same altitude"
+   ],
+   "why": "Vortices sink, so cross above. Avoid the area below and behind a large aircraft.",
+   "ref": "AIM 7-4-6"
+  },
+  {
+   "id": "f434",
+   "src": "faa",
+   "topic": "wake",
+   "q": "Jet blast from a taxiing jet can be hazardous",
+   "c": [
+    "for hundreds of feet behind the jet, even at idle power",
+    "only during takeoff power",
+    "only to other jets"
+   ],
+   "why": "Stay well clear behind jets on the ground and position yourself to avoid their exhaust.",
+   "ref": "AC 90-23"
+  },
+  {
+   "id": "f435",
+   "src": "faa",
+   "topic": "wake",
+   "q": "The greatest risk of a wake encounter on approach is when you are",
+   "c": [
+    "below and behind the generating aircraft",
+    "above and behind the generating aircraft",
+    "abeam the generating aircraft at a higher altitude"
+   ],
+   "why": "Because vortices sink, stay at or above the larger aircraft's path.",
+   "ref": "AIM 7-4-6"
+  },
+  {
+   "id": "f436",
+   "src": "faa",
+   "topic": "wake",
+   "q": "A wake vortex encounter can cause",
+   "c": [
+    "a sudden, uncommanded roll that may exceed the airplane's roll control",
+    "a gradual increase in airspeed",
+    "only a slight bump with no control problems"
+   ],
+   "why": "The induced roll can exceed what the ailerons can counter, especially for small aircraft.",
+   "ref": "AIM 7-4-5"
   }
  ]
 }

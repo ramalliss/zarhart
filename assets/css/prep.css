@@ -131,3 +131,17 @@ textarea { width: 100%; min-height: 280px; font: 13px/1.5 var(--f-mono); backgro
 .path h3 { font-size: 20px; margin-bottom: 6px; }
 .path p { color: var(--muted); }
 .path .chip { margin-left: 6px; }
+
+/* readiness, per-question status, quiz timer */
+.ready { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); }
+.ready > div { display: grid; gap: 4px; padding: 14px 16px; background: var(--panel); }
+.ready b { font: 500 30px/1 var(--f-mono); color: var(--text); }
+.ready b.pass { color: var(--green); } .ready b.close { color: var(--amber); } .ready b.fail { color: var(--red); }
+.ready span { font: 500 11.5px var(--f-body); letter-spacing: .14em; text-transform: uppercase; color: var(--dim); }
+@media (max-width: 560px) { .ready { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.meta .st { padding: 1px 6px; border-radius: 2px; border: 1px solid currentColor; }
+.meta .st.ok { color: var(--green); } .meta .st.no { color: var(--amber); }
+.pill.no { color: var(--amber); border-color: var(--amber); }
+.qtop .clock { color: var(--cyan); }
+.qtop .clock.low { color: var(--red); }
+.fb .cref { margin-top: 0; }

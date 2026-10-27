@@ -16,19 +16,44 @@ const META = {
   nav: { acs: "PA.I.D, PA.VI", phak: "Ch. 16 Navigation", lessons: [["vor", "VOR tracking"], ["xc", "Pilotage cross-country"]] },
   adm: { acs: "PA.I.H, PA.V, PA.IX", phak: "Ch. 2 ADM, Ch. 17 Aeromedical", lessons: [["enginefail", "Engine failure"], ["crosswind", "Crosswind landing"]] },
 };
-const SRC = { test: "Practice test review set", extra: "Commonly tested", phak: "From the FAA handbook" };
+const SRC = { test: "Practice test review set", extra: "Commonly tested", phak: "From the FAA handbook", faa: "From FAA handbooks and regulations" };
+/** questions per topic on the practice exam (60 in all), roughly in proportion to the real test */
+const EXAM_MIX = { regs: 12, wx: 10, nav: 8, ops: 7, aero: 6, perf: 5, inst: 5, adm: 5, wake: 2 };
 
 let DATA, TOPICS, CARDS;
 const progress = store.get("progress", {}); // topic -> {right, total}
 const known = new Set(store.get("known", []));
-function record(c, ok) { const p = (progress[c.topic] ||= { right: 0, total: 0 }); p.total++; if (ok) p.right++; store.set("progress", progress); }
+/** per-question history: id -> { r: right, w: wrong, b: Leitner box 0–5, t: last answered (ms) } */
+const hist = store.get("qh", {});
+function record(c, ok) {
+  const p = (progress[c.topic] ||= { right: 0, total: 0 }); p.total++; if (ok) p.right++; store.set("progress", progress);
+  const h = (hist[c.id] ||= { r: 0, w: 0, b: 0, t: 0 });
+  if (ok) { h.r++; h.b = Math.min(5, h.b + 1); } else { h.w++; h.b = 0; }
+  h.t = Date.now(); store.set("qh", hist);
+}
+const mastered = (c) => (hist[c.id]?.b || 0) >= 3;
+const missed = (c) => !!hist[c.id]?.w && (hist[c.id].b || 0) < 3;
 
 const DECKS = [
   { key: "all", label: "All questions", pick: () => true },
+  { key: "faa", label: "FAA handbooks & regulations", pick: (c) => c.src === "faa" },
   { key: "test", label: "Practice test review set", pick: (c) => c.src === "test" },
   { key: "extra", label: "Commonly tested topics", pick: (c) => c.src === "extra" },
   { key: "phak", label: "FAA handbook questions", pick: (c) => c.src === "phak" },
 ];
+/** topic accuracy from per-question history, pulled toward 60% until there are enough answers */
+function topicAcc(key) {
+  let r = 0, n = 0;
+  for (const c of CARDS) if (c.topic === key && hist[c.id]) { r += hist[c.id].r; n += hist[c.id].r + hist[c.id].w; }
+  return { acc: (r + 0.6 * 6) / (n + 6), n };
+}
+/** smart review: missed and unseen questions first, weak topics weighted up, mastered ones rarely */
+function smartPick(pool, n) {
+  const acc = Object.fromEntries(DATA.topics.map((t) => [t.key, topicAcc(t.key).acc]));
+  const w = (c) => { const h = hist[c.id]; const base = !h ? 3 : [6, 3, 1.5, 0.7, 0.3, 0.15][h.b]; return base * (1 + 1.5 * (1 - acc[c.topic])); };
+  const left = pool.map((c) => ({ c, k: Math.pow(Math.random(), 1 / w(c)) })); // weighted sampling without replacement
+  return left.sort((a, b) => b.k - a.k).slice(0, n).map((x) => x.c);
+}
 const deck = (key, topic) => CARDS.filter(DECKS.find((d) => d.key === key).pick).filter((c) => !topic || topic === "all" || c.topic === topic);
 const deckOptions = (sel) => DECKS.map((d) => `<option value="${d.key}" ${d.key === sel ? "selected" : ""}>${esc(d.label)} (${deck(d.key).length})</option>`).join("");
 const topicOptions = () => `<option value="all">All topics</option>` + DATA.topics.map((t) => `<option value="${t.key}">${esc(t.name)}</option>`).join("");
@@ -41,9 +66,20 @@ function showTab(name, push = true) {
 }
 
 /* ---------------- study guide ---------------- */
-function renderGuide(focusId) {
+function readiness() {
+  const seen = CARDS.filter((c) => hist[c.id]).length, answers = Object.values(hist).reduce((s, h) => s + h.r + h.w, 0);
+  if (answers < 30) return `<p class="dnote">Answer at least 30 questions (quiz or practice exam) and your predicted test score shows up here. You've answered ${answers}.</p>`;
+  const tot = Object.values(EXAM_MIX).reduce((a, b) => a + b, 0);
+  const score = Math.round(100 * Object.entries(EXAM_MIX).reduce((s, [k, n]) => s + n * topicAcc(k).acc, 0) / tot);
+  return `<div class="ready"><div><b class="${score >= 80 ? "pass" : score >= 70 ? "close" : "fail"}">${score}%</b><span>predicted test score</span></div><div><b>${CARDS.filter(mastered).length}</b><span>of ${CARDS.length} mastered</span></div><div><b>${seen}</b><span>seen</span></div><div><b>${CARDS.filter(missed).length}</b><span>to review</span></div></div>
+    <p class="dnote">${score >= 80 ? "You're in good shape. Keep the missed questions down and take a timed practice exam." : score >= 70 ? "Close to passing. Aim for 80%+ before you book the test: run Smart review until the misses are cleared." : "Keep going: Smart review serves your missed questions and weakest topics first."}</p>`;
+}
+function renderStatus() {
   const weak = DATA.topics.map((t) => ({ t, p: progress[t.key] })).filter((x) => x.p?.total >= 3).sort((a, b) => a.p.right / a.p.total - b.p.right / b.p.total).slice(0, 3);
-  $("#weak").innerHTML = weak.length ? `<p class="eyebrow">Your weakest topics (from quizzes on this device)</p><div class="weakrow">${weak.map((x) => `<a href="#g-${x.t.key}" class="weak"><b>${Math.round(100 * x.p.right / x.p.total)}%</b><span>${esc(x.t.name)}</span></a>`).join("")}</div>` : `<p class="dnote">Take a quiz or a practice exam and your weakest topics show up here.</p>`;
+  $("#weak").innerHTML = readiness() + (weak.length ? `<p class="eyebrow">Your weakest topics (from quizzes on this device)</p><div class="weakrow">${weak.map((x) => `<a href="#g-${x.t.key}" class="weak"><b>${Math.round(100 * x.p.right / x.p.total)}%</b><span>${esc(x.t.name)}</span></a>`).join("")}</div>` : "");
+}
+function renderGuide(focusId) {
+  renderStatus();
   $("#guide").innerHTML = DATA.topics.map((t) => {
     const cs = CARDS.filter((c) => c.topic === t.key); const m = META[t.key];
     const open = focusId ? cs.some((c) => c.id === focusId) : false;
@@ -51,7 +87,7 @@ function renderGuide(focusId) {
       <div class="tbody">
         <div class="tlinks"><a href="${PHAK}" target="_blank" rel="noopener">PHAK ${esc(m.phak)} ↗</a><a href="https://fly8ma.com/private-pilot-ground-school/" target="_blank" rel="noopener">FLY8MA lesson videos ↗</a>${m.lessons.map(([id, n]) => `<a class="fly" href="../sim/?lesson=${id}">✈ Fly it: ${esc(n)}</a>`).join("")}</div>
         <div class="facts"><h3>Know cold</h3><ul>${t.facts.map((f) => `<li>${esc(f)}</li>`).join("")}</ul></div>
-        <ol class="qlist">${cs.map((c) => `<li id="card-${c.id}" class="${c.id === focusId ? "focus" : ""}"><p class="q"><span class="qid">${c.id.toUpperCase()}</span>${esc(c.orig || c.q)}</p>${c.orig ? `<p class="concept">Practice version: ${esc(c.q)}</p>` : ""}<p class="a"><span>Answer</span>${esc(c.c[0])}</p>${c.why ? `<p class="why">${esc(c.why)}</p>` : ""}<p class="meta">${c.fig ? `<span class="fig">${esc(c.fig)}</span>` : ""}<span>${esc(c.ref || "")}</span><span>${esc(SRC[c.src])}</span>${c.note ? `<span>${esc(c.note)}</span>` : ""}</p></li>`).join("")}</ol>
+        <ol class="qlist">${cs.map((c) => `<li id="card-${c.id}" class="${c.id === focusId ? "focus" : ""}"><p class="q"><span class="qid">${c.id.toUpperCase()}</span>${esc(c.orig || c.q)}</p>${c.orig ? `<p class="concept">Practice version: ${esc(c.q)}</p>` : ""}<p class="a"><span>Answer</span>${esc(c.c[0])}</p>${c.why ? `<p class="why">${esc(c.why)}</p>` : ""}<p class="meta">${mastered(c) ? `<span class="st ok">Mastered</span>` : missed(c) ? `<span class="st no">Missed ${hist[c.id].w}×</span>` : ""}${c.fig ? `<span class="fig">${esc(c.fig)}</span>` : ""}<span>${esc(c.ref || "")}</span><span>${esc(SRC[c.src])}</span>${c.note ? `<span>${esc(c.note)}</span>` : ""}</p></li>`).join("")}</ol>
       </div></details>`;
   }).join("");
   if (focusId) setTimeout(() => $("#card-" + focusId)?.scrollIntoView({ block: "center" }), 50);
@@ -74,17 +110,41 @@ const move = (d) => { if (!fc.list.length) return; fc.i = (fc.i + d + fc.list.le
 function mark(k) { if (!fc.list.length) return; const c = fc.list[fc.i]; if (k) known.add(c.id); else known.delete(c.id); store.set("known", [...known]); if (k && $("#fcSkip").checked) { fc.list.splice(fc.i, 1); if (fc.i >= fc.list.length) fc.i = 0; fc.flipped = false; fcRender(); } else move(1); }
 
 /* ---------------- quiz ---------------- */
-const qz = { list: [], i: 0, order: [], picked: null, res: [] };
-function qzStart(pool) { const n = +$("#qzLen").value; pool = pool || deck($("#qzDeck").value, $("#qzTopic").value); qz.list = shuffle(pool).slice(0, Math.min(n, pool.length)); qz.i = 0; qz.res = []; qzNext(); }
-function qzNext() { qz.picked = null; if (!qz.list.length) { $("#qzStage").innerHTML = `<div class="empty">No questions match.</div>`; return; } if (qz.i >= qz.list.length) return qzEnd(); const c = qz.list[qz.i]; qz.order = shuffle(c.c.map((t, k) => ({ t, ok: k === 0 }))); qzRender(); }
+const qz = { list: [], i: 0, order: [], picked: null, res: [], timer: null, deadline: 0 };
+const EMPTY = { missed: "No missed questions here yet. Take a quiz, and anything you get wrong comes back in this mode until you've answered it right three times.", new: "You've seen every question in this deck and topic. Try Smart review." };
+/** retry: an explicit list of cards (the "retry the ones I missed" button); otherwise build from the toolbar */
+function qzStart(retry) {
+  const n = +$("#qzLen").value, mode = $("#qzMode").value;
+  let pool = retry || deck($("#qzDeck").value, $("#qzTopic").value);
+  if (!retry && mode === "missed") pool = pool.filter(missed);
+  if (!retry && mode === "new") pool = pool.filter((c) => !hist[c.id]);
+  const k = Math.min(n, pool.length);
+  qz.list = !retry && mode === "smart" ? smartPick(pool, k) : shuffle(pool).slice(0, k); qz.i = 0; qz.res = [];
+  if (!qz.list.length) { clearInterval(qz.timer); $("#qzStage").innerHTML = `<div class="empty">${esc(EMPTY[mode] || "No questions match.")}</div>`; return; }
+  qzNext();
+}
+function qzNext() { qz.picked = null; if (qz.i >= qz.list.length) return qzEnd(); const c = qz.list[qz.i]; qz.order = shuffle(c.c.map((t, k) => ({ t, ok: k === 0 }))); qzRender(); }
+/** k: the chosen answer, or -1 when the time ran out */
+function qzAnswer(k) {
+  if (qz.picked !== null) return;
+  const c = qz.list[qz.i]; qz.picked = k; const ok = k >= 0 && qz.order[k].ok;
+  qz.res.push({ c, ok, picked: k >= 0 ? qz.order[k].t : "(time ran out)" }); record(c, ok); qzRender(); $("#qzGo")?.focus();
+}
+function qzClock() {
+  clearInterval(qz.timer); if (!$("#qzTimed").checked || qz.picked !== null) return;
+  qz.deadline = Date.now() + 30000;
+  const tick = () => { const left = Math.max(0, Math.ceil((qz.deadline - Date.now()) / 1000)); const el = $("#qzClock"); if (el) { el.textContent = `⏱ ${left}s`; el.classList.toggle("low", left <= 10); } if (left <= 0) { clearInterval(qz.timer); qzAnswer(-1); } };
+  tick(); qz.timer = setInterval(tick, 250);
+}
 function qzRender() {
-  const c = qz.list[qz.i], done = qz.picked !== null, good = done && qz.order[qz.picked].ok;
-  $("#qzStage").innerHTML = `<div class="qtop"><span>Question ${qz.i + 1} of ${qz.list.length}</span><span>${qz.res.filter((r) => r.ok).length} correct</span></div><div class="bar"><span style="width:${(qz.i / qz.list.length) * 100}%"></span></div>
-    <div class="cmeta"><span class="pill">${esc(TOPICS[c.topic].name)}</span>${c.fig ? `<span class="pill fig">${esc(c.fig)}</span>` : ""}</div><p class="qq">${esc(c.q)}</p>
+  const c = qz.list[qz.i], done = qz.picked !== null, good = done && qz.picked >= 0 && qz.order[qz.picked].ok, timedOut = done && qz.picked < 0;
+  $("#qzStage").innerHTML = `<div class="qtop"><span>Question ${qz.i + 1} of ${qz.list.length}</span>${$("#qzTimed").checked && !done ? `<span class="clock" id="qzClock"></span>` : ""}<span>${qz.res.filter((r) => r.ok).length} correct</span></div><div class="bar"><span style="width:${(qz.i / qz.list.length) * 100}%"></span></div>
+    <div class="cmeta"><span class="pill">${esc(TOPICS[c.topic].name)}</span>${c.fig ? `<span class="pill fig">${esc(c.fig)}</span>` : ""}${missed(c) && !done ? `<span class="pill no">Missed before</span>` : ""}</div><p class="qq">${esc(c.q)}</p>
     ${qz.order.map((o, k) => `<button class="choice ${done && o.ok ? "right" : done && k === qz.picked ? "wrong" : ""}" data-k="${k}" ${done ? "disabled" : ""}><span class="lt">${"ABC"[k]}</span><span>${esc(o.t)}</span></button>`).join("")}
-    ${done ? `<div class="fb ${good ? "" : "no"}"><p><b>${good ? "Correct." : "Not quite."}</b> ${good ? "" : "Answer: " + esc(c.c[0])}</p>${c.why ? `<p>${esc(c.why)}</p>` : ""}</div><div class="actions"><button class="btn primary" id="qzGo">${qz.i + 1 < qz.list.length ? "Next →" : "See results"}</button></div>` : ""}`;
-  document.querySelectorAll("#qzStage .choice").forEach((b) => b.onclick = () => { qz.picked = +b.dataset.k; const ok = qz.order[qz.picked].ok; qz.res.push({ c, ok, picked: qz.order[qz.picked].t }); record(c, ok); qzRender(); $("#qzGo")?.focus(); });
+    ${done ? `<div class="fb ${good ? "" : "no"}"><p><b>${good ? "Correct." : timedOut ? "Time's up." : "Not quite."}</b> ${good ? "" : "Answer: " + esc(c.c[0])}</p>${c.why ? `<p>${esc(c.why)}</p>` : ""}${c.ref ? `<p class="cref">${esc(c.ref)}</p>` : ""}</div><div class="actions"><button class="btn primary" id="qzGo">${qz.i + 1 < qz.list.length ? "Next →" : "See results"}</button></div>` : ""}`;
+  document.querySelectorAll("#qzStage .choice").forEach((b) => b.onclick = () => qzAnswer(+b.dataset.k));
   const go = $("#qzGo"); if (go) go.onclick = () => { qz.i++; qzNext(); };
+  qzClock();
 }
 function qzEnd() {
   const r = qz.res.filter((x) => x.ok).length, p = Math.round(100 * r / qz.res.length), wrong = qz.res.filter((x) => !x.ok);
@@ -93,12 +153,21 @@ function qzEnd() {
     <div class="actions">${wrong.length ? `<button class="btn" id="qzRetry">Retry the ${wrong.length} I missed</button>` : ""}<button class="btn primary" id="qzAgain">New quiz</button></div></div>`;
   $("#qzRetry") && ($("#qzRetry").onclick = () => qzStart(wrong.map((w) => w.c)));
   $("#qzAgain").onclick = () => qzStart();
+  renderStatus();
 }
 
 /* ---------------- practice exam (60 Q, 2.5 h) ---------------- */
 const ex = { list: [], answers: [], orders: [], i: 0, end: 0, timer: null, done: false };
+/** 60 questions in the EXAM_MIX proportions, topped up from other topics if one runs short */
+function examPick() {
+  const picked = [];
+  for (const [k, n] of Object.entries(EXAM_MIX)) picked.push(...shuffle(CARDS.filter((c) => c.topic === k)).slice(0, n));
+  const ids = new Set(picked.map((c) => c.id));
+  picked.push(...shuffle(CARDS.filter((c) => !ids.has(c.id))).slice(0, 60 - picked.length));
+  return shuffle(picked).slice(0, 60);
+}
 function exStart() {
-  ex.list = shuffle(CARDS).slice(0, 60); ex.orders = ex.list.map((c) => shuffle(c.c.map((t, k) => ({ t, ok: k === 0 }))));
+  ex.list = examPick(); ex.orders = ex.list.map((c) => shuffle(c.c.map((t, k) => ({ t, ok: k === 0 }))));
   ex.answers = new Array(60).fill(null); ex.i = 0; ex.done = false; ex.end = Date.now() + 150 * 60 * 1000;
   clearInterval(ex.timer); ex.timer = setInterval(exTick, 1000); exRender();
 }
@@ -130,6 +199,7 @@ function exFinish() {
     <div class="actions"><button class="btn primary" id="exAgain">Take another practice exam</button></div>
     <p class="dnote">Recent scores on this device: ${hist.slice(0, 6).map((h) => `${h.p}%`).join(" · ")}</p></div>`;
   $("#exAgain").onclick = exStart;
+  renderStatus();
 }
 
 /* ---------------- quizlet ---------------- */
