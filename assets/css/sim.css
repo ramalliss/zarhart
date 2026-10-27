@@ -149,6 +149,29 @@ kbd { font: 600 12px/1 var(--f-mono); padding: 4px 6px; border-radius: 3px; back
 .knob { width: 48px; height: 48px; border-radius: 50%; background: rgba(230, 75, 208, .8); }
 .thr { pointer-events: auto; display: grid; justify-items: center; gap: 4px; font: 700 11px var(--f-mono); color: var(--muted); }
 .thr input { writing-mode: vertical-lr; direction: rtl; height: 120px; accent-color: var(--magenta); }
+.tright { display: flex; align-items: flex-end; gap: 10px; }
+.tbtns { pointer-events: auto; display: grid; grid-template-columns: repeat(2, 66px); gap: 6px; }
+.tbtns button { height: 36px; padding: 0 4px; border-radius: 4px; border: 1px solid var(--line-2); background: rgba(5, 6, 7, .62); color: var(--text); font: 600 11px/1 var(--f-body); letter-spacing: .02em; white-space: nowrap; touch-action: manipulation; -webkit-user-select: none; user-select: none; }
+.tbtns button:active, .tbtns button.on { background: var(--magenta); border-color: var(--magenta); color: #fff; }
+.quicktouch { display: none; list-style: none; padding: 0; margin: 6px 0 0; gap: 6px; color: var(--muted); font-size: 14px; }
+.quicktouch b { color: var(--text); font-weight: 600; }
+.modal { overflow-y: auto; }
+.modal .card { max-height: 100%; overflow-y: auto; }
+
+/* phones held sideways: no instrument panel (the data strip shows instead), smaller lesson card and messages */
+@media (max-height: 500px) {
+  .obj, .obj.min { width: min(300px, 40vw); font-size: 13px; top: calc(env(safe-area-inset-top, 0px) + 54px); }
+  #toasts { left: auto; right: var(--gutter-r); transform: none; width: min(380px, 48vw); top: calc(env(safe-area-inset-top, 0px) + 54px); }
+  #toasts .toast { font-size: 13px; padding: 7px 10px; }
+  #toasts .toast:nth-child(n+3) { display: none; }
+  .vfr { display: none; }
+  .stick { width: 104px; height: 104px; }
+  .thr input { height: 104px; }
+  .tbtns { grid-template-columns: repeat(4, 66px); }
+  .modal .card { padding: 18px 22px; gap: 10px; }
+  .strip { left: calc(var(--gutter) + 116px); transform: none; justify-content: flex-start; max-width: calc(100vw - var(--gutter) - 116px - 360px); }
+  .strip span { font-size: 13px; padding: 5px 7px; }
+}
 
 @media (max-width: 720px) {
   .vfr { top: auto; bottom: calc(var(--panel-h, 0px) + 156px); right: var(--gutter-r); max-width: min(210px, calc(100vw - 180px)); font-size: 12px; }
@@ -180,3 +203,13 @@ kbd { font: 600 12px/1 var(--f-mono); padding: 4px 6px; border-radius: 3px; back
 @media (max-width: 720px) { .ctl { display: none; } }
 
 .pro { display: inline-block; font: 600 9.5px/1 var(--f-body); letter-spacing: .16em; text-transform: uppercase; color: var(--magenta); border: 1px solid rgba(230, 75, 208, .55); padding: 3px 5px; border-radius: 2px; vertical-align: 2px; }
+
+/* touch screens (last, so they win over the rules above) */
+@media (pointer: coarse) {
+  .quickkeys { display: none; }
+  .quicktouch { display: grid; }
+  .ctl { display: none; }
+}
+@media (pointer: coarse) and (max-width: 720px) {
+  .vfr, .gmeter { bottom: calc(var(--panel-h, 0px) + 196px); }
+}

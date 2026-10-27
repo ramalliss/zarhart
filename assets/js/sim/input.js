@@ -12,7 +12,7 @@ export class Input {
     this.assist = "assisted"; // assisted | rudder | off
     this.tgt = null; // attitude targets for assisted mode
     this.mouse = { x: 0, y: 0, inside: false };
-    this.touch = { active: false, x: 0, y: 0, throttle: null };
+    this.touch = { active: false, x: 0, y: 0, throttle: null, brake: false, thrBusy: false };
     this.handlers = {}; // one-shot actions: name -> fn
     this.pad = null; this.padThrottle = null;
     this.xr = null; // VR controller state, written by vr.js each frame
@@ -45,6 +45,7 @@ export class Input {
     if (this.held("ArrowRight", "d")) rollT += 1;
     if (this.held("q")) yawT -= 1;
     if (this.held("e")) yawT += 1;
+    yawT += this.touch.yaw || 0; // touch rudder buttons
     if (this.invert) pitchT = -pitchT;
     let usingAnalog = false;
     // gamepad / joystick
@@ -118,11 +119,11 @@ export class Input {
     // throttle, trim, brakes (keyboard)
     if (this.held("r", "PageUp", "+", "=")) c.throttle = clamp(c.throttle + 0.45 * dt, 0, 1);
     if (this.held("f", "PageDown", "-")) c.throttle = clamp(c.throttle - 0.45 * dt, 0, 1);
-    if (this.touch.throttle != null) c.throttle = this.touch.throttle;
+    if (this.touch.throttle != null) { c.throttle = this.touch.throttle; this.touch.throttle = null; } // slider moves set it once; lessons and keys can still change it
     if (xr?.thr) c.throttle = clamp(c.throttle + xr.thr * 0.5 * dt, 0, 1);
     if (this.held("t", "Home")) c.trim = clamp(c.trim + 0.22 * dt, -1, 1);
     if (this.held("g", "End")) c.trim = clamp(c.trim - 0.22 * dt, -1, 1);
-    const b = Math.max(this.held("b") ? 1 : 0, xr ? xr.brake : 0);
+    const b = Math.max(this.held("b") ? 1 : 0, xr ? xr.brake : 0, this.touch.brake ? 1 : 0);
     c.brake = b; c.brakeL = this.held(",") ? 1 : 0; c.brakeR = this.held(".") ? 1 : 0;
     if (b && Math.abs(c.rudder) > 0.2) { c.brakeL = c.rudder < 0 ? 1 : 0.3; c.brakeR = c.rudder > 0 ? 1 : 0.3; c.brake = 0; }
   }
@@ -134,5 +135,7 @@ export class Input {
     stickEl.addEventListener("touchstart", stick, { passive: false }); stickEl.addEventListener("touchmove", stick, { passive: false });
     stickEl.addEventListener("touchend", () => { this.touch.active = false; knobEl.style.transform = ""; });
     thrEl.addEventListener("input", () => { this.touch.throttle = thrEl.value / 100; });
+    const busy = (on) => () => { this.touch.thrBusy = on; };
+    thrEl.addEventListener("pointerdown", busy(true)); thrEl.addEventListener("pointerup", busy(false)); thrEl.addEventListener("pointercancel", busy(false));
   }
 }

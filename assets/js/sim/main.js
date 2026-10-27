@@ -150,7 +150,12 @@ function updateCamera(dt) {
 
 /* ---------------- HUD helpers ---------------- */
 const toasts = $("#toasts");
+/** on touch screens, key hints in lesson text and messages name the on-screen button or menu instead */
+const TOUCH = matchMedia("(pointer: coarse)").matches;
+const TOUCH_KEYS = { "Shift+B": "Park brk", E: "Rudder ▶", Q: "◀ Rudder", Space: "Radio → Click the mic", H: "Aircraft → Carb heat", M: "Map", K: "Checklist", C: "View", P: "Pause" };
+const forTouch = (s) => (TOUCH ? s.replace(/\((Shift\+B|Space|[A-Z])\)/g, (m, k) => (TOUCH_KEYS[k] ? `(${TOUCH_KEYS[k]})` : m)).replace(/ \(or press [A-Z]\)/g, "").replace(/Press Space to click the mic/g, "Tap Radio → Click the mic") : s);
 function say(text, kind = "info", ms = 5200) {
+  text = forTouch(text);
   vr.message(text, kind);
   const el = document.createElement("div"); el.className = `toast ${kind}`; el.textContent = text; toasts.prepend(el);
   while (toasts.children.length > 4) toasts.lastChild.remove();
@@ -374,7 +379,7 @@ function renderDrawer() {
       <span class="seg">${["1200", "7600", "7700"].map((c) => `<button data-xp="${c}" class="${ac.xpdr.code === c ? "on" : ""}">${c}</button>`).join("")}</span>
       <label>Mode <span class="seg">${["STBY", "ON", "ALT"].map((m) => `<button data-xm="${m}" class="${ac.xpdr.mode === m ? "on" : ""}">${m}</button>`).join("")}</span></label></div>
       <h3 class="dsub">Talk on ${esc(fi?.name || r.com1.toFixed(3))}</h3>
-      <div class="calls">${calls.length ? calls.map(([k, t]) => `<button class="sbtn primary" data-call="${k}">${esc(t)}</button>`).join("") : `<p class="dnote">Tune a tower, ground, CTAF or guard frequency to talk. Press Space to click the mic (pilot-controlled lighting).</p>`}</div>
+      <div class="calls">${calls.length ? calls.map(([k, t]) => `<button class="sbtn primary" data-call="${k}">${esc(t)}</button>`).join("") : `<p class="dnote">Tune a tower, ground, CTAF or guard frequency to talk.</p>`}<button class="sbtn" id="ptt" title="Pilot-controlled lighting: 7 clicks within 5 seconds">Click the mic (Space)</button></div>
       <h3 class="dsub">Zarhart ATIS ${esc(a.letter)} <span class="exams">${examLink("e53")}</span></h3><p class="atis">${esc(a.text)}</p>${a.skyOmitted ? `<p class="dnote">No sky condition or visibility in the ATIS means the ceiling is at least 5,000 ft and visibility at least 5 SM.</p>` : ""}
       <p class="metar mono">${esc(weather.metar(KZAR, weather.hour))}</p>
       <h3 class="dsub">Radio log</h3><ol class="rlog">${r.log.map((l) => `<li><b>${esc(l.from)}</b> ${esc(l.text)}</li>`).join("") || "<li class='dnote'>Nothing yet.</li>"}</ol>`;
@@ -387,6 +392,7 @@ function renderDrawer() {
     B.querySelectorAll("[data-xp]").forEach((b) => b.addEventListener("click", () => { ac.xpdr.code = b.dataset.xp; renderDrawer(); }));
     B.querySelectorAll("[data-xm]").forEach((b) => b.addEventListener("click", () => { ac.xpdr.mode = b.dataset.xm; renderDrawer(); }));
     B.querySelectorAll("[data-call]").forEach((b) => b.addEventListener("click", () => radioCall(b.dataset.call === "announce" ? "announce" : b.dataset.call === "mayday" ? "mayday" : b.dataset.call)));
+    $("#ptt", B).addEventListener("click", pttClick);
   } else if (n === "map") {
     B.innerHTML = `<canvas id="bigMap" aria-label="VFR sectional-style map. Click to fly direct to a point."></canvas>
       <div class="maptools"><button class="sbtn" id="mzIn">＋</button><button class="sbtn" id="mzOut">−</button><span class="dnote">Click the map to go direct (GPS).</span></div>
@@ -482,11 +488,11 @@ function renderObjectives() {
   const st = lessons.status(); const el = $("#objectives");
   if (!st) { el.hidden = true; return; }
   el.hidden = false;
-  if (lessons.lesson !== renderObjectives.last) { renderObjectives.last = lessons.lesson; el.classList.toggle("min", innerWidth < 720); }
+  if (lessons.lesson !== renderObjectives.last) { renderObjectives.last = lessons.lesson; el.classList.toggle("min", innerWidth < 720 || innerHeight < 500); }
   el.innerHTML = `<div class="ohead"><span class="ltag">Lesson</span><button class="xbtn" id="oMin" aria-label="Collapse">–</button></div><h3>${esc(st.title)}</h3>
-    <ol class="objs">${st.objectives.map((o) => `<li class="${o.state}">${o.state === "now" && st.ask ? `<div>${esc(o.text)}${askForm(st.ask)}</div>` : esc(o.text)}</li>`).join("")}</ol>
+    <ol class="objs">${st.objectives.map((o) => `<li class="${o.state}">${o.state === "now" && st.ask ? `<div>${esc(forTouch(o.text))}${askForm(st.ask)}</div>` : esc(forTouch(o.text))}</li>`).join("")}</ol>
     ${st.done ? `<div class="result ${st.failed ? "bad" : "good"}"><b>${st.failed ? "Lesson ended" : "Lesson complete"}</b>${st.failed ? `<p>${esc(st.failed)}</p>` : ""}${st.results.map((r) => `<p>${esc(r)}</p>`).join("")}</div>` : ""}
-    <details ${st.done ? "" : "open"}><summary>Tips</summary><ul class="tips">${st.tips.map((t) => `<li>${esc(t)}</li>`).join("")}</ul></details>
+    <details ${st.done ? "" : "open"}><summary>Tips</summary><ul class="tips">${st.tips.map((t) => `<li>${esc(forTouch(t))}</li>`).join("")}</ul></details>
     <div class="ofoot"><span class="exams">Exam: ${st.exam.map(examLink).join("")}</span><span><button class="sbtn" id="oRestart">Restart</button> <button class="sbtn" id="oExit">Exit</button></span></div>`;
   $("#oRestart").onclick = () => { lessons.start(st.id); sim.paused = false; };
   $("#oExit").onclick = () => { lessons.stop(); renderObjectives(); };
@@ -505,7 +511,7 @@ function hudUpdate() {
     $("#vfr").title = `VFR minimums here: ${v.mins.text} (14 CFR 91.155)`;
   }
   // data strip when the panel is hidden or outside views
-  const strip = $("#strip"); const showStrip = settings.panel === "off" || sim.view !== "cockpit";
+  const strip = $("#strip"); const showStrip = panelOff();
   strip.hidden = !showStrip;
   if (showStrip) strip.innerHTML = `<span><i>IAS</i>${Math.round(d.ias)}</span><span><i>ALT</i>${Math.round(d.altInd / 10) * 10}</span><span><i>HDG</i>${String(Math.round(d.hi) % 360).padStart(3, "0")}</span><span><i>VS</i>${Math.round(d.vsi / 10) * 10}</span><span><i>RPM</i>${Math.round(d.rpm)}</span><span><i>FLAPS</i>${ac.flapsSet}</span><span><i>THR</i>${Math.round(ac.ctl.throttle * 100)}%</span>`;
   // stall / G
@@ -513,6 +519,8 @@ function hudUpdate() {
   sim.gHigh = Math.abs(d.g - 1) > 0.4 ? (sim.gHigh || 0) + 0.12 : 0;
   const gm = $("#gmeter"); gm.hidden = !(sim.showG || sim.gHigh > 1.2) || d.onGround;
   if (!gm.hidden) gm.innerHTML = `<b>${d.g.toFixed(2)} G</b><span>bank ${Math.round(Math.abs(d.bank))}° · theory ${(1 / Math.cos(Math.min(85, Math.abs(d.bank)) * DEG)).toFixed(2)} G</span>`;
+  // touch controls follow the airplane: the throttle slider (unless a thumb is on it) and the parking brake button
+  if (!$("#touch").hidden) { if (!input.touch.thrBusy) $("#thr").value = Math.round(ac.ctl.throttle * 100); $('#touch [data-t="park"]').classList.toggle("on", ac.parkingBrake); }
   // light gun
   const lg = $("#lightgun"); lg.hidden = !sim.lightGun; if (sim.lightGun) lg.innerHTML = `<span class="dot ${sim.lightGun.color} ${sim.lightGun.flash ? "flash" : ""}"></span>${esc(sim.lightGun.text)}`;
   // objectives
@@ -524,8 +532,10 @@ function hudUpdate() {
 }
 
 /* ---------------- layout ---------------- */
+/** no instrument panel: switched off, an outside view, or a phone held sideways (the data strip shows instead) */
+const panelOff = () => settings.panel === "off" || sim.view !== "cockpit" || innerHeight < 500;
 function layout() {
-  const ph = settings.panel === "off" || sim.view !== "cockpit" ? 0 : Math.round(Math.min(Math.max(innerHeight * 0.33, 170), 330, innerWidth * 0.45));
+  const ph = panelOff() ? 0 : Math.round(Math.min(Math.max(innerHeight * 0.33, 170), 330, innerWidth * 0.45));
   document.documentElement.style.setProperty("--panel-h", ph + "px");
   $("#panel").hidden = ph === 0;
   const w = innerWidth, h = Math.max(100, innerHeight - ph);
@@ -570,7 +580,16 @@ $("#startVR").addEventListener("click", () => {
 $("#crashLessons").addEventListener("click", () => { hideCrash(); openDrawer("lessons"); });
 $("#resume").addEventListener("click", () => { sim.paused = false; $("#paused").hidden = true; });
 input.on("onPad", (id) => say(`Controller connected: ${id.slice(0, 40)}`, "good"));
-if (matchMedia("(pointer: coarse)").matches) { $("#touch").hidden = false; input.attachTouch($("#stick"), $("#knob"), $("#thr")); }
+if (matchMedia("(pointer: coarse)").matches) {
+  $("#touch").hidden = false; input.attachTouch($("#stick"), $("#knob"), $("#thr"));
+  const tap = { flapsDown: () => keymap["]"](), flapsUp: () => keymap["["](), park: () => keymap["S+b"](), view: () => keymap.c(), pause: () => togglePause() };
+  const holds = { brake: (on) => { input.touch.brake = on; }, rudL: (on) => { input.touch.yaw = on ? -1 : 0; }, rudR: (on) => { input.touch.yaw = on ? 1 : 0; } };
+  document.querySelectorAll("#touch [data-t]").forEach((b) => {
+    if (!holds[b.dataset.t]) return b.addEventListener("click", tap[b.dataset.t]);
+    const hold = (on) => (e) => { e.preventDefault(); holds[b.dataset.t](on); b.classList.toggle("on", on); };
+    b.addEventListener("pointerdown", hold(true)); for (const t of ["pointerup", "pointercancel", "pointerleave"]) b.addEventListener(t, hold(false));
+  });
+}
 
 /* ---------------- panel actions ---------------- */
 const act = {
@@ -625,7 +644,7 @@ function tick(now) {
     world.update(sim.t, eye, { pclLevel: sim.pcl.level, windDir: weather.windDir, windKt: weather.windKt, lightGun: sim.lightGun, beaconDay: weather.visSM < 3 || weather.clouds.some((c) => (c.cover === "BKN" || c.cover === "OVC") && c.baseFt < 1000) });
     renderer.render(scene, camera);
     if (vr.active) vr.update(dt);
-    panelT += dt; if (!vr.active && settings.panel !== "off" && sim.view === "cockpit" && panelT > 1 / 40) {
+    panelT += dt; if (!vr.active && !panelOff() && panelT > 1 / 40) {
       panelT = 0;
       panel.draw(panelState());
     }

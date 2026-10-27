@@ -3,9 +3,17 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Fly · Zarhart</title>
+<title>Free Flight Simulator for Student Pilots · Zarhart</title>
 <meta name="author" content="Sophia Ramalli">
 <meta name="description" content="A free in-browser flight simulator for student pilots: C172-class flight model, VFR scenery, six-pack and glass instruments, and lessons linked to the FAA Private Pilot written test.">
+<link rel="canonical" href="https://ramalliss.github.io/zarhart/sim/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Zarhart">
+<meta property="og:title" content="Zarhart flight simulator: fly FAA written-test lessons in your browser">
+<meta property="og:description" content="A free in-browser flight simulator for student pilots: C172-class flight model, VFR scenery, six-pack and glass instruments, and lessons linked to the FAA Private Pilot written test.">
+<meta property="og:url" content="https://ramalliss.github.io/zarhart/sim/">
+<meta property="og:image" content="https://ramalliss.github.io/zarhart/assets/img/shots/cockpit-glass.jpg">
+<meta name="twitter:card" content="summary_large_image">
 <link rel="icon" href="../assets/img/favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Michroma&display=swap">
@@ -56,7 +64,19 @@
 
 <div id="touch" class="touch" hidden>
   <div id="stick" class="stick"><div id="knob" class="knob"></div></div>
-  <label class="thr"><span>THR</span><input id="thr" type="range" min="0" max="100" value="0" orient="vertical" aria-label="Throttle"></label>
+  <div class="tright">
+    <div class="tbtns">
+      <button type="button" data-t="rudL" aria-label="Left rudder: hold">◀ Rudder</button>
+      <button type="button" data-t="rudR" aria-label="Right rudder: hold">Rudder ▶</button>
+      <button type="button" data-t="flapsDown" aria-label="Extend the flaps one notch">Flaps +</button>
+      <button type="button" data-t="flapsUp" aria-label="Retract the flaps one notch">Flaps −</button>
+      <button type="button" data-t="brake" aria-label="Wheel brakes: hold">Brakes</button>
+      <button type="button" data-t="park" aria-label="Parking brake on or off">Park brk</button>
+      <button type="button" data-t="view" aria-label="Change the view">View</button>
+      <button type="button" data-t="pause" aria-label="Pause">Pause</button>
+    </div>
+    <label class="thr"><span>THR</span><input id="thr" type="range" min="0" max="100" value="0" orient="vertical" aria-label="Throttle"></label>
+  </div>
 </div>
 
 <div id="paused" class="pausedOverlay" hidden><div><p class="eyebrow">Paused</p><button class="btn primary" id="resume">Resume (P)</button></div></div>
@@ -87,6 +107,11 @@
         <li><kbd>↑</kbd><kbd>↓</kbd> pitch · <kbd>←</kbd><kbd>→</kbd> bank: in Assisted mode let go and the airplane holds its attitude (<kbd>U</kbd> changes assist)</li>
         <li><kbd>R</kbd><kbd>F</kbd> throttle · <kbd>[</kbd><kbd>]</kbd> flaps · <kbd>T</kbd><kbd>G</kbd> trim · <kbd>B</kbd> brakes · <kbd>Shift</kbd>+<kbd>B</kbd> parking brake</li>
         <li><kbd>C</kbd> view · <kbd>I</kbd> panel · <kbd>M</kbd> map · <kbd>K</kbd> checklist · <kbd>P</kbd> pause. Joysticks and gamepads work too.</li>
+      </ul>
+      <ul class="quicktouch">
+        <li><b>Left thumb:</b> the stick pitches and banks. Let go and the airplane holds its attitude.</li>
+        <li><b>Right thumb:</b> the throttle slider, plus buttons for flaps, brakes, the parking brake, the view and pause.</li>
+        <li>Switches and lights are under <b>Aircraft</b>, radio calls and the mic under <b>Radio</b>. Turn your phone sideways for a wider view.</li>
       </ul>
       <p class="credit">Created by <a href="../#about">Sophia Ramalli</a></p>
     </div>

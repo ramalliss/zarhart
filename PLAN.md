@@ -159,7 +159,7 @@ About 60 × 60 km, deterministic (seeded simplex). Exports `heightAt`, `groundAt
   1. Ground-school lessons: [FLY8MA free ground school](https://fly8ma.com/private-pilot-ground-school/). Free, but no written-test endorsement.
   2. Study handbook: [FAA Pilot's Handbook of Aeronautical Knowledge](https://www.faa.gov/regulations_policies/handbooks_manuals/aviation/phak). Free PDF.
   3. Practice exams (start here): [Sporty's free practice tests](https://courses.sportys.com/training/portal/course/PRIVATE/testprep). Free, unlimited timed 60-question tests.
-  4. More practice questions: [King Schools free FAA test](https://www.kingschools.com/free-faa-exam/). Free.
+  4. More practice questions: [King Schools free FAA test](https://free-faa-exam.kingschools.com/). Free.
   5. Get an endorsement from a CFI or a ground-school course (the free FLY8MA tier doesn't include one).
   6. Get your FAA Tracking Number (FTN): [FAA IACRA](https://iacra.faa.gov/). Free.
   7. Book the official written exam: [FAA testing portal (PSI)](https://faa.psiexams.com/). $175 plus applicable tax.
