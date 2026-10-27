@@ -60,7 +60,7 @@ export function landing(ap, e, opts = {}) {
     if (d.onGround && apx.touched) { // rollout
       ac.ctl.throttle = 0; ac.ctl.elevator = 0.3; ac.ctl.aileron = 0; ac.flapsSet = 0;
       apx.steer(ac, d, e.hdg, dt, c);
-      ac.ctl.brake = o.brake && d.gs < 55 ? clamp((d.gs - 3) / 20, 0.2, 0.8) : 0;
+      ac.ctl.brake = o.brake && d.gs < (o.brakeBelow ?? 55) ? clamp((d.gs - 3) / 20, 0.2, 0.8) : 0;
       return;
     }
     if (d.onGround) apx.touched = true;
@@ -197,6 +197,24 @@ export const PILOTS = {
       apx.cruise(ac, d, alt0, 92, 90, dt); ac.ctl.throttle = 0.6;
     };
   },
+  wetrunway(z) { const apx = new AP(); const land = landing(KZAR, endOf(KZAR, "27"), { vref: 66, flaps: 30, brakeBelow: 40 }); return (ac, d, sim, dt) => land(ac, d, sim, dt, apx); },
+  winter(z) {
+    const apx = new AP();
+    return (ac, d, sim, dt) => {
+      if (ac.frost && d.onGround && d.gs < 1) { ac.frost = 0; return; } // Aircraft → Remove the frost
+      takeoffClimb(apx, ac, d, dt, 270);
+    };
+  },
+  microburst(z) {
+    const apx = new AP(); const land = landing(KZAR, endOf(KZAR, "27"), { vref: 70, flaps: 10 }); let ga = false;
+    return (ac, d, sim, dt) => {
+      if (!ga && z.lessons.idx >= 1) ga = true;
+      if (!ga) return land(ac, d, sim, dt, apx);
+      ac.ctl.throttle = 1; ac.eng.carbHeat = false; if (d.ias > 62 && ac.flapsSet > 0 && d.vsTrue > 0) ac.flapsSet = 0;
+      apx.attitude(ac, d, clamp(7 + (d.ias - 74) * 0.6, 2, 12), apx.bankFor(d, 270, 10), dt);
+    };
+  },
+  calm(z) { const apx = new AP(); const land = landing(Z19, endOf(Z19, "22"), { vref: 61, flaps: 30, aim: 80, brakeBelow: 45 }); return (ac, d, sim, dt) => land(ac, d, sim, dt, apx); },
   crosswind(z) { const apx = new AP(); const land = landing(KZAR, endOf(KZAR, "27"), { vref: 70, flaps: 20 }); return (ac, d, sim, dt) => land(ac, d, sim, dt, apx); },
   wake(z) { const apx = new AP(); const land = landing(KZAR, endOf(KZAR, "27"), { vref: 68, flaps: 20, aim: 700 }); return (ac, d, sim, dt) => land(ac, d, sim, dt, apx); },
   nordo(z) {
@@ -380,3 +398,5 @@ export async function runLesson(id, { maxSecs = 900, log = false } = {}) {
   const st = z.lessons.status(); const d = z.ac.derived;
   return { id, secs: t, done: st.done, failed: st.failed, crashed: z.ac.crashed?.reason || null, objectives: st.objectives.map((o) => `${o.state}: ${o.text}`), results: st.results, end: { ias: +d.ias.toFixed(0), agl: Math.round(d.agl), gs: +d.gs.toFixed(0), hdg: Math.round(d.hdg) }, trace };
 }
+
+export { takeoffClimb, endOf, KZAR };

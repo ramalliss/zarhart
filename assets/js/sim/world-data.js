@@ -68,10 +68,13 @@ function rwy(ids, cx, cz, hdg, len, wid, surface, extra = {}) {
 }
 // rect: centre, length (along hdg), width
 const rect = (cx, cz, hdg, len, wid, surface = "asphalt", name = "") => ({ cx, cz, hdg, len, wid, surface, name });
+/** the point `s` m along heading `hdg` and `c` m to its right, from (cx, cz) */
+const at = (cx, cz, hdg, s, c) => [cx + Math.sin(hdg * DEG) * s + Math.cos(hdg * DEG) * c, cz - Math.cos(hdg * DEG) * s + Math.sin(hdg * DEG) * c];
+const pt = ([x, z]) => ({ x, z });
 
 export const AIRPORTS = [
   {
-    id: "KZAR", name: "Zarhart Field", city: "Rutherford", x: 0, z: 0, towered: true,
+    id: "KZAR", name: "Zarhart Field", city: "Rutherford", x: 0, z: 0, towered: true, calmRwy: "27",
     freqs: { atis: 127.85, twr: 118.3, gnd: 121.9 },
     runways: [
       rwy(["09", "27"], 0, 0, 90, 1500, 30, "asphalt", { lights: true, vasi: ["27", "09"], tdz: true }),
@@ -100,7 +103,7 @@ export const AIRPORTS = [
     spawn: { ramp: { x: -300, z: -230, hdg: 180 }, hold27: { x: 745, z: -80, hdg: 180 }, rwy27: { x: 715, z: 0, hdg: 270 }, rwy09: { x: -715, z: 0, hdg: 90 } },
   },
   {
-    id: "KAME", name: "Earhart Municipal", city: "Atchison", x: 14000, z: 9000, towered: false, pcl: true,
+    id: "KAME", name: "Earhart Municipal", city: "Atchison", x: 14000, z: 9000, towered: false, pcl: true, calmRwy: "36",
     freqs: { ctaf: 122.8, awos: 118.525 },
     runways: [rwy(["18", "36"], 14000, 9000, 180, 1100, 23, "asphalt", { lights: true, vasi: ["36"], pcl: true })],
     taxiways: [rect(14110, 9000, 180, 1100, 12, "asphalt", "A"), rect(14055, 8460, 90, 110, 12, "asphalt", "A1"), rect(14055, 9540, 90, 110, 12, "asphalt", "A2")],
@@ -114,12 +117,62 @@ export const AIRPORTS = [
     spawn: { ramp: { x: 14200, z: 9120, hdg: 270 }, rwy36: { x: 14000, z: 9520, hdg: 0 }, rwy18: { x: 14000, z: 8480, hdg: 180 } },
   },
   {
-    id: "Z19", name: "Electra Field", city: "Harbour Grace", x: -11000, z: 6000, towered: false,
+    id: "Z19", name: "Electra Field", city: "Harbour Grace", x: -11000, z: 6000, towered: false, calmRwy: "22",
     freqs: { ctaf: 122.9 },
     runways: [rwy(["04", "22"], -11000, 6000, 40, 760, 30, "grass", { lights: false })],
     taxiways: [], aprons: [rect(-10900, 6150, 40, 80, 50, "grass", "Tie-downs")], holdShort: [], rwyHold: [],
     windsock: { x: -10930, z: 5990 }, hangars: [[-10860, 6190, 30, 24]], parked: [[-10910, 6150, 220]],
     spawn: { rwy04: { x: -11000 - Math.sin(40 * DEG) * 350, z: 6000 + Math.cos(40 * DEG) * 350, hdg: 40 }, ramp: { x: -10900, z: 6150, hdg: 220 } },
+  },
+  {
+    // a mountain strip in the Electra Range, under the Electra MOA (floor 8,000 ft): density altitude and mountain flying
+    id: "Z40", name: "Electra Pass", city: "Electra Range", x: -6000, z: -23000, towered: false, calmRwy: "18", mountain: true,
+    freqs: { ctaf: 122.7 },
+    runways: [rwy(["18", "36"], -6000, -23000, 180, 1100, 23, "asphalt", { lights: true })],
+    taxiways: [rect(...at(-6000, -23000, 180, -380, -45), 270, 70, 12, "asphalt", "A")],
+    aprons: [rect(...at(-6000, -23000, 180, -380, -110), 180, 140, 70, "asphalt", "Ramp")],
+    holdShort: [{ ...pt(at(-6000, -23000, 180, -380, -30)), hdg: 270, sign: "18-36", twy: "A" }],
+    rwyHold: [],
+    beacon: pt(at(-6000, -23000, 180, -300, -150)), windsock: pt(at(-6000, -23000, 180, 120, -40)),
+    segmentedCircle: { ...pt(at(-6000, -23000, 180, 120, -40)), r: 26, pattern: { "18": "left", "36": "right" } },
+    hangars: [[...at(-6000, -23000, 180, -330, -165), 40, 30]],
+    parked: [[...at(-6000, -23000, 180, -400, -110), 270]],
+    spawn: { ramp: { ...pt(at(-6000, -23000, 180, -360, -110)), hdg: 270 }, rwy18: { ...pt(at(-6000, -23000, 180, -520, 0)), hdg: 180 }, rwy36: { ...pt(at(-6000, -23000, 180, 520, 0)), hdg: 0 } },
+  },
+  {
+    // the regional airport: a long runway with a displaced threshold and a blast pad, a closed crosswind runway, a parallel taxiway
+    id: "KSRH", name: "Southridge Regional", city: "Southridge", x: 22000, z: 19500, towered: false, calmRwy: "31",
+    freqs: { ctaf: 123.0, awos: 119.275 },
+    runways: [
+      rwy(["13", "31"], 22000, 19500, 130, 1830, 30, "asphalt", { lights: true, vasi: ["13"], blastPad: { "13": 90 }, displaced: { "31": 200 } }),
+      rwy(["04", "22"], ...at(22000, 19500, 130, 600, 480), 40, 900, 23, "asphalt", { closed: true }),
+    ],
+    taxiways: [
+      rect(...at(22000, 19500, 130, 0, -120), 130, 1700, 15, "asphalt", "A"),
+      ...[-800, 0, 800].map((s, k) => rect(...at(22000, 19500, 130, s, -60), 220, 120, 15, "asphalt", `A${k + 1}`)),
+    ],
+    aprons: [rect(...at(22000, 19500, 130, 0, -187), 130, 320, 120, "asphalt", "Main ramp")],
+    holdShort: [-800, 0, 800].map((s, k) => ({ ...pt(at(22000, 19500, 130, s, -45)), hdg: 220, sign: "13-31", twy: `A${k + 1}` })),
+    rwyHold: [],
+    beacon: pt(at(22000, 19500, 130, 260, -330)), windsock: pt(at(22000, 19500, 130, -150, 55)),
+    segmentedCircle: { ...pt(at(22000, 19500, 130, -150, 55)), r: 30, pattern: { "13": "left", "31": "right" } },
+    hangars: [[...at(22000, 19500, 130, -120, -320), 60, 40], [...at(22000, 19500, 130, -40, -320), 60, 40], [...at(22000, 19500, 130, 60, -322), 70, 44]],
+    parked: [[...at(22000, 19500, 130, -60, -230), 40], [...at(22000, 19500, 130, -10, -230), 40], [...at(22000, 19500, 130, 40, -232), 220]],
+    spawn: { ramp: { ...pt(at(22000, 19500, 130, 0, -215)), hdg: 220 }, rwy13: { ...pt(at(22000, 19500, 130, -790, 0)), hdg: 130 }, rwy31: { ...pt(at(22000, 19500, 130, 880, 0)), hdg: 310 } },
+  },
+  {
+    // a small strip west of Lake Itasca
+    id: "Z23", name: "Itasca West", city: "Itasca", x: -11000, z: -4800, towered: false, calmRwy: "34",
+    freqs: { ctaf: 122.725 },
+    runways: [rwy(["16", "34"], -11000, -4800, 160, 900, 18, "asphalt", { lights: false })],
+    taxiways: [rect(...at(-11000, -4800, 160, 300, 36), 250, 56, 10, "asphalt", "A")],
+    aprons: [rect(...at(-11000, -4800, 160, 300, 90), 160, 90, 55, "asphalt", "Ramp")],
+    holdShort: [{ ...pt(at(-11000, -4800, 160, 300, 25)), hdg: 70, sign: "16-34", twy: "A" }],
+    rwyHold: [],
+    windsock: pt(at(-11000, -4800, 160, -100, 30)),
+    hangars: [[...at(-11000, -4800, 160, 330, 125), 34, 26]],
+    parked: [[...at(-11000, -4800, 160, 290, 95), 250]],
+    spawn: { ramp: { ...pt(at(-11000, -4800, 160, 300, 90)), hdg: 250 }, rwy34: { ...pt(at(-11000, -4800, 160, 420, 0)), hdg: 340 }, rwy16: { ...pt(at(-11000, -4800, 160, -420, 0)), hdg: 160 } },
   },
 ];
 
@@ -133,6 +186,7 @@ export const AIRSPACE = [
   { id: "KZAR-D", name: "Zarhart Class D", cls: "D", x: 0, z: 0, r: 7780, floorFt: 0, ceilFt: null /* set below */ },
   { id: "KAME-E700", name: "Earhart Class E (700 AGL)", cls: "E700", x: 14000, z: 9000, r: 7400 },
   { id: "Z19-E700", name: "Electra Class E (700 AGL)", cls: "E700", x: -11000, z: 6000, r: 5200 },
+  { id: "KSRH-E700", name: "Southridge Class E (700 AGL)", cls: "E700", x: 22000, z: 19500, r: 6400 },
   { id: "P-19", name: "Prohibited P-19 (Launch Complex)", cls: "P", x: 16000, z: -12500, r: 3700, floorFt: 0, ceilFt: 5000 },
   { id: "R-1932", name: "Restricted R-1932", cls: "R", x: -19500, z: -19000, r: 5200, floorFt: 0, ceilFt: 12000 },
   { id: "ELECTRA-MOA", name: "Electra MOA", cls: "MOA", x: 5000, z: -25000, r: 12000, floorFt: 8000, ceilFt: 17999 },

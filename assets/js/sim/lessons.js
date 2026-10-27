@@ -211,6 +211,125 @@ export const LESSONS = [
   },
   /* ---------------- Pro lessons (free preview until Zarhart Pro launches) ---------------- */
   {
+    id: "wetrunway", title: "Rain: landing on a wet runway", tag: "Weather", time: "4 min", level: 2,
+    summary: "Heavy rain at Zarhart: 3 miles visibility under a 1,500 ft overcast and standing water on runway 27. Land firmly on the centreline, then let it slow before you brake: above about 48 kt the tires can hydroplane.",
+    exam: ["f254", "q501", "q502"],
+    tips: [
+      "Rain hides the runway edges and blurs the windshield: fly the VASI and keep the approach stable.",
+      "Touch down firmly on the centreline at the normal speed. A fast, floated landing onto standing water is how hydroplaning starts.",
+      "Dynamic hydroplaning starts at about 9 × √(tire pressure): about 48 kt for these 29 psi tires. Hold the nose up for aerodynamic braking, then brake gently once you're slower.",
+    ],
+    setup(sim) {
+      sim.setWeather({ ...PRESETS.heavyrain, windDir: 260, windKt: 3, gustKt: 0, turb: 0.15, visSM: 3 }); sim.setTime(15);
+      sim.spawn(onFinal(KZAR, "27", 3, 70, 20)); sim.ac.ctl.throttle = 0.32; sim.ac.ctl.trim = 0.32;
+      sim.radio.com1 = KZAR.freqs.twr; sim.flags.dContact = true;
+      sim.radioLog("Zarhart Tower", `${sim.callsign}, runway 27, cleared to land. Heavy rain on the field, standing water on the runway, braking action poor.`);
+    },
+    tick(sim, ls) {
+      if (!sim.d.hydroplaning) return;
+      ls.hydro = true; const c = sim.ac.ctl;
+      if (Math.max(c.brake, c.brakeL, c.brakeR) > 0.4) ls.hydroBrake = true;
+    },
+    objectives: [
+      { text: "Land on runway 27 near the centreline", fail: offRunway(KZAR), check: (sim) => landedOn(sim, KZAR, "27"), result: (ls, sim) => touchdownReport(sim, KZAR, "27") },
+      {
+        text: "Slow to taxi speed on the runway: hold the nose up, and brake gently only below about 48 kt",
+        check: (sim) => sim.d.onGround && sim.d.gs < 8 && onRunwaySurface(KZAR, sim.ac.pos.x, sim.ac.pos.z),
+        fail: (sim) => (sim.d.onGround && sim.d.gs > 3 && !onRunwaySurface(KZAR, sim.ac.pos.x, sim.ac.pos.z) ? "You slid off the runway. On standing water, let aerodynamic braking slow you first." : null),
+        result: (ls) => (ls.hydroBrake ? "You braked while the tires were hydroplaning, so the brakes did almost nothing. Wait until you're below about 48 kt." : ls.hydro ? "The tires hydroplaned for a moment after touchdown, but you waited to brake. Good." : "No hydroplaning: you were slow before you braked. Good."),
+      },
+    ],
+  },
+  {
+    id: "winter", title: "Snow and frost: a winter takeoff", tag: "Weather", time: "4 min", level: 2,
+    summary: "A frosty morning after a snowfall: frost on the wings and snow on runway 27. Remove the frost first, then make a soft-field-style takeoff on the snow and climb to 1,000 ft. The cold air helps: density altitude is low.",
+    exam: ["e30", "f97", "f237", "t55", "q503"],
+    tips: [
+      "Frost spoils the smooth airflow over the wing, so it stalls at a higher speed and the airplane may not fly at the normal takeoff speed. Remove all of it: Aircraft → Remove the frost.",
+      "Snow drags on the wheels and hides the runway markings. Use soft-field technique: flaps 10, keep the weight off the nosewheel, and lift off as soon as it will fly.",
+      "Cold, dense air gives shorter takeoffs and better climbs. But any cloud or precipitation below freezing means structural icing: stay out of it.",
+    ],
+    setup(sim) {
+      sim.setWeather(PRESETS.frost); sim.setTime(8.2);
+      sim.spawn({ ...KZAR.spawn.rwy27, onGround: true, engineRunning: true }); sim.ac.flapsSet = 10; sim.ac.flaps = 10;
+      sim.radio.com1 = KZAR.freqs.twr; sim.flags.dContact = true;
+      sim.radioLog("Zarhart Tower", `${sim.callsign}, runway 27, cleared for takeoff when ready. Runway snow covered, braking action poor.`);
+    },
+    objectives: [
+      {
+        text: "Remove the frost from the wings first: Aircraft → Remove the frost",
+        check: (sim) => sim.ac.frost === 0,
+        fail: (sim) => (!sim.d.onGround && sim.ac.frost > 0 ? "You took off with frost on the wings. Frost raises the stall speed and can keep the airplane from flying: always remove it first." : null),
+      },
+      {
+        text: "Take off on the snow: release the parking brake, full power, back pressure, and lift off as soon as it flies",
+        check(sim, ls) { if (!sim.d.onGround && sim.d.ias > 30) ls.lo ??= sim.d.ias; return !sim.d.onGround && sim.d.agl > 30; },
+        result: (ls) => `Lifted off at ${Math.round(ls.lo)} KIAS.`,
+      },
+      { text: "Climb at Vy, 74 KIAS, to 1,000 ft above the field", check: (sim) => sim.d.altInd > KZAR.elevFt + 970 },
+    ],
+  },
+  {
+    id: "microburst", title: "Microburst on final: go around", tag: "Weather", time: "4 min", level: 3,
+    summary: "A thunderstorm has a rain shaft over the final approach to runway 27. Two miles out the airspeed jumps: that's the microburst's headwind. Go around at once, before the downdraft and the tailwind arrive.",
+    exam: ["f107", "f108", "q504"],
+    tips: [
+      "A microburst's outflow first hits you as a headwind: airspeed and climb go up. Don't pull the power back. It's the warning.",
+      "Next come the downdraft and a tailwind: airspeed and altitude fall away together. Full power, pitch for Vy, flaps up in stages, and don't let it descend.",
+      "Better still, don't fly under a storm's rain shaft or virga. A microburst usually lasts about 15 minutes: hold or divert until it's gone.",
+    ],
+    setup(sim, ls) {
+      sim.setWeather({ ...PRESETS.storm, gustKt: 0, turb: 0.3 }); sim.setTime(15.5);
+      sim.spawn(onFinal(KZAR, "27", 4, 72, 10)); sim.ac.ctl.throttle = 0.42; sim.ac.ctl.trim = 0.28;
+      sim.radio.com1 = KZAR.freqs.twr; sim.flags.dContact = true; ls.mb = sim.weather.microburst;
+      sim.radioLog("Zarhart Tower", `${sim.callsign}, runway 27, cleared to land. Wind shear alert: 20 knot gain on a two-mile final. Thunderstorm west of the field.`);
+    },
+    tick(sim, ls) {
+      const mb = ls.mb; if (!mb) return;
+      if (Math.hypot(sim.ac.pos.x - mb.x, sim.ac.pos.z - mb.z) < mb.r * 1.6) ls.inside = true;
+      if (ls.inside && !sim.d.onGround) ls.minAgl = Math.min(ls.minAgl ?? Infinity, sim.d.agl);
+    },
+    objectives: [
+      { text: "Fly the approach to runway 27 and watch the airspeed", check: (sim, ls) => ls.inside },
+      {
+        text: "The airspeed jumped: go around now. Full power and pitch up to climb",
+        check(sim, ls, dt) { ls.gaT = sim.ac.ctl.throttle > 0.9 && sim.d.vsTrue > 150 ? (ls.gaT || 0) + dt : 0; return ls.gaT > 3; },
+        fail: (sim) => (sim.lastTouchdown && !sim.lastTouchdown.used ? "You kept on landing through the microburst. When the airspeed jumps on final near a storm, go around." : null),
+      },
+      {
+        text: "Climb out through the shear: keep full power and stay above 300 ft",
+        check: (sim, ls) => sim.ac.pos.x < ls.mb.x - ls.mb.r * 1.8 && sim.d.agl > 300 && sim.d.vsTrue > 0,
+        fail: (sim) => (sim.d.onGround || sim.d.agl < 150 ? "Too low in the downdraft: full power and Vy, and don't trade altitude for airspeed." : null),
+        result: (ls) => `Lowest point in the shear: ${Math.round(ls.minAgl ?? 0)} ft above the ground.`,
+      },
+      { text: "Climb to 1,000 ft above the field, away from the storm", check: (sim) => sim.d.altInd > KZAR.elevFt + 970 },
+    ],
+  },
+  {
+    id: "calm", title: "No wind: a calm-wind landing on a short strip", tag: "Weather", time: "4 min", level: 2,
+    summary: "Dead calm at Electra Field: the windsock hangs limp, so you use the calm-wind runway, 22. With no headwind your groundspeed is your full true airspeed, and the 2,500 ft grass strip gets short. Fly a short-field approach and stop before the end.",
+    exam: ["f93", "q505", "q506", "q538"],
+    tips: [
+      "With the wind calm, use the airport's calm-wind runway (from the Chart Supplement) and announce it on the CTAF, since other pilots can't tell from the windsock either.",
+      "No headwind means a higher groundspeed at touchdown and a longer landing roll. Fly 61 KIAS with full flaps and touch down near the numbers.",
+      "Calm, clear mornings also bring radiation fog. And with little or no wind, a jet's wake vortices drift off the runway only slowly, at 2 to 3 knots.",
+    ],
+    setup(sim, ls) {
+      sim.setWeather(PRESETS.calm); sim.setTime(7.5);
+      sim.spawn(onFinal(Z19, "22", 2, 66, 30)); sim.ac.ctl.throttle = 0.3; sim.ac.ctl.trim = 0.4;
+      sim.radio.com1 = Z19.freqs.ctaf; ls.e = end(Z19, "22");
+    },
+    objectives: [
+      { text: "Land on runway 22, the calm-wind runway, near the threshold", fail: offRunway(Z19), check: (sim) => landedOn(sim, Z19, "22"), result: (ls, sim) => touchdownReport(sim, Z19, "22") },
+      {
+        text: "Stop before the end of the 2,500 ft strip",
+        check: (sim) => sim.d.onGround && sim.d.gs < 3 && onRunwaySurface(Z19, sim.ac.pos.x, sim.ac.pos.z),
+        fail: (sim) => (sim.d.onGround && sim.d.gs > 3 && !onRunwaySurface(Z19, sim.ac.pos.x, sim.ac.pos.z) ? "You ran off the strip. With no headwind the landing roll is longer: touch down near the threshold at the short-field speed." : null),
+        result: (ls, sim) => `Stopped ${Math.round((ls.e.rwy.len - distFromThreshold(ls.e, sim.ac.pos.x, sim.ac.pos.z)) / FT)} ft before the end of the runway.`,
+      },
+    ],
+  },
+  {
     id: "shortfield", pro: true, title: "Short-field approach and landing", tag: "Takeoffs & landings", time: "4 min", level: 3,
     summary: "Runway 27 with 50-ft trees before the threshold. Full flaps, 60 KIAS, clear the trees, touch down on the orange aiming point and stop as short as you can.",
     exam: ["t35", "t39", "e34"],

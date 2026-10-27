@@ -76,13 +76,29 @@ export function atmosphere(h, qnh = 101325, dT = 0) {
 export const altimeterAlt = (P, Pset) => (288.15 / 0.0065) * (1 - Math.pow(P / Pset, 1 / 5.25588));
 export const densityAlt = (rho) => (1 - Math.pow(rho / 1.225, 1 / 4.25588)) / 2.25577e-5;
 
+/* ---------------- runway surface condition ---------------- */
+/** friction the brakes add, extra rolling drag, and side grip, as fractions of the wheel load */
+export const RWY_COND = {
+  dry: { label: "Dry", brake: 0.55, roll: 0, side: 0.75 },
+  wet: { label: "Wet", brake: 0.3, roll: 0.004, side: 0.55 },
+  water: { label: "Standing water", brake: 0.22, roll: 0.02, side: 0.45, hydroplane: true },
+  snow: { label: "Snow", brake: 0.15, roll: 0.03, side: 0.3 },
+  ice: { label: "Ice", brake: 0.06, roll: -0.005, side: 0.12 },
+};
+/** dynamic hydroplaning starts at about 9 × √(tire pressure, psi) knots (PHAK ch. 11) */
+export const hydroplaneKt = (psi) => 9 * Math.sqrt(psi);
+
 /* ---------------- airplane data ---------------- */
 export const C172 = {
   name: "Cessna 172N-class",
   S: 16.17, b: 10.92, c: 1.49,
   emptyLb: 1454, emptyArm: 39.5, maxGrossLb: 2300,
   stations: { front: 37, rear: 73, fuel: 48, bagA: 95, bagB: 123 },
-  fuelCapGal: 20, // per tank, 19 usable
+  fuelCapGal: 20, fuelUsable: 19, // per tank
+  load: { front: 340, rear: 0, fuelGal: 38, bagA: 20, bagB: 0 },
+  cgRef: 41, wingY: 1.0, // reference CG (in, mid-envelope) for pitch stability and the forward-CG stall penalty; wing height above the CG (m)
+  // C172N normal category envelope: fwd 35.0 in up to 1,950 lb, then linear to 38.5 in at 2,300 lb; aft 47.3 in.
+  envelope: (lb) => ({ fwd: lb <= 1950 ? 35.0 : 35.0 + (lb - 1950) * (3.5 / 350), aft: 47.3 }),
   CL0: 0.31, CLa: 5.14, CD0: 0.031, k: 0.0576,
   Cm0: 0.035, Cma: -1.8, Cmq: -12.4, Cmde: -1.28, CmFlap: 0.05,
   Clb: -0.089, Clp: -0.47, Clr: 0.096, Clda: 0.12,
@@ -94,6 +110,7 @@ export const C172 = {
   // V-speeds (KIAS) for markings and lessons
   V: { s0: 41, s1: 47, r: 55, x: 59, y: 74, fe: 85, a: 97, no: 127, ne: 158, glide: 68, app: 65 },
   rpmRed: 2700,
+  tirePsi: 29, // main tires
   // contact points in local (three) frame, metres from CG
   gear: [
     { name: "nose", p: v3(0, -1.22, -1.55), k: 30000, c: 3200, steer: true },
@@ -110,6 +127,56 @@ export const C172 = {
   ],
 };
 
+/** Cessna 152-class: the two-seat trainer. 110 hp, lighter and slower, stalls lower. */
+export const C152 = {
+  ...C172, name: "Cessna 152-class", short: "C152",
+  S: 14.86, b: 10.17, c: 1.47,
+  emptyLb: 1110, emptyArm: 30.0, maxGrossLb: 1670,
+  stations: { front: 39, rear: 64, fuel: 42, bagA: 64, bagB: 84 }, // no rear seats: "rear" is the baggage area
+  fuelCapGal: 13, fuelUsable: 12.25,
+  load: { front: 340, rear: 0, fuelGal: 24, bagA: 10, bagB: 0 },
+  cgRef: 33.75,
+  envelope: (lb) => ({ fwd: lb <= 1350 ? 31.0 : 31.0 + (lb - 1350) * (1.65 / 320), aft: 36.5 }),
+  CD0: 0.033, Pmax: 82000, Tstatic: 1750, etaMax: 0.72,
+  V: { s0: 35, s1: 40, r: 50, x: 55, y: 67, fe: 85, a: 104, no: 111, ne: 149, glide: 60, app: 60 },
+  rpmRed: 2550, tirePsi: 21,
+  gear: [
+    { name: "nose", p: v3(0, -1.16, -1.42), k: 26000, c: 2800, steer: true },
+    { name: "left", p: v3(-1.15, -1.16, 0.34), k: 38000, c: 4000, brake: "L" },
+    { name: "right", p: v3(1.15, -1.16, 0.34), k: 38000, c: 4000, brake: "R" },
+  ],
+  hardPoints: C172.hardPoints.map((h) => ({ ...h, p: v3(h.p.x * 0.92, h.p.y * 0.95, h.p.z * 0.92) })),
+};
+/** Piper PA-28-161-class (Warrior): low wing, 160 hp, Vy 79. The low wing floats longer in ground effect. */
+export const PA28 = {
+  ...C172, name: "Piper PA-28-161-class", short: "PA-28", lowWing: true,
+  S: 15.79, b: 10.67, c: 1.6,
+  emptyLb: 1500, emptyArm: 86.0, maxGrossLb: 2325,
+  stations: { front: 80.5, rear: 118.1, fuel: 95.0, bagA: 142.8, bagB: 142.8 },
+  fuelCapGal: 25, fuelUsable: 24,
+  load: { front: 340, rear: 0, fuelGal: 48, bagA: 20, bagB: 0 },
+  cgRef: 88, wingY: -0.55,
+  envelope: (lb) => ({ fwd: lb <= 1950 ? 83.0 : 83.0 + (lb - 1950) * (4.0 / 375), aft: 93.0 }),
+  CL0: 0.28, CLa: 5.0, CD0: 0.03, k: 0.058, Clb: -0.075, alphaStall: 15,
+  Tstatic: 2450,
+  V: { s0: 44, s1: 50, r: 55, x: 63, y: 79, fe: 103, a: 111, no: 126, ne: 160, glide: 73, app: 66 },
+  tirePsi: 24,
+  gear: [
+    { name: "nose", p: v3(0, -1.22, -1.7), k: 30000, c: 3200, steer: true },
+    { name: "left", p: v3(-1.55, -1.22, 0.45), k: 45000, c: 4600, brake: "L" },
+    { name: "right", p: v3(1.55, -1.22, 0.45), k: 45000, c: 4600, brake: "R" },
+  ],
+  hardPoints: [
+    { name: "left wingtip", p: v3(-5.3, -0.42, 0.15) },
+    { name: "right wingtip", p: v3(5.3, -0.42, 0.15) },
+    { name: "tail", p: v3(0, -0.12, 4.9) },
+    { name: "propeller", p: v3(0, -0.95, -2.35) },
+    { name: "fuselage", p: v3(0, -0.8, 0.9) },
+    { name: "cabin roof", p: v3(0, 1.0, -0.2) },
+  ],
+};
+export const TYPES = { c172: C172, c152: C152, pa28: PA28 };
+
 /** Weight & balance. Returns { lb, cgIn, moment, inEnvelope, fwdLimit, aftLimit }. */
 export function weightBalance(load, ac = C172) {
   const st = ac.stations;
@@ -124,9 +191,7 @@ export function weightBalance(load, ac = C172) {
   const lb = items.reduce((s, [w]) => s + w, 0);
   const moment = items.reduce((s, [w, a]) => s + w * a, 0);
   const cgIn = moment / lb;
-  // C172N normal category envelope: fwd 35.0 in up to 1,950 lb, then linear to 38.5 in at 2,300 lb; aft 47.3 in.
-  const fwdLimit = lb <= 1950 ? 35.0 : 35.0 + (lb - 1950) * (3.5 / 350);
-  const aftLimit = 47.3;
+  const { fwd: fwdLimit, aft: aftLimit } = ac.envelope(lb);
   const inEnvelope = lb <= ac.maxGrossLb && cgIn >= fwdLimit && cgIn <= aftLimit;
   return { lb, cgIn, moment, fwdLimit, aftLimit, inEnvelope, overGross: lb > ac.maxGrossLb };
 }
@@ -143,7 +208,7 @@ export class Aircraft {
   constructor(env, ac = C172) {
     this.ac = ac;
     this.env = env;
-    this.load = { front: 340, rear: 0, fuelGal: 38, bagA: 20, bagB: 0 };
+    this.load = { ...ac.load };
     this.failures = { engine: false, vacuum: false, pitot: false, static: false, alternator: false };
     this.extMoment = v3(0, 0, 0); // body-axis moment from outside effects (wake vortices), N·m
     this.reset({ x: 0, z: 0, hdg: 0, onGround: true });
@@ -174,7 +239,7 @@ export class Aircraft {
     this.eng = {
       running, rpm: running ? (airborne ? 2350 : 800) : 0, mixture: 1, mags: running ? "both" : "off",
       carbHeat: false, carbIce: 0, primer: 0, cranking: false, catchT: 0, fuelFlow: 0, oilT: running ? 0.6 : 0.15, egt: 0,
-      fuelL: 19, fuelR: 19, selector: "both", starvedT: 0, magFactor: 1, rough: 0,
+      fuelL: ac.fuelUsable, fuelR: ac.fuelUsable, selector: "both", starvedT: 0, magFactor: 1, rough: 0,
     };
     this.setFuel(this.load.fuelGal);
     this.elec = { master: running, alt: running, avionics: running, volts: running ? 28 : 24, battery: 1, amps: 0,
@@ -187,6 +252,9 @@ export class Aircraft {
       pitotTrapped: null, staticTrapped: null, tc: 0, ball: 0, obs: 90, obs2: 0, hdgBug: spawn.hdg,
     };
     this.onGround = !airborne;
+    this.frost = spawn.frost ? 1 : 0; // frost on the wings: rough skin, the wing stalls sooner
+    this.ice = 0; // structural ice picked up in visible moisture below freezing
+    this.hydroplaning = false;
     this.airTime = 0;
     this.touchdown = null;
     this.contact = [false, false, false];
@@ -197,8 +265,8 @@ export class Aircraft {
 
   qnh() { return this.env.weather.qnhInHg * INHG; }
   isaDev() { const w = this.env.weather; return w.isaDev ?? (w.tempC - 15); }
-  setFuel(gal) { const per = clamp(gal / 2, 0, 19); this.eng.fuelL = per; this.eng.fuelR = per; this.load.fuelGal = per * 2; }
-  massKg() { return weightBalance({ ...this.load, fuelGal: this.eng.fuelL + this.eng.fuelR }).lb * LB; }
+  setFuel(gal) { const per = clamp(gal / 2, 0, this.ac.fuelUsable); this.eng.fuelL = per; this.eng.fuelR = per; this.load.fuelGal = per * 2; }
+  massKg() { return weightBalance({ ...this.load, fuelGal: this.eng.fuelL + this.eng.fuelR }, this.ac).lb * LB + 45 * (this.ice || 0); }
 
   /* ---- systems helpers ---- */
   emit(type, msg) { this.events.push({ type, msg, t: this.t }); }
@@ -233,7 +301,7 @@ export class Aircraft {
     const ac = this.ac, e = this.eng, ctl = this.ctl;
     this.t += dt;
     const m = this.massKg();
-    const wb = weightBalance({ ...this.load, fuelGal: e.fuelL + e.fuelR });
+    const wb = weightBalance({ ...this.load, fuelGal: e.fuelL + e.fuelR }, ac);
     const scaleI = m / 1043;
     const Ixx = 1285 * scaleI, Iyy = 1825 * scaleI, Izz = 2667 * scaleI;
     const weather = this.env.weather;
@@ -259,13 +327,14 @@ export class Aircraft {
 
     // ground effect (height of the wing above the surface)
     const gHere = this.env.ground(this.pos.x, this.pos.z);
-    const hWing = Math.max(0.3, this.pos.y - gHere.h + 1.0);
+    const hWing = Math.max(0.3, this.pos.y - gHere.h + ac.wingY);
     const ge = Math.pow(16 * hWing * 0.75 / ac.b, 2);
     const phi = ge / (1 + ge); // induced drag factor (McCormick)
 
     // lift
-    const aStall = (ac.alphaStall - 1.5 * f) * DEG;
-    const cgPenalty = 0.6 * Math.max(0, 41 - wb.cgIn) / 58.8;
+    // frost and ice spoil the airflow over the wing: it stalls at a lower angle of attack (higher speed) and drags more
+    const aStall = (ac.alphaStall - 1.5 * f - 6 * this.frost - 6.5 * this.ice) * DEG;
+    const cgPenalty = 0.6 * Math.max(0, ac.cgRef - wb.cgIn) / (ac.c / 0.0254);
     const dCLf = 0.55 * f;
     const CLlin = ac.CL0 + dCLf + ac.CLa * alpha;
     const CLmax = ac.CL0 + dCLf + ac.CLa * aStall - cgPenalty;
@@ -292,7 +361,7 @@ export class Aircraft {
     CL *= 1 + 0.08 * (1 - phi); // a little more lift in ground effect
     const CLi = clamp(CLlin, -1.2, CLmax + 0.1);
     let CD = ac.CD0 + ac.k * phi * CLi * CLi + 0.05 * Math.pow(f, 1.8) + 0.3 * beta * beta;
-    CD += 1.1 * Math.pow(Math.sin(Math.abs(alpha)), 2) * stallFrac;
+    CD += 1.1 * Math.pow(Math.sin(Math.abs(alpha)), 2) * stallFrac + 0.02 * this.frost + 0.045 * this.ice;
     const CY = ac.CYb * beta + ac.CYdr * (-ctl.rudder * ac.drMax);
 
     const L = qbar * ac.S * CL, D = qbar * ac.S * CD, Y = qbar * ac.S * CY;
@@ -315,7 +384,7 @@ export class Aircraft {
     const de = -ctl.elevator * ac.deMax - ctl.trim * ac.trimMax;
     const da = ctl.aileron * ac.daMax;
     const dr = -ctl.rudder * ac.drMax;
-    const cgShift = (wb.cgIn - 41) / 58.8; // + is aft
+    const cgShift = (wb.cgIn - ac.cgRef) / (ac.c / 0.0254); // + is aft, in mean chords
     const Cma = ac.Cma + ac.CLa * cgShift * 0.55;
     const elevEff = 1 - 0.35 * stallFrac;
     const Cm = ac.Cm0 + Cma * alpha + ac.Cmq * qh + ac.Cmde * de * elevEff + ac.CmFlap * f + (stallFrac * -0.12);
@@ -341,7 +410,13 @@ export class Aircraft {
     let anyContact = false;
     let maxNormal = 0;
     const surface = gHere.type;
-    const rollMu = surface === "asphalt" ? 0.02 : surface === "grass" ? 0.055 : surface === "dirt" ? 0.08 : 0.3;
+    const cond = RWY_COND[weather.rwy] || RWY_COND.dry;
+    const gsNow = Math.hypot(this.vel.x, this.vel.z);
+    const hydro = !!cond.hydroplane && gsNow > hydroplaneKt(ac.tirePsi || 29) * KT && (surface === "asphalt" || surface === "grass");
+    if (hydro && !this.hydroplaning && this.onGround) this.emit("warn", `Hydroplaning: the tires are riding on water above about ${Math.round(hydroplaneKt(ac.tirePsi || 29))} kt. Brakes and steering barely work until you slow down.`);
+    this.hydroplaning = hydro && this.onGround;
+    const brakeMu = hydro ? 0.03 : cond.brake, sideMu = hydro ? 0.12 : cond.side;
+    const rollMu = (surface === "asphalt" ? 0.02 : surface === "grass" ? 0.055 : surface === "dirt" ? 0.08 : 0.3) + (surface === "water" ? 0 : cond.roll);
     const brakeL = clamp(Math.max(ctl.brake, ctl.brakeL, this.parkingBrake ? 1 : 0), 0, 1);
     const brakeR = clamp(Math.max(ctl.brake, ctl.brakeR, this.parkingBrake ? 1 : 0), 0, 1);
     const fwdW = qrot(this.q, v3(0, 0, -1));
@@ -372,10 +447,10 @@ export class Aircraft {
       const wr = v3(-wf.z, 0, wf.x); // right of wheel
       const vLong = vdot(vp, wf), vLat = vdot(vp, wr);
       let mu = rollMu;
-      if (gr.brake) mu += 0.55 * (gr.brake === "L" ? brakeL : brakeR);
+      if (gr.brake) mu += brakeMu * (gr.brake === "L" ? brakeL : brakeR);
       if (gg.type === "water") mu = 0.6;
       const FLong = -clamp(vLong / 0.4, -1, 1) * mu * N;
-      const FLat = -clamp(vLat / 0.15, -1, 1) * 0.75 * N;
+      const FLat = -clamp(vLat / 0.15, -1, 1) * (gg.type === "water" ? 0.75 : sideMu) * N;
       const F = v3(wf.x * FLong + wr.x * FLat, N, wf.z * FLong + wr.z * FLat);
       Fw.x += F.x; Fw.y += F.y; Fw.z += F.z;
       Mw = vadd(Mw, vcross(rW, F));
@@ -464,6 +539,15 @@ export class Aircraft {
     if (e.running && this.failures.engine) { e.running = false; this.emit("warn", "ENGINE FAILURE. Pitch for best glide: 68 KIAS."); }
     if (e.running && e.carbIce > 0.97) { e.running = false; this.emit("warn", "Carburetor ice: the engine quit."); }
 
+    // structural ice: visible moisture (cloud or rain) at or below freezing; it sheds slowly in warmer air
+    const oatC = atm.T - 273.15;
+    const wet = this.env.moisture?.(this.pos.x, this.pos.y, this.pos.z) || 0;
+    if (!this.onGround && oatC <= 0.5 && oatC > -20 && wet > 0) {
+      const before = this.ice;
+      this.ice = clamp(this.ice + dt * wet / (w.precip === "fzra" ? 150 : 320), 0, 1); // freezing rain builds clear ice fastest
+      if (before < 0.12 && this.ice >= 0.12) this.emit("warn", "Ice is building on the windshield and the wing leading edges. Get out of the moisture: turn around or change altitude.");
+      if (before < 0.45 && this.ice >= 0.45) this.emit("warn", "Heavy ice: the stall speed is up, the airplane is heavier and it needs more power. Land soon, with extra speed.");
+    } else if (oatC > 2 && this.ice > 0) this.ice = Math.max(0, this.ice - dt / 150);
     // carb ice: likely between -7°C and 21°C (20–70°F) with high humidity, worse at low power
     const spread = w.tempC - w.dewC;
     const carbT = atm.T - 273.15;
@@ -575,7 +659,8 @@ export class Aircraft {
       oilT: this.eng.oilT, oilP: this.eng.running ? 0.55 + 0.25 * this.eng.rpm / 2700 : 0.02, suction: this.suction || 0,
       volts: this.elec.volts, amps: this.elec.amps, oatC: atm.T - 273.15,
       flaps: this.flaps, flapsSet: this.flapsSet, trim: this.ctl.trim, throttle: this.ctl.throttle,
-      onGround: this.onGround, surface: g.type, wb: weightBalance({ ...this.load, fuelGal: this.eng.fuelL + this.eng.fuelR }),
+      onGround: this.onGround, surface: g.type, wb: weightBalance({ ...this.load, fuelGal: this.eng.fuelL + this.eng.fuelR }, this.ac),
+      frost: this.frost, ice: this.ice, hydroplaning: this.hydroplaning,
     };
   }
 }

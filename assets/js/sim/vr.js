@@ -103,13 +103,14 @@ export class VR {
 
   /**
    * Phone VR for a Cardboard-style viewer. Call straight from a tap: iOS asks for motion-sensor access first.
-   * @param {{sep: number, fov: number}} o eye spacing (fraction of half the screen width) and vertical field of view in degrees
+   * @param {{sep: number, fov: number, mono?: boolean}} o eye spacing (fraction of half the screen width), vertical field of
+   *   view in degrees, and mono: one full-screen view (no viewer) that turns as you move the phone, with the touch controls
    */
   async enterPhone(o) {
     if (this.active) return;
     if (typeof DeviceOrientationEvent !== "undefined" && DeviceOrientationEvent.requestPermission
       && (await DeviceOrientationEvent.requestPermission()) !== "granted") throw new Error("allow Motion & Orientation access so the view can follow your head");
-    const P = this.phone = { sep: o.sep, fov: o.fov, q: null, stereo: new THREE.StereoCamera() };
+    const P = this.phone = { sep: o.sep, fov: o.fov, mono: !!o.mono, q: null, stereo: new THREE.StereoCamera() };
     P.ori = (e) => {
       if (e.alpha == null) return;
       P.q = deviceQuat(P.q || new THREE.Quaternion(), e.alpha, e.beta, e.gamma, screen.orientation?.angle ?? window.orientation ?? 0);
@@ -119,7 +120,7 @@ export class VR {
     this.seat.add(this.camera); this.camera.position.set(0, 0, 0); this.camera.quaternion.identity();
     this.interior.visible = true; for (const m of this.flatParts) m.visible = false;
     this.needRecenter = 10; // recenter once the motion sensors have reported a few readings
-    this.message("Phone VR: fly with your game controller. Tap to recenter, double-tap to leave.", "lesson");
+    this.message(P.mono ? "Look around by moving your phone. Fly with the stick and throttle." : "Phone VR: fly with your game controller. Tap to recenter, double-tap to leave.", "lesson");
     this.onChange?.(true);
   }
 
@@ -139,7 +140,9 @@ export class VR {
   /** phone VR: draw the left and right eye views side by side, their centres `sep` of half the screen apart */
   render(scene) {
     const r = this.renderer, P = this.phone, cam = this.camera;
-    r.getSize(_size); const W = _size.x, H = _size.y, vw = Math.round((W / 2) * P.sep), x0 = Math.round(W / 2) - vw;
+    r.getSize(_size); const W = _size.x, H = _size.y;
+    if (P.mono) { cam.fov = P.fov; cam.aspect = W / H; cam.updateProjectionMatrix(); r.render(scene, cam); return; }
+    const vw = Math.round((W / 2) * P.sep), x0 = Math.round(W / 2) - vw;
     cam.fov = P.fov; cam.aspect = vw / H; cam.updateProjectionMatrix();
     scene.updateMatrixWorld();
     P.stereo.update(cam);

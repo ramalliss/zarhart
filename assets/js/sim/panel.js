@@ -4,7 +4,9 @@ import { C172 } from "./fdm.js";
 
 const DEG = Math.PI / 180;
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
-const V = C172.V;
+let V = C172.V;
+/** V-speed markings for the airplane being flown */
+export function setPanelV(v) { V = v; }
 const MONO = '"IBM Plex Mono", ui-monospace, Consolas, monospace';
 const SANS = '"Barlow", "Arial Narrow", system-ui, sans-serif';
 const COND = '"Barlow", "Arial Narrow", sans-serif';

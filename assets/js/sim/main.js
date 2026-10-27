@@ -1,14 +1,14 @@
 // Zarhart simulator bootstrap: scene, loop, cameras, HUD, drawers, radio/ATC, lessons.
 import * as THREE from "three";
-import { Aircraft, C172, KT, FT, weightBalance } from "./fdm.js";
+import { Aircraft, C172, TYPES, KT, FT, weightBalance, RWY_COND, hydroplaneKt } from "./fdm.js";
 import { AIRPORTS, NAVAIDS, groundAt, airspaceAt, vfrMinimums, nearestAirport, heightAt, rectDist } from "./world-data.js";
 import { World } from "./world3d.js";
-import { buildAirplane, buildCockpit, animateAirplane, buildShadow } from "./plane3d.js";
+import { buildAirplane, buildCockpit, cockpitExterior, animateAirplane, buildShadow } from "./plane3d.js";
 import { Weather, PRESETS } from "./weather.js";
 import { vor, gps, WAYPOINTS, wrap180 } from "./nav.js";
 import { Input, BUTTONS, AXES } from "./input.js";
 import { Audio } from "./audio.js";
-import { Panel } from "./panel.js";
+import { Panel, setPanelV } from "./panel.js";
 import { buildSectionalBase, drawMap } from "./map.js";
 import { CHECKLISTS, suggestChecklist } from "./checklists.js";
 import { LESSONS, LessonRunner } from "./lessons.js";
@@ -19,15 +19,16 @@ const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "
 const NM = 1852, DEG = Math.PI / 180;
 const CALLSIGN = "Skyhawk 19 Zulu Romeo", SHORT = "Skyhawk 9ZR";
 const store = { get(k, d) { try { const v = localStorage.getItem("zarhart:" + k); return v == null ? d : JSON.parse(v); } catch { return d; } }, set(k, v) { try { localStorage.setItem("zarhart:" + k, JSON.stringify(v)); } catch { /* ignore */ } } };
-const [KZAR, KAME, Z19] = AIRPORTS;
+const [KZAR, KAME, Z19, Z40, KSRH, Z23] = AIRPORTS;
 const FREQS = [
   { f: 127.85, name: "Zarhart ATIS", ap: KZAR, kind: "atis" }, { f: 118.3, name: "Zarhart Tower", ap: KZAR, kind: "twr" }, { f: 121.9, name: "Zarhart Ground", ap: KZAR, kind: "gnd" },
-  { f: 122.8, name: "Earhart CTAF", ap: KAME, kind: "ctaf" }, { f: 118.525, name: "Earhart AWOS", ap: KAME, kind: "awos" }, { f: 122.9, name: "Electra CTAF", ap: Z19, kind: "ctaf" }, { f: 121.5, name: "Guard (emergency)", kind: "guard" },
+  { f: 122.8, name: "Earhart CTAF", ap: KAME, kind: "ctaf" }, { f: 118.525, name: "Earhart AWOS", ap: KAME, kind: "awos" }, { f: 122.9, name: "Electra CTAF", ap: Z19, kind: "ctaf" },
+  { f: 122.7, name: "Electra Pass CTAF", ap: Z40, kind: "ctaf" }, { f: 123.0, name: "Southridge CTAF", ap: KSRH, kind: "ctaf" }, { f: 119.275, name: "Southridge AWOS", ap: KSRH, kind: "awos" }, { f: 122.725, name: "Itasca West CTAF", ap: Z23, kind: "ctaf" }, { f: 121.5, name: "Guard (emergency)", kind: "guard" },
 ];
 const freqInfo = (f) => FREQS.find((q) => Math.abs(q.f - f) < 0.004);
 
 /* ---------------- settings ---------------- */
-const settings = Object.assign({ quality: "high", invert: false, mouseYoke: false, autoRudder: true, sound: true, voice: false, panel: "steam", sens: "normal", floating: true, touchRight: "slider", tilt: false, haptics: true, ctlMap: null, pad: true, pvrSep: 100, pvrFov: 80 }, store.get("settings", {}));
+const settings = Object.assign({ quality: "high", invert: false, mouseYoke: false, autoRudder: true, sound: true, voice: false, panel: "steam", sens: "normal", floating: true, touchRight: "slider", tilt: false, haptics: true, ctlMap: null, pad: true, pvrSep: 100, pvrFov: 80, acType: "c172" }, store.get("settings", {}));
 settings.assist ||= settings.autoRudder === false ? "off" : "assisted";
 const saveSettings = () => store.set("settings", settings);
 
@@ -40,7 +41,15 @@ const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(62, 1, 0.12, 160000);
 const world = new World(renderer, scene, { quality: settings.quality });
 const weather = new Weather();
-const env = { ground: groundAt, wind: (x, y, z, t) => weather.windAt(x, y, z, t), get weather() { return weather.state; } };
+const env = {
+  ground: groundAt, wind: (x, y, z, t) => weather.windAt(x, y, z, t), get weather() { return weather.state; },
+  moisture(x, y, z) {
+    const cloud = world.clouds ? world.clouds.probe(x, y, z).inside : 0;
+    const base = Math.min(...weather.cloudLayersMsl().map((c) => c.baseMsl), Infinity);
+    const rain = weather.precip !== "none" && y < base + 150 ? (weather.precip === "snow" ? 0.15 : weather.precipRate) : 0;
+    return Math.max(cloud, rain);
+  },
+};
 const ac = new Aircraft(env);
 const panel = new Panel($("#panel"));
 panel.mode = settings.panel;
@@ -55,14 +64,19 @@ const sim = {
   flags: {}, pcl: { level: 0, until: 0, clicks: [] }, route: null, gpsWp: null, gpsFrom: null,
   lastTouchdown: null, lightGun: null, showG: false, view: "cockpit", vor1: null,
   say, radioLog, callsign: SHORT, spawn, setRoute, vasi: (ap, endId) => world.vasiAt(ap, endId, { x: ac.pos.x, y: ac.pos.y + 0.6, z: ac.pos.z }),
-  setWeather(p) { weather.set(p); ac.inst.kollsman = weather.qnhInHg; if (world.clouds) world.clouds.build(weather.cloudLayersMsl()); },
+  setWeather(p) {
+    weather.set(p); ac.inst.kollsman = weather.qnhInHg; if (world.clouds) world.clouds.build(weather.cloudLayersMsl());
+    const mb = weather.microburst; if (world.shaft) world.setStorm(mb, mb ? heightAt(mb.x, mb.z) : 0, mb ? (weather.cloudLayersMsl()[0]?.baseMsl ?? 1500) : 0);
+  },
   setTime(h) { weather.hour = h; },
 };
 const lessons = new LessonRunner(sim);
 
 function spawn(spec) {
   sim.lastSpawn = { ...spec };
+  setAircraftType(lessons.lesson ? "c172" : settings.acType);
   ac.reset(spec);
+  ac.frost = (spec.frost ?? (weather.frost && spec.onGround !== false)) ? 1 : 0;
   if (spec.coldDark) ac.inst.kollsman = 29.92; else ac.inst.kollsman = weather.qnhInHg;
   ac.inst.obs = ac.inst.obs || 0; ac.inst.hdgBug = Math.round(spec.hdg);
   ac.failures = { engine: false, vacuum: false, pitot: false, static: false, alternator: false };
@@ -75,7 +89,7 @@ function spawn(spec) {
 function setRoute(pts) { sim.route = pts; if (pts?.length) { sim.gpsWp = pts[pts.length - 1]; sim.gpsFrom = pts[0]; } }
 
 /* ---------------- visuals: airplane, cockpit, parked aircraft ---------------- */
-const plane = buildAirplane({ reg: "N19ZR" }); scene.add(plane);
+let plane = buildAirplane({ reg: "N19ZR" }); scene.add(plane);
 const shadow = buildShadow(); scene.add(shadow);
 const cockpit = buildCockpit(); scene.add(cockpit);
 const cockpitProp = new THREE.Mesh(new THREE.CircleGeometry(0.98, 32), new THREE.MeshBasicMaterial({ color: 0x9aa3ad, transparent: true, opacity: 0.035, side: THREE.DoubleSide, depthWrite: false }));
@@ -87,6 +101,15 @@ const vr = new VR({
   keys: { flapsDown: () => keymap["]"](), flapsUp: () => keymap["["](), mic: () => pttClick(), assist: () => keymap.u(), pause: () => togglePause(), retry: () => retry() },
   onChange: (on) => vrChanged(on),
 });
+/* ---------------- aircraft types ---------------- */
+const TYPE_LABELS = { c172: "Cessna 172 (the lesson trainer)", c152: "Cessna 152 (two seats, 110 hp)", pa28: "Piper PA-28 Warrior (low wing)" };
+function setAircraftType(id) {
+  const T = TYPES[id] || C172; if (ac.ac === T) return;
+  ac.ac = T; ac.load = { ...T.load }; setPanelV(T.V);
+  scene.remove(plane); plane = buildAirplane({ reg: "N19ZR", type: id }); scene.add(plane);
+  cockpit.remove(cockpit.userData.ext); const ext = cockpitExterior(id); cockpit.add(ext); cockpit.userData.ext = ext;
+  if (window.__zarhart) window.__zarhart.plane = plane;
+}
 function addParked() {
   const colors = [0x2f7fd0, 0xff9a1f, 0x5be38a, 0xd23a2a, 0x3fd8f2];
   let k = 0;
@@ -304,7 +327,7 @@ function retry() { hideCrash(); if (lessons.lesson) lessons.start(lessons.lesson
 const FLAPS = [0, 10, 20, 30];
 const keymap = {
   "[": () => { const i = Math.max(0, FLAPS.indexOf(ac.flapsSet) - 1); ac.flapsSet = FLAPS[i]; say(`Flaps ${ac.flapsSet}°`, "info", 1500); },
-  "]": () => { const i = Math.min(3, FLAPS.indexOf(ac.flapsSet) + 1); ac.flapsSet = FLAPS[i]; say(`Flaps ${ac.flapsSet}°${ac.derived.ias > C172.V.fe ? ": above Vfe 85 KIAS!" : ""}`, ac.derived.ias > C172.V.fe ? "warn" : "info", 1800); },
+  "]": () => { const i = Math.min(3, FLAPS.indexOf(ac.flapsSet) + 1); ac.flapsSet = FLAPS[i]; say(`Flaps ${ac.flapsSet}°${ac.derived.ias > ac.ac.V.fe ? `: above Vfe ${ac.ac.V.fe} KIAS!` : ""}`, ac.derived.ias > C172.V.fe ? "warn" : "info", 1800); },
   "S+b": () => { ac.parkingBrake = !ac.parkingBrake; say(`Parking brake ${ac.parkingBrake ? "SET" : "released"}`, "info", 1500); },
   "S+r": () => { ac.ctl.throttle = 1; }, "S+f": () => { ac.ctl.throttle = 0; },
   c: () => { sim.view = VIEWS[(VIEWS.indexOf(sim.view) + 1) % VIEWS.length]; camState.reset = true; layout(); say(`View: ${sim.view}`, "info", 1200); },
@@ -357,17 +380,21 @@ function renderDrawer() {
       <p class="dnote">Checkride maneuvers, emergencies and a night cross-country from the Private Pilot ACS. They'll be part of Zarhart Pro; fly them free while Pro is in the works.</p>
       <div class="lesson-list">${LESSONS.filter((l) => l.pro).map(lessonCard).join("")}</div>
       <h3 class="dsub">Free flight</h3>
-      <div class="form"><label>Start <select id="ffStart"><option value="kzarRamp">Zarhart ramp: cold & dark (use the checklists)</option><option value="kzar27">Zarhart runway 27, engine running</option><option value="kzar09">Zarhart runway 09</option><option value="kame36">Earhart Municipal runway 36</option><option value="z19">Electra Field grass 04</option><option value="air">Airborne over the valley, 3,500 ft</option></select></label>
+      <div class="form"><label>Start <select id="ffStart"><option value="kzarRamp">Zarhart ramp: cold & dark (use the checklists)</option><option value="kzar27">Zarhart runway 27, engine running</option><option value="kzar09">Zarhart runway 09</option><option value="kame36">Earhart Municipal runway 36</option><option value="z19">Electra Field grass 04</option><option value="z40">Electra Pass runway 36 (mountains)</option><option value="ksrh">Southridge Regional runway 31</option><option value="z23">Itasca West runway 34</option><option value="air">Airborne over the valley, 3,500 ft</option></select></label>
+      <label>Airplane <select id="ffType">${Object.entries(TYPE_LABELS).map(([k, l]) => `<option value="${k}" ${settings.acType === k ? "selected" : ""}>${esc(l)}</option>`).join("")}</select></label>
       <label>Weather <select id="ffWx">${Object.entries(PRESETS).map(([k, p]) => `<option value="${k}">${esc(p.label)}</option>`).join("")}</select></label>
       <label>Time <select id="ffTime"><option value="9">Morning</option><option value="13" selected>Midday</option><option value="19.1">Golden hour</option><option value="20.0">Dusk</option><option value="22">Night</option></select></label>
       <button class="sbtn primary" id="ffGo">Start free flight</button></div>`;
     B.querySelectorAll("[data-lesson]").forEach((b) => b.addEventListener("click", () => { startFlying(); lessons.start(b.dataset.lesson); closeDrawer(); }));
     $("#ffWx", B).value = "scattered";
-    $("#ffGo", B).addEventListener("click", () => { startFlying(); freeFlight($("#ffStart", B).value, $("#ffWx", B).value, +$("#ffTime", B).value); closeDrawer(); });
+    $("#ffGo", B).addEventListener("click", () => { settings.acType = $("#ffType", B).value; saveSettings(); startFlying(); freeFlight($("#ffStart", B).value, $("#ffWx", B).value, +$("#ffTime", B).value); closeDrawer(); });
   } else if (n === "aircraft") {
     const e = ac.eng, el = ac.elec, L = el.lights;
     const sw = (k, label, on) => `<button class="switch ${on ? "on" : ""}" data-sw="${k}" aria-pressed="${on}"><span class="led"></span>${label}</button>`;
-    B.innerHTML = `<h3 class="dsub">Switches</h3><div class="switches">${sw("master", "Master", el.master)}${sw("avionics", "Avionics", el.avionics)}${sw("beacon", "Beacon", L.beacon)}${sw("strobe", "Strobes", L.strobe)}${sw("nav", "Nav lights", L.nav)}${sw("landing", "Landing", L.landing)}${sw("taxi", "Taxi", L.taxi)}${sw("pitotHeat", "Pitot heat", el.pitotHeat)}</div>
+    B.innerHTML = `<div class="form"><label>Airplane <select id="acType">${Object.entries(TYPE_LABELS).map(([k, l]) => `<option value="${k}" ${ac.ac === TYPES[k] ? "selected" : ""}>${esc(l)}</option>`).join("")}</select></label></div>
+      <p class="dnote">${esc(ac.ac.name)}: Vr ${ac.ac.V.r}, Vx ${ac.ac.V.x}, Vy ${ac.ac.V.y}, best glide ${ac.ac.V.glide}, Vfe ${ac.ac.V.fe}, Vno ${ac.ac.V.no}, Vne ${ac.ac.V.ne} KIAS. Stall ${ac.ac.V.s0} (flaps) / ${ac.ac.V.s1} (clean).${lessons.lesson ? " Lessons fly the 172." : ""}</p>
+      <h3 class="dsub">Switches</h3><div class="switches">${sw("master", "Master", el.master)}${sw("avionics", "Avionics", el.avionics)}${sw("beacon", "Beacon", L.beacon)}${sw("strobe", "Strobes", L.strobe)}${sw("nav", "Nav lights", L.nav)}${sw("landing", "Landing", L.landing)}${sw("taxi", "Taxi", L.taxi)}${sw("pitotHeat", "Pitot heat", el.pitotHeat)}</div>
+      ${ac.frost || ac.ice > 0.02 ? `<h3 class="dsub">Airframe</h3><p class="dnote">${ac.frost ? "Frost on the wings. Even a thin layer roughens the wing so it stalls at a higher speed, and the airplane may not fly at the normal takeoff speed. Remove all of it before flight." : ""}${ac.ice > 0.02 ? ` Structural ice: ${Math.round(ac.ice * 100)}%. Ice changes the wing's shape, adds weight and drag, and raises the stall speed.` : ""} ${examLink("e30")}${examLink("f98")}</p>${ac.frost && ac.derived.onGround && ac.derived.gs < 1 ? `<button class="sbtn primary" id="deFrost">Remove the frost</button>` : ""}` : ""}
       <h3 class="dsub">Engine</h3>
       <div class="form"><label>Magnetos <span class="seg" id="mags">${["off", "right", "left", "both", "start"].map((m) => `<button data-mag="${m}" class="${e.mags === m ? "on" : ""}">${m === "start" ? "START (hold)" : m.toUpperCase()}</button>`).join("")}</span></label>
       <label>Mixture <input type="range" id="mix" min="0" max="100" value="${Math.round(e.mixture * 100)}"><output id="mixOut">${Math.round(e.mixture * 100)}%</output></label>
@@ -377,6 +404,12 @@ function renderDrawer() {
       <div class="form wb"><label>Front seats (lb) <input type="number" id="wbF" min="0" max="400" value="${ac.load.front}"></label><label>Rear seats (lb) <input type="number" id="wbR" min="0" max="400" value="${ac.load.rear}"></label><label>Fuel (gal, 38 usable) <input type="number" id="wbFuel" min="0" max="38" value="${Math.round(e.fuelL + e.fuelR)}" ${ac.derived.onGround ? "" : "disabled"}></label><label>Baggage A (lb, max 120) <input type="number" id="wbA" min="0" max="120" value="${ac.load.bagA}"></label><label>Baggage B (lb, max 50) <input type="number" id="wbB" min="0" max="50" value="${ac.load.bagB}"></label></div>
       <canvas id="wbChart" width="320" height="200" aria-label="CG envelope chart"></canvas><p id="wbOut" class="dnote"></p>
       <p class="dnote">The flight model uses this loading: a forward CG raises stall speed, an aft CG makes the airplane less stable.</p>`;
+    $("#acType", B).addEventListener("change", (e) => {
+      settings.acType = e.target.value; saveSettings();
+      if (lessons.lesson) { say("Lessons fly the Cessna 172. Your choice is used for free flight.", "info", 5000); renderDrawer(); return; }
+      spawn(sim.lastSpawn || { ...KZAR.spawn.rwy27, onGround: true }); say(`Now flying the ${ac.ac.name}.`, "good", 3000); renderDrawer();
+    });
+    $("#deFrost", B)?.addEventListener("click", () => { ac.frost = 0; say("Frost removed. In real life: brush or wipe it off, use deicing fluid, or warm the airplane in a hangar, and check the tail too.", "good", 7000); renderDrawer(); });
     B.querySelectorAll("[data-sw]").forEach((b) => b.addEventListener("click", () => { const k = b.dataset.sw; if (k in el.lights) el.lights[k] = !el.lights[k]; else if (k === "carbHeat") e.carbHeat = !e.carbHeat; else if (k === "parking") ac.parkingBrake = !ac.parkingBrake; else el[k] = !el[k]; renderDrawer(); }));
     B.querySelectorAll("[data-mag]").forEach((b) => { const m = b.dataset.mag; if (m === "start") { const down = () => { e.mags = "start"; b.classList.add("on"); }; const up = () => { if (e.mags === "start") e.mags = "both"; renderDrawer(); }; b.addEventListener("pointerdown", down); b.addEventListener("pointerup", up); b.addEventListener("pointerleave", () => { if (e.mags === "start") up(); }); } else b.addEventListener("click", () => { e.mags = m; renderDrawer(); }); });
     B.querySelectorAll("[data-fs]").forEach((b) => b.addEventListener("click", () => { e.selector = b.dataset.fs; renderDrawer(); }));
@@ -433,10 +466,12 @@ function renderDrawer() {
   } else if (n === "weather") {
     const ap = KZAR; const act = weather.activeRunway(ap); const comp = weather.components(act.end.hdg);
     B.innerHTML = `<p class="metar mono">${esc(weather.metar(ap, weather.hour))}</p>
-      <div class="kv"><span>Density altitude at KZAR</span><b>${Math.round(ac.derived.onGround && Math.hypot(ac.pos.x, ac.pos.z) < 2000 ? ac.derived.densAlt : densAltAtField()).toLocaleString()} ft</b><span>Active runway</span><b>${act.end.id}: ${comp.head >= 0 ? comp.head + " kt headwind" : -comp.head + " kt tailwind"}, ${Math.abs(comp.cross)} kt crosswind from the ${comp.cross > 0 ? "right" : "left"}</b></div>
+      <div class="kv"><span>Density altitude at KZAR</span><b>${Math.round(ac.derived.onGround && Math.hypot(ac.pos.x, ac.pos.z) < 2000 ? ac.derived.densAlt : densAltAtField()).toLocaleString()} ft</b><span>Active runway</span><b>${weather.windKt < 3 ? `${act.end.id}: wind calm${KZAR.calmRwy ? " (the calm-wind runway)" : ""}` : `${act.end.id}: ${comp.head >= 0 ? comp.head + " kt headwind" : -comp.head + " kt tailwind"}, ${Math.abs(comp.cross)} kt crosswind from the ${comp.cross > 0 ? "right" : "left"}`}</b><span>Runway surface</span><b>${esc(RWY_COND[weather.rwy].label)}${RWY_COND[weather.rwy].hydroplane ? ` · hydroplaning above about ${Math.round(hydroplaneKt(ac.ac.tirePsi || 29))} kt` : weather.rwy !== "dry" ? " · braking action " + (weather.rwy === "wet" ? "medium" : weather.rwy === "ice" ? "nil" : "poor") : ""}</b></div>
       <div class="form"><label>Preset <select id="wxP"><option value="">Custom</option>${Object.entries(PRESETS).map(([k, p]) => `<option value="${k}">${esc(p.label)}</option>`).join("")}</select></label>
       <label>Wind from (°) <input type="number" id="wxDir" min="0" max="360" step="10" value="${weather.windDir}"></label><label>Wind (kt) <input type="number" id="wxKt" min="0" max="35" value="${weather.windKt}"></label><label>Gusts (kt) <input type="number" id="wxG" min="0" max="45" value="${weather.gustKt}"></label>
-      <label>Visibility (SM) <input type="number" id="wxVis" min="0.5" max="10" step="0.5" value="${weather.visSM}"></label>
+      <label>Visibility (SM) <input type="number" id="wxVis" min="0.25" max="10" step="0.25" value="${weather.visSM}"></label>
+      <label>Precipitation <select id="wxPr">${Object.entries(PRECIP_OPTS).map(([k, o]) => `<option value="${k}" ${weather.precip === o.precip && (o.precip === "none" || Math.abs(weather.precipRate - o.rate) < 0.2) ? "selected" : ""}>${esc(o.label)}</option>`).join("")}</select></label>
+      <label>Runway <select id="wxRw">${Object.entries(RWY_COND).map(([k, c]) => `<option value="${k}" ${weather.rwy === k ? "selected" : ""}>${esc(c.label)}</option>`).join("")}</select></label>
       <label>Clouds <select id="wxCov">${["CLR", "FEW", "SCT", "BKN", "OVC"].map((c) => `<option ${(weather.clouds[0]?.cover || "CLR") === c ? "selected" : ""}>${c}</option>`).join("")}</select></label><label>Cloud base (ft AGL) <input type="number" id="wxBase" min="500" max="12000" step="100" value="${weather.clouds[0]?.baseFt || 4500}"></label>
       <label>Temperature (°C) <input type="number" id="wxT" min="-20" max="45" value="${weather.tempC}"></label><label>Dew point (°C) <input type="number" id="wxD" min="-25" max="35" value="${weather.dewC}"></label><label>Altimeter (inHg) <input type="number" id="wxQ" min="28.5" max="31" step="0.01" value="${weather.qnhInHg.toFixed(2)}"></label>
       <label>Time of day <input type="range" id="wxH" min="5" max="23.5" step="0.1" value="${weather.hour}"><output id="wxHo">${fmtHour(weather.hour)}</output></label>
@@ -444,7 +479,7 @@ function renderDrawer() {
       <p class="dnote">After changing the altimeter setting, set your own altimeter too (Kollsman knob on the panel). Hot, high and humid raises density altitude ${examLink("t2")}${examLink("e31")}.</p>`;
     $("#wxP", B).addEventListener("change", (e) => { if (e.target.value) { sim.setWeather(PRESETS[e.target.value]); renderDrawer(); } });
     $("#wxH", B).addEventListener("input", (e) => { weather.hour = +e.target.value; $("#wxHo", B).textContent = fmtHour(weather.hour); });
-    $("#wxApply", B).addEventListener("click", () => { const cov = $("#wxCov", B).value; sim.setWeather({ windDir: +$("#wxDir", B).value % 360, windKt: +$("#wxKt", B).value, gustKt: +$("#wxG", B).value, turb: 0.15 + (+$("#wxKt", B).value) / 60, visSM: +$("#wxVis", B).value, clouds: cov === "CLR" ? [] : [{ cover: cov, baseFt: +$("#wxBase", B).value }], tempC: +$("#wxT", B).value, dewC: Math.min(+$("#wxT", B).value, +$("#wxD", B).value), qnhInHg: +$("#wxQ", B).value }); renderDrawer(); say("Weather updated.", "info", 1500); });
+    $("#wxApply", B).addEventListener("click", () => { const cov = $("#wxCov", B).value; sim.setWeather({ windDir: +$("#wxDir", B).value % 360, windKt: +$("#wxKt", B).value, gustKt: +$("#wxG", B).value, turb: 0.15 + (+$("#wxKt", B).value) / 60, visSM: +$("#wxVis", B).value, ...precipFromForm(B), clouds: cov === "CLR" ? [] : [{ cover: cov, baseFt: +$("#wxBase", B).value }], tempC: +$("#wxT", B).value, dewC: Math.min(+$("#wxT", B).value, +$("#wxD", B).value), qnhInHg: +$("#wxQ", B).value }); renderDrawer(); say("Weather updated.", "info", 1500); });
   } else if (n === "fail") {
     const F = ac.failures; const items = [["engine", "Engine failure", "Glide at 68 KIAS, squawk 7700, pick a field.", ["t59"]], ["vacuum", "Vacuum pump", "Attitude and heading indicators slowly fail. Watch the suction gauge and use the turn coordinator.", ["t15"]], ["pitot", "Pitot tube blocked (ice)", "With the drain also blocked, the airspeed indicator acts like an altimeter.", ["t15"]], ["static", "Static port blocked", "The altimeter freezes, the VSI reads zero, and airspeed reads low in a climb and high in a descent.", ["t28", "t15"]], ["alternator", "Alternator", "The battery runs down. Shed electrical load.", []]];
     B.innerHTML = `<p class="dnote">Failures teach the systems questions on the written test. Turn one on, then fly.</p><ul class="fails">${items.map(([k, t, dsc, ex]) => `<li><button class="switch ${F[k] ? "on bad" : ""}" data-f="${k}" aria-pressed="${F[k]}"><span class="led"></span>${esc(t)}</button><p>${esc(dsc)} ${ex.map(examLink).join("")}</p></li>`).join("")}<li><button class="switch" id="iceNow"><span class="led"></span>Start carburetor ice</button><p>RPM sags. Apply carb heat (H). ${examLink("e41")}</p></li></ul>`;
@@ -524,14 +559,20 @@ function checkState() { return { ac, d: ac.derived, flags: sim.flags, qnh: weath
 function directTo(wp) { sim.gpsWp = wp; sim.gpsFrom = { x: ac.pos.x, z: ac.pos.z }; sim.route = [{ x: ac.pos.x, z: ac.pos.z }, wp]; say(`GPS direct to ${wp.id}`, "info", 1800); drawBigMap(); }
 function drawWB() {
   const cv = $("#wbChart"); if (!cv) return; const g = cv.getContext("2d"); const W = cv.width, H = cv.height;
-  const wb = weightBalance({ ...ac.load, fuelGal: ac.eng.fuelL + ac.eng.fuelR });
+  const T = ac.ac, wb = weightBalance({ ...ac.load, fuelGal: ac.eng.fuelL + ac.eng.fuelR }, T);
   g.fillStyle = "#0b1118"; g.fillRect(0, 0, W, H);
-  const X = (cg) => 36 + (cg - 33) / (49 - 33) * (W - 50), Y = (lb) => H - 26 - (lb - 1400) / (2450 - 1400) * (H - 40);
-  g.strokeStyle = "#22303f"; g.lineWidth = 1; for (let cg = 34; cg <= 48; cg += 2) { g.beginPath(); g.moveTo(X(cg), Y(1400)); g.lineTo(X(cg), Y(2450)); g.stroke(); } for (let lb = 1500; lb <= 2400; lb += 100) { g.beginPath(); g.moveTo(X(33), Y(lb)); g.lineTo(X(49), Y(lb)); g.stroke(); }
-  g.fillStyle = "rgba(91,227,138,0.18)"; g.strokeStyle = "#5be38a"; g.lineWidth = 2; g.beginPath(); g.moveTo(X(35), Y(1500)); g.lineTo(X(35), Y(1950)); g.lineTo(X(38.5), Y(2300)); g.lineTo(X(47.3), Y(2300)); g.lineTo(X(47.3), Y(1500)); g.closePath(); g.fill(); g.stroke();
-  g.fillStyle = "#93a3b6"; g.font = "11px IBM Plex Mono, monospace"; for (let cg = 34; cg <= 48; cg += 4) g.fillText(cg, X(cg) - 6, H - 10); for (let lb = 1600; lb <= 2400; lb += 400) g.fillText(lb, 2, Y(lb) + 4);
+  // axes from the envelope: CG from 2 in ahead of the forward limit to 2 in behind the aft limit, weight from empty to gross
+  const lb0 = Math.floor((T.emptyLb + 50) / 100) * 100, lb1 = Math.ceil((T.maxGrossLb + 150) / 100) * 100;
+  const e0 = T.envelope(lb0), eG = T.envelope(T.maxGrossLb), cg0 = Math.floor(e0.fwd - 2), cg1 = Math.ceil(e0.aft + 2);
+  const X = (cg) => 36 + (cg - cg0) / (cg1 - cg0) * (W - 50), Y = (lb) => H - 26 - (lb - lb0) / (lb1 - lb0) * (H - 40);
+  const cgStep = cg1 - cg0 > 12 ? 2 : 1, lbStep = lb1 - lb0 > 800 ? 100 : 50;
+  g.strokeStyle = "#22303f"; g.lineWidth = 1; for (let cg = cg0; cg <= cg1; cg += cgStep) { g.beginPath(); g.moveTo(X(cg), Y(lb0)); g.lineTo(X(cg), Y(lb1)); g.stroke(); } for (let lb = lb0; lb <= lb1; lb += lbStep) { g.beginPath(); g.moveTo(X(cg0), Y(lb)); g.lineTo(X(cg1), Y(lb)); g.stroke(); }
+  g.fillStyle = "rgba(91,227,138,0.18)"; g.strokeStyle = "#5be38a"; g.lineWidth = 2; g.beginPath();
+  const pts = []; for (let lb = lb0 + lbStep; lb <= T.maxGrossLb; lb += 25) pts.push([T.envelope(lb).fwd, lb]);
+  g.moveTo(X(pts[0][0]), Y(pts[0][1])); for (const [cg, lb] of pts) g.lineTo(X(cg), Y(lb)); g.lineTo(X(eG.fwd), Y(T.maxGrossLb)); g.lineTo(X(eG.aft), Y(T.maxGrossLb)); g.lineTo(X(e0.aft), Y(lb0 + lbStep)); g.closePath(); g.fill(); g.stroke();
+  g.fillStyle = "#93a3b6"; g.font = "11px IBM Plex Mono, monospace"; for (let cg = cg0 + cgStep; cg < cg1; cg += cgStep * 2) g.fillText(cg, X(cg) - 6, H - 10); for (let lb = lb0 + lbStep * 2; lb < lb1; lb += lbStep * 4) g.fillText(lb, 2, Y(lb) + 4);
   g.fillStyle = wb.inEnvelope ? "#3fd8f2" : "#ff4d4d"; g.beginPath(); g.arc(X(wb.cgIn), Y(wb.lb), 6, 0, 7); g.fill();
-  $("#wbOut").innerHTML = `Weight <b>${Math.round(wb.lb)} lb</b> (max 2,300) · CG <b>${wb.cgIn.toFixed(1)} in</b> (limits ${wb.fwdLimit.toFixed(1)}–${wb.aftLimit}) · Moment ${Math.round(wb.moment).toLocaleString()} lb-in · <b class="${wb.inEnvelope ? "okc" : "badc"}">${wb.inEnvelope ? "Within limits" : wb.overGross ? "Over gross weight" : "CG out of limits"}</b>`;
+  $("#wbOut").innerHTML = `${esc(T.name)}: weight <b>${Math.round(wb.lb)} lb</b> (max ${T.maxGrossLb.toLocaleString()}) · CG <b>${wb.cgIn.toFixed(1)} in</b> (limits ${wb.fwdLimit.toFixed(1)}–${wb.aftLimit}) · Moment ${Math.round(wb.moment).toLocaleString()} lb-in · <b class="${wb.inEnvelope ? "okc" : "badc"}">${wb.inEnvelope ? "Within limits" : wb.overGross ? "Over gross weight" : "CG out of limits"}</b>`;
 }
 const bigMap = { canvas: null, range: 9, toWorld: () => ({ x: 0, z: 0 }) };
 function drawBigMap() {
@@ -629,14 +670,27 @@ function layout() {
 }
 addEventListener("resize", layout);
 
+/* weather drawer: precipitation choices, and the runway they leave unless one is picked */
+const PRECIP_OPTS = {
+  none: { label: "None", precip: "none", rate: 0 }, lra: { label: "Light rain (-RA)", precip: "rain", rate: 0.35 }, ra: { label: "Rain (RA)", precip: "rain", rate: 0.6 },
+  hra: { label: "Heavy rain (+RA)", precip: "rain", rate: 1 }, lsn: { label: "Light snow (-SN)", precip: "snow", rate: 0.35 }, sn: { label: "Snow (SN)", precip: "snow", rate: 0.7 },
+  fzra: { label: "Freezing rain (FZRA)", precip: "fzra", rate: 0.6 },
+};
+function precipFromForm(B) {
+  const o = PRECIP_OPTS[$("#wxPr", B).value], rw = $("#wxRw", B).value;
+  const auto = { rain: o.rate >= 0.9 ? "water" : "wet", snow: "snow", fzra: "ice" }[o.precip] || "dry";
+  return { precip: o.precip === "none" ? undefined : o.precip, precipRate: o.rate, rwy: rw !== "dry" || o.precip === "none" ? rw : auto, snowCover: o.precip === "snow" || rw === "snow" };
+}
+
 /* ---------------- start screen ---------------- */
 function startFlying() { $("#start").hidden = true; sim.paused = false; audio.start(); }
 function freeFlight(where, wx, hour) {
   lessons.stop(); renderObjectives();
   sim.setWeather(PRESETS[wx]); sim.setTime(hour);
-  const sp = { kzarRamp: { ...KZAR.spawn.ramp, onGround: true, engineRunning: false, coldDark: true }, kzar27: { ...KZAR.spawn.rwy27, onGround: true }, kzar09: { ...KZAR.spawn.rwy09, onGround: true }, kame36: { ...KAME.spawn.rwy36, onGround: true }, z19: { ...Z19.spawn.rwy04, onGround: true }, air: { x: -2000, z: 6000, hdg: 60, onGround: false, altFt: 3500, kias: 100 } }[where];
+  const sp = { kzarRamp: { ...KZAR.spawn.ramp, onGround: true, engineRunning: false, coldDark: true }, kzar27: { ...KZAR.spawn.rwy27, onGround: true }, kzar09: { ...KZAR.spawn.rwy09, onGround: true }, kame36: { ...KAME.spawn.rwy36, onGround: true }, z19: { ...Z19.spawn.rwy04, onGround: true }, z40: { ...Z40.spawn.rwy36, onGround: true }, ksrh: { ...KSRH.spawn.rwy31, onGround: true }, z23: { ...Z23.spawn.rwy34, onGround: true }, air: { x: -2000, z: 6000, hdg: 60, onGround: false, altFt: 3500, kias: 100 } }[where];
   spawn(sp); if (where === "air") ac.ctl.throttle = 0.66;
-  sim.radio.com1 = where.startsWith("kame") ? KAME.freqs.ctaf : where === "z19" ? Z19.freqs.ctaf : where === "kzarRamp" ? KZAR.freqs.atis : KZAR.freqs.twr;
+  const home = { kame36: KAME, z19: Z19, z40: Z40, ksrh: KSRH, z23: Z23 }[where];
+  sim.radio.com1 = home ? home.freqs.ctaf : where === "kzarRamp" ? KZAR.freqs.atis : KZAR.freqs.twr;
   if (where === "kzarRamp") { checkTab = "start"; say("Cold and dark. Open the checklist (K) and the Aircraft drawer to start the engine.", "lesson", 9000); }
 }
 let startLessonId = "pattern";
@@ -655,8 +709,9 @@ function enterVR() {
 let wakeLock = null;
 function vrChanged(on) {
   $("#vrBtn").textContent = on ? "Exit VR" : "VR"; $("#vrBtn").setAttribute("aria-pressed", String(on));
-  const phone = on && !!vr.phone;
-  document.body.classList.toggle("phonevr", phone); $("#pvr").hidden = !phone;
+  const phone = on && !!vr.phone, mono = phone && vr.phone.mono;
+  document.body.classList.toggle("phonevr", phone); document.body.classList.toggle("pvrmono", mono);
+  $("#pvr").hidden = !phone || mono; $("#pvrBar").hidden = !mono;
   if (phone) { layout(); navigator.wakeLock?.request("screen").then((l) => { wakeLock = l; }).catch(() => {}); } // keep the screen on inside the viewer
   if (!on) {
     wakeLock?.release().catch(() => {}); wakeLock = null;
@@ -682,13 +737,17 @@ function closePhoneVR() { $("#pvrIntro").hidden = true; clearInterval(pvrPoll); 
 $("#pvrSep").addEventListener("input", (e) => { settings.pvrSep = +e.target.value; pvrVals(); saveSettings(); });
 $("#pvrFov").addEventListener("input", (e) => { settings.pvrFov = +e.target.value; pvrVals(); saveSettings(); });
 $("#pvrCancel").addEventListener("click", () => { closePhoneVR(); $("#paused").hidden = false; });
-$("#pvrStart").addEventListener("click", () => {
+const startPhoneVR = (mono) => {
   closePhoneVR();
   viewBeforeVR = sim.view; sim.view = "cockpit";
-  const go = vr.enterPhone({ sep: settings.pvrSep / 100, fov: settings.pvrFov }); // first, so iOS can ask for motion access during this tap
+  const go = vr.enterPhone({ sep: settings.pvrSep / 100, fov: mono ? 70 : settings.pvrFov, mono }); // first, so iOS can ask for motion access during this tap
   document.documentElement.requestFullscreen?.().then(() => screen.orientation?.lock?.("landscape")).catch(() => {}); // Android; on iPhone, Add to Home Screen gives full screen
   go.then(() => { sim.paused = false; }).catch((err) => { sim.view = viewBeforeVR; $("#paused").hidden = false; say(`Couldn't start phone VR: ${err.message || err}`, "warn", 8000); });
-});
+};
+$("#pvrStart").addEventListener("click", () => startPhoneVR(false));
+$("#pvrMono").addEventListener("click", () => startPhoneVR(true));
+$("#pvrRecenter").addEventListener("click", () => { vr.recenter(); vr.message("View recentered.", "info"); });
+$("#pvrExit").addEventListener("click", () => vr.end());
 // the tap layer over the eye views: the viewer's button taps the screen
 let pvrTap = 0, pvrTimer = 0;
 $("#pvr").addEventListener("pointerdown", (e) => {
@@ -781,7 +840,10 @@ function tick(now) {
     updateCamera(dt);
     const eye = vr.active ? vr.headWorld(headPos) : camera.position;
     const probe = world.clouds.probe(eye.x, eye.y, eye.z);
-    world.setEnvironment({ hour: weather.hour, visSM: weather.visSM, inCloud: probe.inside });
+    const below = eye.y < Math.min(...weather.cloudLayersMsl().map((c) => c.baseMsl), Infinity);
+    const cover = Math.max(0, ...weather.clouds.map((c) => ({ OVC: 0.55, BKN: 0.3 }[c.cover] || 0)));
+    world.setEnvironment({ hour: weather.hour, visSM: weather.visSM, inCloud: probe.inside, gloom: below ? Math.min(1, cover + 0.4 * weather.precipRate) : 0, snow: weather.snowCover ? 1 : 0, wet: { wet: 0.7, water: 1 }[weather.rwy] || 0 });
+    world.precip.update(sim.paused ? 0 : dt, below || weather.precip === "none" ? weather.precip : "none", weather.precipRate, eye, ac.vel, weather.windAt(eye.x, eye.y, eye.z, sim.t));
     world.update(sim.t, eye, { pclLevel: sim.pcl.level, windDir: weather.windDir, windKt: weather.windKt, lightGun: sim.lightGun, beaconDay: weather.visSM < 3 || weather.clouds.some((c) => (c.cover === "BKN" || c.cover === "OVC") && c.baseFt < 1000) });
     if (vr.phone) vr.render(scene); else renderer.render(scene, camera);
     if (vr.active) vr.update(dt);

@@ -91,6 +91,8 @@
 
 <div id="pvr" class="pvr" hidden aria-label="Phone VR: tap to recenter, double-tap to leave"><span class="pvr-mid"></span><p class="pvr-turn">Turn your phone sideways for VR.<br>Double-tap to leave.</p></div>
 
+<div id="pvrBar" class="pvrbar" hidden><button type="button" class="sbtn" id="pvrRecenter">Recenter</button><button type="button" class="sbtn" id="pvrExit">Exit VR</button></div>
+
 <div id="pvrIntro" class="modal" hidden role="dialog" aria-labelledby="pvrTitle">
   <div class="card pvr-card">
     <p class="eyebrow">VR with your phone</p>
@@ -104,7 +106,8 @@
     <label class="pvr-opt">Eye spacing <input id="pvrSep" type="range" min="70" max="100" step="1"><span id="pvrSepV"></span></label>
     <label class="pvr-opt">Field of view <input id="pvrFov" type="range" min="60" max="100" step="1"><span id="pvrFovV"></span></label>
     <p class="dnote">See two images instead of one? Lower the eye spacing. Everything looks too big or too small? Change the field of view.</p>
-    <div class="row"><button class="btn primary" id="pvrStart">Start</button><button class="btn" id="pvrCancel">Cancel</button></div>
+    <div class="row"><button class="btn primary" id="pvrStart">Start</button><button class="btn" id="pvrMono">Try it without a viewer</button><button class="btn ghost" id="pvrCancel">Cancel</button></div>
+    <p class="dnote"><b>No viewer or controller yet?</b> “Try it without a viewer” shows one full-screen view that turns as you move your phone, with the normal on-screen stick and throttle.</p>
   </div>
 </div>
 
@@ -123,7 +126,7 @@
   <div class="card">
     <p class="eyebrow">Zarhart flight simulator</p>
     <h2 id="startTitle">Ready for departure.</h2>
-    <p class="lede">A C172-class airplane over the Zarhart Valley: three airports, two VORs, Class D airspace and landmarks for flying by sight. Every lesson ties to questions on the FAA written test.</p>
+    <p class="lede">A C172-class trainer (or a 152 or PA-28) over the Zarhart Valley: six airports, one of them in the mountains, two VORs, Class D airspace, rain, snow and wind, and landmarks for flying by sight. Every lesson ties to questions on the FAA written test.</p>
     <div id="loading" class="loading"><span class="spinner" aria-hidden="true"></span><span id="loadMsg">Loading…</span></div>
     <div id="startChoices" hidden>
       <div class="row">

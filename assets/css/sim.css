@@ -264,3 +264,8 @@ kbd { font: 600 12px/1 var(--f-mono); padding: 4px 6px; border-radius: 3px; back
   .pvr-card .pvr-pad, .pvr-card .dnote { font-size: 12.5px; }
   .pvr-opt { grid-template-columns: 84px 1fr 40px; font-size: 13px; }
 }
+/* phone VR without a viewer: one view that follows the phone, with the touch controls and two buttons */
+.phonevr.pvrmono #touch { display: flex !important; }
+.pvrbar { position: fixed; z-index: 61; top: calc(env(safe-area-inset-top, 0px) + 10px); right: var(--gutter-r); display: flex; gap: 8px; }
+.pvrbar .sbtn { background: rgba(5, 6, 7, .72); }
+.pvrbar[hidden] { display: none; }

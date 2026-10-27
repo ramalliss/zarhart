@@ -12,6 +12,16 @@ function rng(seed) { let a = seed >>> 0; return () => { a = (a + 0x6d2b79f5) | 0
 export const forestAt = (x, z) => fbm(x / 2600 + 100, z / 2600 - 50, 3) + 0.18 * simplex(x / 520, z / 520);
 const hash2 = (a, b) => { let h = (Math.imul(a | 0, 374761393) + Math.imul(b | 0, 668265263)) | 0; h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
 
+/** snow on the ground (0–1) and wet pavement (0–1), shared by the terrain, runway and taxiway shaders */
+const WX = { uSnow: { value: 0 }, uWet: { value: 0 } };
+function weatherize(mat) {
+  mat.onBeforeCompile = (sh) => {
+    sh.uniforms.uSnow = WX.uSnow; sh.uniforms.uWet = WX.uWet;
+    sh.fragmentShader = sh.fragmentShader.replace("#include <common>", "#include <common>\nuniform float uSnow; uniform float uWet;")
+      .replace("#include <map_fragment>", "#include <map_fragment>\ndiffuseColor.rgb = mix(diffuseColor.rgb * (1.0 - 0.38 * uWet), vec3(0.86, 0.88, 0.91), 0.62 * uSnow);");
+  };
+  return mat;
+}
 function canvas(w, h) { const c = document.createElement("canvas"); c.width = w; c.height = h; return c; }
 function glowTexture() {
   const c = canvas(64, 64), g = c.getContext("2d");
@@ -137,15 +147,18 @@ function buildTerrain(groundCanvas, quality) {
   tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8; tex.generateMipmaps = true; tex.minFilter = THREE.LinearMipmapLinearFilter;
   const mat = new THREE.MeshLambertMaterial({ map: tex });
   mat.onBeforeCompile = (sh) => {
+    sh.uniforms.uSnow = WX.uSnow; sh.uniforms.uWet = WX.uWet;
     sh.vertexShader = sh.vertexShader.replace("#include <common>", "#include <common>\nvarying vec3 vWPos;")
       .replace("#include <begin_vertex>", "#include <begin_vertex>\nvWPos = (modelMatrix * vec4(transformed, 1.0)).xyz;");
     sh.fragmentShader = sh.fragmentShader.replace("#include <common>", `#include <common>
 varying vec3 vWPos;
+uniform float uSnow; uniform float uWet;
 float zh(vec2 p){ p = mod(p, 289.0); return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 float zn(vec2 p){ vec2 i = floor(p), f = fract(p); f = f*f*(3.0-2.0*f); return mix(mix(zh(i), zh(i+vec2(1,0)), f.x), mix(zh(i+vec2(0,1)), zh(i+vec2(1,1)), f.x), f.y); }`)
       .replace("#include <map_fragment>", `#include <map_fragment>
 float dn = zn(vWPos.xz / 3.5) * 0.35 + zn(vWPos.xz / 17.0) * 0.4 + zn(vWPos.xz / 70.0) * 0.25;
-diffuseColor.rgb *= 0.84 + 0.3 * dn;`);
+diffuseColor.rgb *= 0.84 + 0.3 * dn;
+diffuseColor.rgb = mix(diffuseColor.rgb * (1.0 - 0.15 * uWet), vec3(0.9, 0.92, 0.95) * (0.92 + 0.1 * dn), clamp(uSnow * (0.72 + 0.4 * dn), 0.0, 1.0));`);
   };
   const mesh = new THREE.Mesh(geo, mat);
   mesh.receiveShadow = false;
@@ -155,7 +168,7 @@ diffuseColor.rgb *= 0.84 + 0.3 * dn;`);
   const edge = new THREE.Mesh(new THREE.PlaneGeometry(W * 1.6, W * 1.6), new THREE.MeshLambertMaterial({ color: 0x5f7148 }));
   edge.rotation.x = -Math.PI / 2; edge.position.y = 60;
   const g = new THREE.Group(); g.add(mesh, skirt, edge);
-  return { group: g, material: mat, texture: tex };
+  return { group: g, material: mat, texture: tex, rim: [skirt.material, edge.material] };
 }
 
 /* ===================== water, roads ===================== */
@@ -271,21 +284,39 @@ function runwayCanvas(r, ap) {
   for (let i = 0; i < 40; i++) { g.fillStyle = "rgba(10,10,10,0.18)"; g.fillRect(Wpx * 0.35 + R() * Wpx * 0.3, R() * Hpx, 4 + R() * 8, 30 + R() * 90); } // tyre marks
   g.fillStyle = "#e9e9e4";
   g.fillRect(1 * sx, 0, 0.9 * sx, Hpx); g.fillRect(Wpx - 1.9 * sx, 0, 0.9 * sx, Hpx); // side stripes
+  // how far each threshold sits in from its end of the pavement: a blast pad (yellow chevrons, no use at all) or a
+  // displaced threshold (white arrows: usable for takeoff and rollout, not for landing)
+  const inset = (id) => r.blastPad?.[id] ?? r.displaced?.[id] ?? 0;
+  const o0 = inset(r.ends[0].id), o1 = inset(r.ends[1].id);
   // centerline: 36 m stripe, 24 m gap, 0.45 m wide (drawn a bit wider so it reads)
-  for (let y = 70; y < r.len - 70; y += 60) g.fillRect(Wpx / 2 - 0.5 * sx, Hpx - (y + 36) * sy, 1.0 * sx, 36 * sy);
+  for (let y = o0 + 70; y < r.len - o1 - 70; y += 60) g.fillRect(Wpx / 2 - 0.5 * sx, Hpx - (y + 36) * sy, 1.0 * sx, 36 * sy);
   // ends: draw for the bottom end (ends[0]) upright, then rotate for the top end
   const drawEnd = (id) => {
+    const o = inset(id), Y = (m) => Hpx - (o + m) * sy; // m metres past this end's threshold
+    if (r.blastPad?.[id]) { // yellow chevrons pointing at the threshold
+      g.save(); g.fillStyle = "#e3b21b"; g.strokeStyle = "#e3b21b"; g.lineWidth = 1.5 * sx;
+      for (let d = 12; d < o - 6; d += 24) { g.beginPath(); g.moveTo(0.5 * sx, Hpx - (d - 10) * sy); g.lineTo(Wpx / 2, Hpx - (d + 6) * sy); g.lineTo(Wpx - 0.5 * sx, Hpx - (d - 10) * sy); g.stroke(); }
+      g.restore();
+    } else if (r.displaced?.[id]) { // arrows along the centreline, arrowheads before the threshold bar
+      for (let d = 10; d < o - 30; d += 40) g.fillRect(Wpx / 2 - 0.45 * sx, Hpx - (d + 20) * sy, 0.9 * sx, 20 * sy);
+      g.beginPath(); for (const xx of [-r.wid * 0.3, 0, r.wid * 0.3]) { const cx = Wpx / 2 + xx * sx; g.moveTo(cx - 2.2 * sx, Hpx - (o - 18) * sy); g.lineTo(cx, Hpx - (o - 4) * sy); g.lineTo(cx + 2.2 * sx, Hpx - (o - 18) * sy); g.closePath(); } g.fill();
+    }
     const stripes = r.wid >= 30 ? 8 : 6; const sw = 1.8, gap = (r.wid - 6 - stripes * sw) / (stripes - 1);
-    for (let k = 0; k < stripes; k++) { const xx = 3 + k * (sw + gap) + (k >= stripes / 2 ? 0.0 : 0); g.fillRect(xx * sx, Hpx - (6 + 30) * sy, sw * sx, 30 * sy); }
-    g.fillRect(0, Hpx - 2 * sy, Wpx, 1.2 * sy); // threshold bar
-    g.save(); g.translate(Wpx / 2, Hpx - 52 * sy); g.scale(1, (18 * sy) / (0.72 * 64)); g.font = "bold 64px Arial"; g.textAlign = "center"; g.textBaseline = "middle";
+    for (let k = 0; k < stripes; k++) { const xx = 3 + k * (sw + gap); g.fillRect(xx * sx, Y(6 + 30), sw * sx, 30 * sy); }
+    g.fillRect(0, Y(o ? 3 : 2), Wpx, (o ? 3 : 1.2) * sy); // threshold bar (wider at a displaced threshold)
+    g.save(); g.translate(Wpx / 2, Y(52)); g.scale(1, (18 * sy) / (0.72 * 64)); g.font = "bold 64px Arial"; g.textAlign = "center"; g.textBaseline = "middle";
     g.fillText(id.replace(/^0/, ""), 0, 0); g.restore();
     // aiming point
-    g.fillRect(Wpx / 2 - (r.wid * 0.3) * sx - 6 * sx, Hpx - (300 + 45) * sy, 6 * sx, 45 * sy); g.fillRect(Wpx / 2 + (r.wid * 0.3) * sx, Hpx - (300 + 45) * sy, 6 * sx, 45 * sy);
-    if (r.tdz) for (const [d, n] of [[150, 3], [450, 2], [600, 2], [750, 1]]) for (let k = 0; k < n; k++) { g.fillRect(Wpx / 2 - 8 * sx - k * 3 * sx, Hpx - (d + 22) * sy, 1.8 * sx, 22 * sy); g.fillRect(Wpx / 2 + 6.2 * sx + k * 3 * sx, Hpx - (d + 22) * sy, 1.8 * sx, 22 * sy); }
+    g.fillRect(Wpx / 2 - (r.wid * 0.3) * sx - 6 * sx, Y(300 + 45), 6 * sx, 45 * sy); g.fillRect(Wpx / 2 + (r.wid * 0.3) * sx, Y(300 + 45), 6 * sx, 45 * sy);
+    if (r.tdz) for (const [d, n] of [[150, 3], [450, 2], [600, 2], [750, 1]]) for (let k = 0; k < n; k++) { g.fillRect(Wpx / 2 - 8 * sx - k * 3 * sx, Y(d + 22), 1.8 * sx, 22 * sy); g.fillRect(Wpx / 2 + 6.2 * sx + k * 3 * sx, Y(d + 22), 1.8 * sx, 22 * sy); }
   };
   drawEnd(r.ends[0].id);
   g.save(); g.translate(Wpx, Hpx); g.rotate(Math.PI); drawEnd(r.ends[1].id); g.restore();
+  if (r.closed) { // a closed runway: big yellow crosses at each end and in the middle
+    g.save(); g.strokeStyle = "#e3b21b"; g.lineWidth = 3 * sx;
+    for (const m of [60, r.len / 2, r.len - 60]) { const h = r.wid * 0.9; g.beginPath(); g.moveTo(Wpx * 0.1, Hpx - (m - h) * sy); g.lineTo(Wpx * 0.9, Hpx - (m + h) * sy); g.moveTo(Wpx * 0.9, Hpx - (m - h) * sy); g.lineTo(Wpx * 0.1, Hpx - (m + h) * sy); g.stroke(); }
+    g.restore();
+  }
   return c;
 }
 function holdShortTexture() {
@@ -316,9 +347,9 @@ function buildAirports(lightsTex, renderer) {
   const root = new THREE.Group();
   const lights = { kzar: [], kame: [], taxi: [], vasi: [], beacons: [], gun: null, pcl: null };
   const maxAniso = renderer.capabilities.getMaxAnisotropy();
-  const taxiMat = new THREE.MeshLambertMaterial({ color: 0x45484c, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 });
-  const apronMat = new THREE.MeshLambertMaterial({ color: 0x6d6f70, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 });
-  const yellowMat = new THREE.MeshBasicMaterial({ color: 0xd8ac1c, polygonOffset: true, polygonOffsetFactor: -6, polygonOffsetUnits: -6 });
+  const taxiMat = weatherize(new THREE.MeshLambertMaterial({ color: 0x45484c, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 }));
+  const apronMat = weatherize(new THREE.MeshLambertMaterial({ color: 0x6d6f70, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 }));
+  const yellowMat = weatherize(new THREE.MeshBasicMaterial({ color: 0xd8ac1c, polygonOffset: true, polygonOffsetFactor: -6, polygonOffsetUnits: -6 }));
   const hsTex = holdShortTexture();
   const ptsMat = (size) => new THREE.PointsMaterial({ size, sizeAttenuation: false, map: lightsTex, vertexColors: true, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
   for (const ap of AIRPORTS) {
@@ -328,7 +359,7 @@ function buildAirports(lightsTex, renderer) {
     const white = new THREE.Color(1, 0.96, 0.85), green = new THREE.Color(0.2, 1, 0.35), red = new THREE.Color(1, 0.15, 0.1), blue = new THREE.Color(0.25, 0.4, 1);
     for (const r of ap.runways) {
       const tex = new THREE.CanvasTexture(runwayCanvas(r, ap)); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = maxAniso;
-      const mesh = new THREE.Mesh(planeGroup(r.len, r.wid, r.hdg), new THREE.MeshLambertMaterial({ map: tex, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 }));
+      const mesh = new THREE.Mesh(planeGroup(r.len, r.wid, r.hdg), weatherize(new THREE.MeshLambertMaterial({ map: tex, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 })));
       mesh.position.set(r.cx, y + 0.02, r.cz); root.add(mesh);
       if (r.lights) {
         const [dx, dz] = r.dir; const px = -dz, pz = dx;
@@ -558,6 +589,48 @@ export class Clouds {
   }
 }
 
+/* ===================== rain and snow ===================== */
+/**
+ * Drops live in a box that travels with the eye. Each frame they fall and drift with the wind; rain is drawn as
+ * short streaks along the drop's motion relative to the airplane, so it slants back past the windshield at speed.
+ */
+export class Precip {
+  constructor(scene, quality) {
+    const n = this.n = quality === "low" ? 1500 : 3400; this.B = 34; this.H = 22; this.t = 0;
+    const R = rng(77); this.p = new Float32Array(n * 3);
+    for (let i = 0; i < n; i++) { this.p[i * 3] = (R() * 2 - 1) * this.B; this.p[i * 3 + 1] = (R() * 2 - 1) * this.H; this.p[i * 3 + 2] = (R() * 2 - 1) * this.B; }
+    const geo = (arr) => { const g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.BufferAttribute(arr, 3).setUsage(THREE.DynamicDrawUsage)); return g; };
+    this.rainPos = new Float32Array(n * 6); this.snowPos = new Float32Array(n * 3);
+    this.rain = new THREE.LineSegments(geo(this.rainPos), new THREE.LineBasicMaterial({ color: 0xb4bec9, transparent: true, opacity: 0.5, depthWrite: false }));
+    this.snow = new THREE.Points(geo(this.snowPos), new THREE.PointsMaterial({ color: 0xffffff, size: 0.3, map: glowTexture(), transparent: true, depthWrite: false }));
+    for (const m of [this.rain, this.snow]) { m.frustumCulled = false; m.visible = false; m.renderOrder = 5; scene.add(m); }
+  }
+  /** kind: none | rain | snow | fzra; rate 0–1; eye (world); vel: the airplane's velocity; wind: the air's velocity (m/s) */
+  update(dt, kind, rate, eye, vel, wind) {
+    const on = kind !== "none" && rate > 0, snow = kind === "snow";
+    this.rain.visible = on && !snow; this.snow.visible = on && snow;
+    if (!on || dt <= 0) return;
+    this.t += dt;
+    const n = Math.round(this.n * (0.3 + 0.7 * rate)), B = this.B, H = this.H, p = this.p;
+    const fall = snow ? 1.4 : 9;
+    const rx = wind.x - vel.x, ry = -fall - vel.y, rz = wind.z - vel.z; // drop motion seen from the airplane
+    const out = snow ? this.snowPos : this.rainPos, streak = 0.03;
+    for (let i = 0; i < n; i++) {
+      const k = i * 3;
+      let x = p[k] + rx * dt, y = p[k + 1] + ry * dt, z = p[k + 2] + rz * dt;
+      if (snow) { x += Math.sin(this.t * 1.3 + i) * 0.4 * dt; z += Math.cos(this.t * 1.1 + i * 0.7) * 0.4 * dt; }
+      x = x > B ? x - 2 * B : x < -B ? x + 2 * B : x; y = y > H ? y - 2 * H : y < -H ? y + 2 * H : y; z = z > B ? z - 2 * B : z < -B ? z + 2 * B : z;
+      p[k] = x; p[k + 1] = y; p[k + 2] = z;
+      const hide = x * x + y * y + z * z < 9; // nothing falls inside the cabin
+      if (snow) { out[k] = eye.x + x; out[k + 1] = hide ? -1e5 : eye.y + y; out[k + 2] = eye.z + z; continue; }
+      const j = i * 6; out[j] = eye.x + x; out[j + 1] = eye.y + y; out[j + 2] = eye.z + z;
+      out[j + 3] = eye.x + x - (hide ? 0 : rx * streak); out[j + 4] = eye.y + y - (hide ? 0 : ry * streak); out[j + 5] = eye.z + z - (hide ? 0 : rz * streak);
+    }
+    const g = (snow ? this.snow : this.rain).geometry;
+    g.attributes.position.needsUpdate = true; g.setDrawRange(0, snow ? n : n * 2);
+  }
+}
+
 /* ===================== sky, light, fog ===================== */
 export function sunFromHour(hour) {
   const e = 60 * Math.sin(((hour - 6.4) / 13.6) * Math.PI) - 2; // elevation, deg (sunrise ~6:30, sunset ~19:50)
@@ -577,7 +650,7 @@ export class World {
     this.scene.add(terrain.group); this.terrain = terrain;
     await step("Filling Lake Itasca", () => this.scene.add(buildWater()));
     await step("Building towns", () => this.scene.add(buildTowns()));
-    await step("Planting forests", () => this.scene.add(buildTrees(this.quality)));
+    this.trees = await step("Planting forests", () => buildTrees(this.quality)); this.scene.add(this.trees);
     const ap = await step("Painting runways", () => buildAirports(this.lightsTex, this.renderer));
     this.scene.add(ap.root); this.ap = ap;
     const lm = await step("Placing landmarks", () => buildLandmarks(this.lightsTex));
@@ -588,9 +661,23 @@ export class World {
     this.hemi = new THREE.HemisphereLight(0xbfd6ff, 0x4d5a3a, 1.0); this.scene.add(this.hemi);
     this.scene.fog = new THREE.Fog(0xb9c7d6, 2000, 40000);
     this.clouds = new Clouds(this.scene);
+    this.precip = new Precip(this.scene, this.quality);
+    // a storm's rain shaft: the visible sign of a possible microburst underneath
+    const shaftTex = (() => { const c = canvas(4, 128), g = c.getContext("2d"), gr = g.createLinearGradient(0, 0, 0, 128); gr.addColorStop(0, "rgba(60,66,74,0.9)"); gr.addColorStop(0.75, "rgba(70,76,84,0.6)"); gr.addColorStop(1, "rgba(80,86,94,0.15)"); g.fillStyle = gr; g.fillRect(0, 0, 4, 128); return new THREE.CanvasTexture(c); })();
+    this.shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 1, 1, 32, 1, true), new THREE.MeshBasicMaterial({ map: shaftTex, transparent: true, depthWrite: false, side: THREE.DoubleSide, fog: true }));
+    this.shaft.visible = false; this.scene.add(this.shaft);
   }
-  /** env: { hour, visSM, inCloud } */
+  /** show a rain shaft over a microburst (or hide it): mb { x, z, r }, from the ground up to the cloud base (m MSL) */
+  setStorm(mb, groundY, baseY) {
+    this.shaft.visible = !!mb; if (!mb) return;
+    const h = Math.max(200, baseY - groundY); this.shaft.scale.set(mb.r * 1.1, h, mb.r * 1.1); this.shaft.position.set(mb.x, groundY + h / 2, mb.z);
+  }
+  /** env: { hour, visSM, inCloud, gloom (0–1, heavy cloud and precipitation), snow (0–1), wet (0–1) } */
   setEnvironment(env) {
+    const gloom = env.gloom || 0;
+    WX.uSnow.value = env.snow || 0; WX.uWet.value = env.wet || 0;
+    if (this.terrain?.rim) for (const m of this.terrain.rim) m.color.setHex(0x5f7148).lerp(new THREE.Color(0xdde2e8), env.snow || 0);
+    if (this.trees) this.trees.material.color.setScalar(1 + 1.8 * (env.snow || 0));
     const { elev, az } = sunFromHour(env.hour);
     const e = elev * DEG, a = az * DEG;
     const dir = new THREE.Vector3(Math.sin(a) * Math.cos(e), Math.sin(e), -Math.cos(a) * Math.cos(e));
@@ -602,11 +689,12 @@ export class World {
     this.night = elev < -4; this.dusk = elev < 6;
     this.sun.position.copy(dir).multiplyScalar(5000);
     const warm = new THREE.Color().setRGB(1, 0.62 + 0.38 * Math.min(1, elev / 25), 0.42 + 0.58 * Math.min(1, elev / 25));
-    this.sun.color.copy(warm); this.sun.intensity = 2.6 * Math.max(0, Math.sin(e)) + 0.02;
-    this.hemi.intensity = 0.12 + 1.0 * day; this.hemi.color.setRGB(0.55 + 0.2 * day, 0.62 + 0.25 * day, 0.85);
+    this.sun.color.copy(warm); this.sun.intensity = (2.6 * Math.max(0, Math.sin(e)) + 0.02) * (1 - 0.7 * gloom);
+    this.hemi.intensity = (0.12 + 1.0 * day) * (1 - 0.3 * gloom); this.hemi.color.setRGB(0.55 + 0.2 * day, 0.62 + 0.25 * day, 0.85);
     this.renderer.toneMappingExposure = 0.18 + 0.4 * day;
     const fogDay = new THREE.Color(0xb6c6d6), fogDusk = new THREE.Color(0xc09a86), fogNight = new THREE.Color(0x070b14);
     const fc = elev > 8 ? fogDay : elev > -2 ? fogDusk.clone().lerp(fogDay, Math.max(0, (elev + 2) / 10)) : fogNight.clone().lerp(fogDusk, Math.max(0, (elev + 8) / 6));
+    if (gloom) fc.lerp(new THREE.Color(0x8e979f).multiplyScalar(0.3 + 0.7 * day), 0.65 * gloom);
     const visM = Math.min(60000, env.visSM * 1609);
     if (env.inCloud > 0.05) { const c = new THREE.Color(0xcfd4da).multiplyScalar(0.25 + 0.75 * day); this.scene.fog.color.copy(c); this.scene.fog.near = 2; this.scene.fog.far = 60 + 400 * (1 - env.inCloud); }
     else { this.scene.fog.color.copy(fc); this.scene.fog.near = Math.min(800, visM * 0.05); this.scene.fog.far = visM * 1.25; }

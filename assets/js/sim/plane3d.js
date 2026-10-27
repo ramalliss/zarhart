@@ -155,7 +155,9 @@ function liveryTexture(reg, stripe, navy = "#1b2a44", scale = 1) {
 }
 
 /* ---------------- airplane ---------------- */
-export function buildAirplane({ reg = "N19ZR", stripe = 0xe64bd0, simple = false } = {}) {
+/** type: c172 (high wing, struts) | c152 (the same, a size smaller) | pa28 (low wing, no struts, wider main gear) */
+export function buildAirplane({ reg = "N19ZR", stripe = 0xe64bd0, simple = false, type = "c172" } = {}) {
+  const low = type === "pa28", gearX = low ? 1.55 : 1.25;
   const g = new THREE.Group();
   const stripeHex = "#" + new THREE.Color(stripe).getHexString();
   const paint = new THREE.MeshStandardMaterial({ map: liveryTexture(reg, stripeHex, "#1b2a44", simple ? 0.5 : 1), roughness: 0.32, metalness: 0.05 });
@@ -192,7 +194,7 @@ export function buildAirplane({ reg = "N19ZR", stripe = 0xe64bd0, simple = false
   prop.add(disc); parts.prop = prop; parts.disc = disc;
 
   // wings (right built, left mirrored), with flaps and ailerons
-  const dih = Math.tan(1.7 * DEG), wy = (s) => 1.06 + Math.max(0, s - 0.55) * dih;
+  const dih = Math.tan((low ? 7 : 1.7) * DEG), wy = (s) => (low ? -0.62 : 1.06) + Math.max(0, s - 0.55) * dih;
   const leAt = (s) => (s <= 2.6 ? -0.86 : -0.86 + (s - 2.6) / (5.45 - 2.6) * 0.16);
   const chordAt = (s) => (s <= 2.6 ? 1.63 : 1.63 - (s - 2.6) / (5.45 - 2.6) * 0.51);
   const csAt = (s) => (s <= 2.6 ? 0.38 : 0.38 - (s - 2.6) / (5.45 - 2.6) * 0.1); // control-surface chord
@@ -209,9 +211,9 @@ export function buildAirplane({ reg = "N19ZR", stripe = 0xe64bd0, simple = false
     parts[sign > 0 ? "flapR" : "flapL"] = fh.inner; parts[sign > 0 ? "ailR" : "ailL"] = ah.inner;
     // wingtip accent
     const tip = new THREE.Mesh(new THREE.SphereGeometry(0.1, 10, 8), accent); tip.scale.set(0.6, 0.55, 5.2); tip.position.set(sign * 5.47, wy(5.45), leAt(5.45) + chordAt(5.45) * 0.42); add(tip);
-    // lift strut and jury strut
-    add(strut(new THREE.Vector3(sign * 0.56, -0.40, -0.02), new THREE.Vector3(sign * 2.55, wy(2.55) - 0.06, -0.12), 0.05, 0.04, metal));
-    add(strut(new THREE.Vector3(sign * 1.45, 0.30, -0.07), new THREE.Vector3(sign * 1.45, wy(1.45) - 0.07, -0.08), 0.012, 0.012, metal, 1));
+    // lift strut and jury strut (high wing only)
+    if (!low) add(strut(new THREE.Vector3(sign * 0.56, -0.40, -0.02), new THREE.Vector3(sign * 2.55, wy(2.55) - 0.06, -0.12), 0.05, 0.04, metal));
+    if (!low) add(strut(new THREE.Vector3(sign * 1.45, 0.30, -0.07), new THREE.Vector3(sign * 1.45, wy(1.45) - 0.07, -0.08), 0.012, 0.012, metal, 1));
   }
 
   // horizontal stabilizer + elevator (hinge straight along x at z = 5.27)
@@ -236,9 +238,10 @@ export function buildAirplane({ reg = "N19ZR", stripe = 0xe64bd0, simple = false
 
   // landing gear
   for (const sx of [-1, 1]) {
-    add(strut(new THREE.Vector3(sx * 0.42, -0.56, 0.38), new THREE.Vector3(sx * 1.2, -0.9, 0.38), 0.03, 0.022, metal, 1.8));
-    const w = new THREE.Mesh(new THREE.CylinderGeometry(0.29, 0.29, 0.15, 20), rubber); w.rotation.z = Math.PI / 2; w.position.set(sx * 1.25, -0.93, 0.38); add(w);
-    add(pant(sx * 1.25, -0.88, 0.40, 0.95, 0.22, white));
+    if (low) add(strut(new THREE.Vector3(sx * gearX, wy(gearX) - 0.04, 0.32), new THREE.Vector3(sx * gearX, -0.9, 0.45), 0.035, 0.03, metal, 1)); // oleo leg under the wing
+    else add(strut(new THREE.Vector3(sx * 0.42, -0.56, 0.38), new THREE.Vector3(sx * 1.2, -0.9, 0.38), 0.03, 0.022, metal, 1.8));
+    const w = new THREE.Mesh(new THREE.CylinderGeometry(0.29, 0.29, 0.15, 20), rubber); w.rotation.z = Math.PI / 2; w.position.set(sx * gearX, -0.93, low ? 0.45 : 0.38); add(w);
+    add(pant(sx * gearX, -0.88, low ? 0.47 : 0.40, 0.95, 0.22, white));
   }
   add(strut(new THREE.Vector3(0, -0.45, -1.6), new THREE.Vector3(0, -0.97, -1.55), 0.045, 0.04, metal, 1));
   const nw = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.24, 0.12, 18), rubber); nw.rotation.z = Math.PI / 2; nw.position.set(0, -0.98, -1.55); add(nw);
@@ -256,6 +259,7 @@ export function buildAirplane({ reg = "N19ZR", stripe = 0xe64bd0, simple = false
     const spot = new THREE.SpotLight(0xfff2d8, 0, 900, 0.32, 0.45, 1.2); spot.position.set(-0.9, 0.98, -0.95);
     const tgt = new THREE.Object3D(); tgt.position.set(-0.9, -6, -40); g.add(spot, tgt); spot.target = tgt; parts.landingLight = spot;
   }
+  if (type === "c152") g.scale.setScalar(0.92);
   g.userData.parts = parts;
   return g;
 }
@@ -281,7 +285,7 @@ export function buildShadow() {
 }
 
 /** Cockpit view: glareshield, window posts, door frames, and the real wings and struts overhead. */
-export function buildCockpit() {
+export function buildCockpit(type = "c172") {
   const g = new THREE.Group();
   const dash = new THREE.MeshLambertMaterial({ color: 0x15191e });
   const frame = new THREE.MeshLambertMaterial({ color: 0xd9dbdf });
@@ -294,13 +298,16 @@ export function buildCockpit() {
   const roof = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.06, 1.8), frame); roof.position.set(0, 1.12, -0.2); g.add(roof);
   const top = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.06, 0.9), frame); top.position.set(0, 1.1, -0.95); g.add(top);
   const compass = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.1, 0.1), dash); compass.position.set(0, 0.98, -0.95); g.add(compass);
-  // reuse the exterior wings, struts and control surfaces so the view out the window matches the airplane
-  const ext = buildAirplane({ simple: true }); ext.updateMatrixWorld(true);
-  const keep = new Set();
-  ext.traverse((o) => { if (o.isMesh) { const b = new THREE.Box3().setFromObject(o); if (Math.max(Math.abs(b.min.x), Math.abs(b.max.x)) > 0.9 && b.min.y > -0.6) keep.add(o); } });
-  ext.traverse((o) => { if (o.isMesh && (!keep.has(o) || o.material.isMeshBasicMaterial)) o.visible = false; });
-  g.add(ext); g.userData.ext = ext;
+  const ext = cockpitExterior(type); g.add(ext); g.userData.ext = ext;
   return g;
+}
+/** the exterior wings, struts and control surfaces seen from the cockpit, so the view out the window matches the airplane */
+export function cockpitExterior(type = "c172") {
+  const ext = buildAirplane({ simple: true, type }); ext.updateMatrixWorld(true);
+  const keep = new Set(), floor = type === "pa28" ? -0.95 : -0.6;
+  ext.traverse((o) => { if (o.isMesh) { const b = new THREE.Box3().setFromObject(o); if (Math.max(Math.abs(b.min.x), Math.abs(b.max.x)) > 0.9 && b.min.y > floor) keep.add(o); } });
+  ext.traverse((o) => { if (o.isMesh && (!keep.has(o) || o.material.isMeshBasicMaterial)) o.visible = false; });
+  return ext;
 }
 
 export function animateAirplane(group, ac, t, dt = 1 / 60) {
