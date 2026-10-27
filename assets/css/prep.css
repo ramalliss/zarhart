@@ -145,3 +145,8 @@ textarea { width: 100%; min-height: 280px; font: 13px/1.5 var(--f-mono); backgro
 .qtop .clock { color: var(--cyan); }
 .qtop .clock.low { color: var(--red); }
 .fb .cref { margin-top: 0; }
+.courses { list-style: none; padding: 0; margin: 14px 0 18px; display: grid; gap: 1px; background: var(--line); border: 1px solid var(--line); }
+.courses li { display: grid; grid-template-columns: 290px 1fr auto; gap: 8px 18px; align-items: center; padding: 14px 16px; background: var(--panel); }
+.courses a { font-weight: 600; }
+.courses span:not(.chip) { color: var(--muted); font-size: 15px; }
+@media (max-width: 640px) { .courses li { grid-template-columns: 1fr; } }
