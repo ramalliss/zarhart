@@ -27,7 +27,7 @@ const FREQS = [
 const freqInfo = (f) => FREQS.find((q) => Math.abs(q.f - f) < 0.004);
 
 /* ---------------- settings ---------------- */
-const settings = Object.assign({ quality: "high", invert: false, mouseYoke: false, autoRudder: true, sound: true, voice: false, panel: "steam", sens: "normal", floating: true, touchRight: "slider", tilt: false, haptics: true, ctlMap: null }, store.get("settings", {}));
+const settings = Object.assign({ quality: "high", invert: false, mouseYoke: false, autoRudder: true, sound: true, voice: false, panel: "steam", sens: "normal", floating: true, touchRight: "slider", tilt: false, haptics: true, ctlMap: null, pad: true }, store.get("settings", {}));
 settings.assist ||= settings.autoRudder === false ? "off" : "assisted";
 const saveSettings = () => store.set("settings", settings);
 
@@ -464,7 +464,8 @@ function renderDrawer() {
       ${TOUCH ? `<label class="chk"><input type="checkbox" id="sFloat" ${settings.floating ? "checked" : ""}> Floating stick: touch anywhere on the left side</label>
       <label>Right thumb <select id="sRight"><option value="slider">Throttle slider and rudder buttons</option><option value="stick">Second stick: throttle up and down, rudder left and right</option></select></label>
       <label class="chk"><input type="checkbox" id="sTilt" ${settings.tilt ? "checked" : ""}> Tilt to fly: turn the phone like a wheel to bank, tilt the top edge toward you to raise the nose</label>
-      <button class="sbtn" id="sRecenter" ${settings.tilt ? "" : "hidden"}>Recenter tilt (hold the phone how you like, then tap)</button>` : ""}
+      <button class="sbtn" id="sRecenter" ${settings.tilt ? "" : "hidden"}>Recenter tilt (hold the phone how you like, then tap)</button>` : `<label class="chk"><input type="checkbox" id="sPad" ${settings.pad ? "checked" : ""}> On-screen controls: a stick and a throttle lever to drag with the mouse, plus flaps, brakes and parking brake buttons</label>
+      <label>Throttle and rudder <select id="sRight"><option value="slider">Throttle lever and rudder buttons</option><option value="stick">Second stick: throttle up and down, rudder left and right</option></select></label>`}
       <label class="chk"><input type="checkbox" id="sHaptic" ${settings.haptics ? "checked" : ""}> Vibration and controller rumble with the stall horn and on touchdown</label></div>
       <h3 class="dsub">Joystick, throttle and pedals</h3>
       <p class="dnote" id="ctlDevs"></p>
@@ -475,10 +476,11 @@ function renderDrawer() {
     $("#sSens", B).value = settings.sens;
     $("#sSens", B).addEventListener("change", (e) => { settings.sens = input.sens = e.target.value; saveSettings(); });
     $("#sHaptic", B).addEventListener("change", (e) => { settings.haptics = e.target.checked; saveSettings(); if (settings.haptics) buzz(60, 0.5); });
+    $("#sRight", B).value = settings.touchRight;
+    $("#sRight", B).addEventListener("change", (e) => { settings.touchRight = e.target.value; saveSettings(); touchLayout(); });
+    $("#sPad", B)?.addEventListener("change", (e) => { settings.pad = e.target.checked; saveSettings(); padLayout(); });
     if (TOUCH) {
       $("#sFloat", B).addEventListener("change", (e) => { settings.floating = input.floating = e.target.checked; saveSettings(); });
-      $("#sRight", B).value = settings.touchRight;
-      $("#sRight", B).addEventListener("change", (e) => { settings.touchRight = e.target.value; saveSettings(); touchLayout(); });
       $("#sTilt", B).addEventListener("change", async (e) => {
         const ok = await input.setTilt(e.target.checked); settings.tilt = e.target.checked && ok; saveSettings(); $("#sRecenter", B).hidden = !settings.tilt;
         if (e.target.checked && !ok) { e.target.checked = false; say("This browser didn't allow motion access, so tilt to fly is off.", "warn"); }
@@ -555,6 +557,25 @@ function renderObjectives() {
   const form = $("#oAsk"); if (form) form.onsubmit = (e) => { e.preventDefault(); lessons.answer(Object.fromEntries(st.ask.map((f) => [f.key, +form.elements[f.key].value]))); };
 }
 const askForm = (ask) => `<form class="oask" id="oAsk">${ask.map((f) => `<label>${esc(f.label)}<span><input name="${f.key}" type="number" inputmode="decimal" step="any" min="0" required>${esc(f.unit)}</span></label>`).join("")}<button class="sbtn">Enter</button></form>`;
+/* coaching at the moments new pilots get stuck on a takeoff: the parking brake, when to rotate, and the climb.
+   The rotate and climb tips stop after five takeoffs. */
+const coachState = { pb: 0, pbSaid: 0, rot: false, climb: false };
+function coach(dt) {
+  const d = ac.derived, c = coachState, now = performance.now();
+  if (sim.paused || ac.crashed || !$("#start").hidden) return;
+  const how = (keys, button) => (TOUCH ? `tap ${button}` : settings.pad ? `press ${keys} or click ${button}` : `press ${keys}`);
+  if (d.onGround && ac.parkingBrake && ac.ctl.throttle > 0.4) {
+    c.pb += dt;
+    if (c.pb > 1.5 && now - c.pbSaid > 15000) { c.pbSaid = now; say(`The parking brake is still set, so the airplane can't roll. Release it: ${how("Shift+B", "Park brk")}.`, "warn", 7000); }
+  } else c.pb = 0;
+  if (d.onGround && d.gs < 3) { c.rot = false; c.climb = false; }
+  if ((settings.coached || 0) >= 5) return;
+  if (d.onGround && d.ias >= 55 && ac.ctl.throttle > 0.7 && !c.rot) {
+    c.rot = true; settings.coached = (settings.coached || 0) + 1; saveSettings();
+    say(`55 knots: rotate. Pull back gently (${TOUCH ? "drag the stick down" : settings.pad ? "↓ or S, or drag the stick down" : "↓ or S"}) until the nose lifts off.`, "tip", 5000);
+  }
+  if (!d.onGround && d.agl > 60 && c.rot && !c.climb) { c.climb = true; say("You're flying. Climb at about 74 KIAS: if the speed drops below that, lower the nose a little.", "tip", 6000); }
+}
 let lastObjKey = "";
 function hudUpdate() {
   const d = ac.derived;
@@ -576,11 +597,12 @@ function hudUpdate() {
   if (!gm.hidden) gm.innerHTML = `<b>${d.g.toFixed(2)} G</b><span>bank ${Math.round(Math.abs(d.bank))}° · theory ${(1 / Math.cos(Math.min(85, Math.abs(d.bank)) * DEG)).toFixed(2)} G</span>`;
   // touch controls follow the airplane: the throttle slider (unless a thumb is on it) and the parking brake button
   if (!$("#touch").hidden) {
-    if (!input.touch.thrBusy) { $("#thr").value = Math.round(ac.ctl.throttle * 100); $("#knob2").style.transform = `translate(0px, ${Math.round((1 - 2 * ac.ctl.throttle) * 34)}px)`; }
+    if (!input.touch.thrBusy) { input.showLever($("#lever"), ac.ctl.throttle); $("#knob2").style.transform = `translate(0px, ${Math.round((1 - 2 * ac.ctl.throttle) * 34)}px)`; }
     $('#touch [data-t="park"]').classList.toggle("on", ac.parkingBrake);
   }
   // haptics: a buzz with the stall horn (phones vibrate, gamepads rumble)
   if (d.stallWarn && !sim.paused && performance.now() - (hudUpdate.buzzT || 0) > 450) { hudUpdate.buzzT = performance.now(); buzz(70, 0.35); }
+  coach(0.12);
   if (openDrawerName === "settings") ctlBars();
   // light gun
   const lg = $("#lightgun"); lg.hidden = !sim.lightGun; if (sim.lightGun) lg.innerHTML = `<span class="dot ${sim.lightGun.color} ${sim.lightGun.flash ? "flash" : ""}"></span>${esc(sim.lightGun.text)}`;
@@ -643,11 +665,11 @@ $("#resume").addEventListener("click", () => { sim.paused = false; $("#paused").
 input.on("onPad", (id) => say(`Controller connected: ${id.slice(0, 40)}`, "good"));
 /** touch layout: the throttle slider and rudder buttons, or a right-hand throttle/rudder stick */
 function touchLayout() { const two = settings.touchRight === "stick"; $("#stick2").hidden = !two; $(".thr").hidden = two; $("#touch").classList.toggle("twostick", two); }
-if (matchMedia("(pointer: coarse)").matches) {
-  $("#touch").hidden = false; input.attachTouch({ stick: $("#stick"), knob: $("#knob"), thr: $("#thr"), stick2: $("#stick2"), knob2: $("#knob2") }); touchLayout();
-  // iPhones only grant motion access from a tap, so tilt waits for the first touch there
-  const tiltOn = () => input.setTilt(true).then((ok) => { if (!ok) { settings.tilt = false; saveSettings(); say("Tilt to fly needs motion access. Turn it on again in Settings.", "warn"); } });
-  if (settings.tilt) { if (window.DeviceOrientationEvent?.requestPermission) addEventListener("touchend", tiltOn, { once: true }); else tiltOn(); }
+/** on-screen controls: always on touch screens; on computers too unless switched off in Settings */
+function padLayout() { const on = TOUCH || settings.pad; $("#touch").hidden = !on; document.body.classList.toggle("padon", on && !TOUCH); }
+input.attachPad({ stick: $("#stick"), knob: $("#knob"), lever: $("#lever"), stick2: $("#stick2"), knob2: $("#knob2") });
+padLayout(); touchLayout();
+{
   const tap = { flapsDown: () => keymap["]"](), flapsUp: () => keymap["["](), park: () => keymap["S+b"](), view: () => keymap.c(), pause: () => togglePause() };
   const holds = { brake: (on) => { input.touch.brake = on; }, rudL: (on) => { input.touch.yaw = on ? -1 : 0; }, rudR: (on) => { input.touch.yaw = on ? 1 : 0; } };
   document.querySelectorAll("#touch [data-t]").forEach((b) => {
@@ -655,6 +677,11 @@ if (matchMedia("(pointer: coarse)").matches) {
     const hold = (on) => (e) => { e.preventDefault(); holds[b.dataset.t](on); b.classList.toggle("on", on); };
     b.addEventListener("pointerdown", hold(true)); for (const t of ["pointerup", "pointercancel", "pointerleave"]) b.addEventListener(t, hold(false));
   });
+}
+if (TOUCH) {
+  // iPhones only grant motion access from a tap, so tilt waits for the first touch there
+  const tiltOn = () => input.setTilt(true).then((ok) => { if (!ok) { settings.tilt = false; saveSettings(); say("Tilt to fly needs motion access. Turn it on again in Settings.", "warn"); } });
+  if (settings.tilt) { if (window.DeviceOrientationEvent?.requestPermission) addEventListener("touchend", tiltOn, { once: true }); else tiltOn(); }
 }
 
 /* ---------------- panel actions ---------------- */

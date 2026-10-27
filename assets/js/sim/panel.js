@@ -286,7 +286,7 @@ export class Panel {
     const gps = S.gps; box(3, "GPS", gps ? `${gps.id} ${gps.dist.toFixed(1)}NM` : "NO WPT", gps ? `${String(Math.round(gps.brg)).padStart(3, "0")}°  ${S.ete || ""}` : "", "#e64bd0", () => this.act.openMap?.(), "Open the map to pick a waypoint");
     box(4, "DME", S.vor1?.ok ? `${S.vor1.dme.toFixed(1)}NM` : "---.-", `GS ${Math.round(S.d.gs)}KT  OAT ${Math.round(S.d.oatC)}°C`, "#5be38a");
     // annunciators
-    const yy = y + 5 * (rh + 4); const ann = [["VOLTS", ac.elec.master && !ac.elec.alt, "#ff4d4d"], ["VAC", S.d.suction < 3, "#ffb020"], ["OIL P", ac.elec.master && S.d.oilP < 0.25, "#ff4d4d"], ["FUEL", S.d.fuelL + S.d.fuelR < 6, "#ffb020"]];
+    const yy = y + 5 * (rh + 4); const ann = [["VOLTS", ac.elec.master && !ac.elec.alt, "#ff4d4d"], ["VAC", S.d.suction < 3, "#ffb020"], ["OIL P", ac.elec.master && S.d.oilP < 0.25, "#ff4d4d"], ["FUEL", S.d.fuelL + S.d.fuelR < 6, "#ffb020"], ["PK BRK", ac.parkingBrake, "#ffb020"]];
     const aw = (w - 12) / ann.length;
     ann.forEach(([t, on, c], i) => { g.fillStyle = on ? c : "#14171b"; g.fillRect(x + i * (aw + 4), yy, aw, rh * 0.8); text(g, t, x + i * (aw + 4) + aw / 2, yy + rh * 0.4, Math.max(8, rh * 0.28), on ? "#111" : "#3a3f45", "center", 800); });
   }

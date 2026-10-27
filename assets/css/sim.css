@@ -148,7 +148,20 @@ kbd { font: 600 12px/1 var(--f-mono); padding: 4px 6px; border-radius: 3px; back
 .stick { pointer-events: auto; width: 120px; height: 120px; border-radius: 50%; background: rgba(5, 6, 7, .45); border: 1px solid var(--line-2); display: grid; place-items: center; }
 .knob { width: 48px; height: 48px; border-radius: 50%; background: rgba(230, 75, 208, .8); }
 .thr { pointer-events: auto; display: grid; justify-items: center; gap: 4px; font: 700 11px var(--f-mono); color: var(--muted); }
-.thr input { writing-mode: vertical-lr; direction: rtl; height: 120px; accent-color: var(--magenta); }
+/* throttle lever: drag the black knob up for power, like pushing a real throttle in */
+.lever { --lv: 0; position: relative; width: 30px; height: 120px; border-radius: 6px; background: rgba(5, 6, 7, .7); border: 1px solid var(--line-2); cursor: ns-resize; touch-action: none; }
+.lever::before { content: ""; position: absolute; left: 50%; top: 8px; bottom: 8px; width: 4px; margin-left: -2px; border-radius: 2px; background: rgba(255, 255, 255, .14); }
+.lv-fill { position: absolute; left: 50%; bottom: 8px; width: 4px; margin-left: -2px; height: calc(var(--lv) * (100% - 16px)); border-radius: 2px; background: var(--magenta); }
+.lv-knob { position: absolute; left: -5px; right: -5px; height: 26px; bottom: calc(var(--lv) * (100% - 26px)); display: grid; place-items: center; border-radius: 5px; background: linear-gradient(#2a2d31, #0d0e10); border: 1px solid rgba(255, 255, 255, .35); box-shadow: 0 3px 8px rgba(0, 0, 0, .5); font: 700 9px var(--f-mono); color: #cfd4da; letter-spacing: .06em; }
+.lever:active .lv-knob, .lever:focus-visible .lv-knob { border-color: var(--magenta); }
+.lvbtn { pointer-events: auto; width: 46px; padding: 4px 0; border-radius: 4px; border: 1px solid var(--line-2); background: rgba(5, 6, 7, .62); color: var(--text); font: 700 10px var(--f-body); letter-spacing: .06em; text-transform: uppercase; touch-action: manipulation; cursor: pointer; }
+.lv-pct { font: 700 11px var(--f-mono); color: var(--green); }
+.stick, .stick2 { touch-action: none; cursor: grab; }
+.stick.live { cursor: grabbing; }
+#view { touch-action: none; }
+/* computers: the whole pad sits bottom right, clear of the lesson card, and replaces the control-position box */
+.padon .touch { justify-content: flex-end; gap: 16px; }
+.padon .ctl { display: none; }
 .tright { display: flex; align-items: flex-end; gap: 10px; }
 .tbtns { pointer-events: auto; display: grid; grid-template-columns: repeat(2, 66px); gap: 6px; }
 .tbtns button { height: 36px; padding: 0 4px; border-radius: 4px; border: 1px solid var(--line-2); background: rgba(5, 6, 7, .62); color: var(--text); font: 600 11px/1 var(--f-body); letter-spacing: .02em; white-space: nowrap; touch-action: manipulation; -webkit-user-select: none; user-select: none; }
@@ -166,7 +179,7 @@ kbd { font: 600 12px/1 var(--f-mono); padding: 4px 6px; border-radius: 3px; back
   #toasts .toast:nth-child(n+3) { display: none; }
   .vfr { display: none; }
   .stick { width: 104px; height: 104px; }
-  .thr input { height: 104px; }
+  .lever { height: 92px; }
   .tbtns { grid-template-columns: repeat(4, 66px); }
   .touch.twostick .tbtns { grid-template-columns: repeat(3, 66px); }
   .modal .card { padding: 18px 22px; gap: 10px; }
@@ -228,5 +241,5 @@ kbd { font: 600 12px/1 var(--f-mono); padding: 4px 6px; border-radius: 3px; back
   .ctl { display: none; }
 }
 @media (pointer: coarse) and (max-width: 720px) {
-  .vfr, .gmeter { bottom: calc(var(--panel-h, 0px) + 196px); }
+  .vfr, .gmeter { bottom: calc(var(--panel-h, 0px) + 224px); } /* above the throttle column (Full, lever, Idle) */
 }

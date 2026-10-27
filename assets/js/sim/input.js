@@ -195,35 +195,42 @@ export class Input {
   /** true when a touch at screen x belongs to the floating stick (the camera drag ignores it) */
   claimsTouch(x) { return this.floating && x < innerWidth * 0.45; }
 
-  /** touch controls: the left stick (fixed, or floating under the thumb), and on the right either the throttle
-   *  slider or a throttle/rudder stick (up/down holds the throttle, left/right is rudder and springs back) */
-  attachTouch({ stick, knob, thr, stick2, knob2 }) {
-    const T = this.touch, ours = (e, id) => [...e.changedTouches].find((t) => t.identifier === id);
-    // left stick
-    let id = null, ox = 0, oy = 0, R = 50;
-    const move = (t) => { const x = clamp((t.clientX - ox) / R, -1, 1), y = clamp((t.clientY - oy) / R, -1, 1); T.active = true; T.x = x; T.y = y; knob.style.transform = `translate(${x * 34}px, ${y * 34}px)`; };
-    const start = (t, floating) => {
-      id = t.identifier; stick.style.transform = "";
-      const r = stick.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2;
-      if (floating) { stick.style.transform = `translate(${t.clientX - cx}px, ${t.clientY - cy}px)`; ox = t.clientX; oy = t.clientY; R = 50; } else { ox = cx; oy = cy; R = r.width * 0.4; }
-      stick.classList.add("live"); move(t);
-    };
-    const end = () => { id = null; T.active = false; knob.style.transform = ""; stick.style.transform = ""; stick.classList.remove("live"); };
-    stick.addEventListener("touchstart", (e) => { e.preventDefault(); if (id == null) start(e.changedTouches[0], false); }, { passive: false });
-    this.el.addEventListener("touchstart", (e) => { if (id != null) return; const t = [...e.changedTouches].find((x) => this.claimsTouch(x.clientX)); if (t) { e.preventDefault(); start(t, true); } }, { passive: false });
-    // right throttle/rudder stick
-    let id2 = null, cx2 = 0, cy2 = 0, R2 = 50;
-    const move2 = (t) => { const x = clamp((t.clientX - cx2) / R2, -1, 1), y = clamp((t.clientY - cy2) / R2, -1, 1); T.yaw = Math.abs(x) < 0.12 ? 0 : x; T.throttle = (1 - y) / 2; knob2.style.transform = `translate(${x * 34}px, ${y * 34}px)`; };
-    stick2?.addEventListener("touchstart", (e) => { e.preventDefault(); if (id2 != null) return; const t = e.changedTouches[0], r = stick2.getBoundingClientRect(); id2 = t.identifier; cx2 = r.left + r.width / 2; cy2 = r.top + r.height / 2; R2 = r.width * 0.4; T.thrBusy = true; stick2.classList.add("live"); move2(t); }, { passive: false });
-    addEventListener("touchmove", (e) => {
-      const a = id != null && ours(e, id), b = id2 != null && ours(e, id2);
-      if (a) move(a); if (b) move2(b); if (a || b) e.preventDefault();
-    }, { passive: false });
-    const lift = (e) => { if (id != null && ours(e, id)) end(); if (id2 != null && ours(e, id2)) { id2 = null; T.yaw = 0; T.thrBusy = false; stick2.classList.remove("live"); } };
-    addEventListener("touchend", lift); addEventListener("touchcancel", lift);
-    // throttle slider
-    thr.addEventListener("input", () => { T.throttle = thr.value / 100; });
-    const busy = (on) => () => { T.thrBusy = on; };
-    thr.addEventListener("pointerdown", busy(true)); thr.addEventListener("pointerup", busy(false)); thr.addEventListener("pointercancel", busy(false));
+  /** on-screen controls for a finger or a mouse (pointer events): the stick (fixed, or on touch screens floating under
+   *  the thumb), and on the right either a throttle lever or a throttle/rudder stick (up/down holds the throttle,
+   *  left/right is rudder and springs back). The stick springs back to centre; the throttle stays where you leave it. */
+  attachPad({ stick, knob, lever, stick2, knob2 }) {
+    const T = this.touch, drag = new Map(); // pointerId -> { move, end }
+    const own = (e, el, h) => { e.preventDefault(); el.setPointerCapture?.(e.pointerId); drag.set(e.pointerId, h); h.move(e); };
+    // stick
+    const stickAt = (ox, oy, R) => ({
+      move: (e) => { const x = clamp((e.clientX - ox) / R, -1, 1), y = clamp((e.clientY - oy) / R, -1, 1); T.active = true; T.x = x; T.y = y; knob.style.transform = `translate(${x * 34}px, ${y * 34}px)`; },
+      end: () => { T.active = false; knob.style.transform = ""; stick.style.transform = ""; stick.classList.remove("live"); },
+    });
+    stick.addEventListener("pointerdown", (e) => { if (T.active) return; stick.style.transform = ""; const r = stick.getBoundingClientRect(); stick.classList.add("live"); own(e, stick, stickAt(r.left + r.width / 2, r.top + r.height / 2, r.width * 0.4)); });
+    this.el.addEventListener("pointerdown", (e) => {
+      if (e.pointerType !== "touch" || T.active || !this.claimsTouch(e.clientX)) return;
+      const r = stick.getBoundingClientRect(); stick.style.transform = `translate(${e.clientX - (r.left + r.width / 2)}px, ${e.clientY - (r.top + r.height / 2)}px)`;
+      stick.classList.add("live"); own(e, this.el, stickAt(e.clientX, e.clientY, 50));
+    });
+    // throttle lever: drag up for more power
+    const setLever = (v) => { T.throttle = v; this.showLever(lever, v); };
+    lever?.addEventListener("pointerdown", (e) => { T.thrBusy = true; own(e, lever, { move: (ev) => { const r = lever.getBoundingClientRect(); setLever(clamp(1 - (ev.clientY - r.top) / r.height, 0, 1)); }, end: () => { T.thrBusy = false; } }); });
+    lever?.parentElement.querySelectorAll("[data-lv]").forEach((b) => b.addEventListener("click", () => setLever(+b.dataset.lv)));
+    // throttle/rudder stick
+    stick2?.addEventListener("pointerdown", (e) => {
+      const r = stick2.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2, R = r.width * 0.4;
+      T.thrBusy = true; stick2.classList.add("live");
+      own(e, stick2, { move: (ev) => { const x = clamp((ev.clientX - cx) / R, -1, 1), y = clamp((ev.clientY - cy) / R, -1, 1); T.yaw = Math.abs(x) < 0.12 ? 0 : x; T.throttle = (1 - y) / 2; knob2.style.transform = `translate(${x * 34}px, ${y * 34}px)`; },
+        end: () => { T.yaw = 0; T.thrBusy = false; stick2.classList.remove("live"); } });
+    });
+    addEventListener("pointermove", (e) => { const h = drag.get(e.pointerId); if (h) { e.preventDefault(); h.move(e); } }, { passive: false });
+    const up = (e) => { const h = drag.get(e.pointerId); if (h) { drag.delete(e.pointerId); h.end(); } };
+    addEventListener("pointerup", up); addEventListener("pointercancel", up);
+  }
+  /** draw the throttle lever at v (0 idle … 1 full) */
+  showLever(lever, v) {
+    if (!lever) return;
+    lever.style.setProperty("--lv", v.toFixed(3)); lever.setAttribute("aria-valuenow", Math.round(v * 100));
+    const pct = lever.parentElement.querySelector(".lv-pct"); if (pct) pct.textContent = `${Math.round(v * 100)}%`;
   }
 }
