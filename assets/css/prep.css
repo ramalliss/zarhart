@@ -164,3 +164,5 @@ textarea { width: 100%; min-height: 280px; font: 13px/1.5 var(--f-mono); backgro
 .forms .form.fail { border-color: var(--amber); }
 .forms .form:hover, .forms .form:focus-visible { border-color: var(--magenta); }
 .examintro h3 { margin: 0; }
+.qcode { margin: -4px 0 14px; padding: 10px 12px; border-left: 3px solid var(--magenta); background: rgba(255, 255, 255, .03); font: 500 14px/1.5 var(--f-mono); color: var(--text); overflow-wrap: anywhere; }
+.miss code { font: 500 12.5px var(--f-mono); color: var(--muted); }

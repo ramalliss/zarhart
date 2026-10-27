@@ -1,4 +1,5 @@
 // Zarhart Prep: study guide, flashcards, quiz, timed practice exam, Quizlet export.
+import { DRILLS, drillSet } from "./drills.js";
 const $ = (s, r = document) => r.querySelector(s);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const shuffle = (a) => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
@@ -143,7 +144,7 @@ function qzNext() { qz.picked = null; if (qz.i >= qz.list.length) return qzEnd()
 function qzAnswer(k) {
   if (qz.picked !== null) return;
   const c = qz.list[qz.i]; qz.picked = k; const ok = k >= 0 && qz.order[k].ok;
-  qz.res.push({ c, ok, picked: k >= 0 ? qz.order[k].t : "(time ran out)" }); record(c, ok); qzRender(); $("#qzGo")?.focus();
+  qz.res.push({ c, ok, picked: k >= 0 ? qz.order[k].t : "(time ran out)" }); if (!c.drill) record(c, ok); // generated drills aren't in the bank qzRender(); $("#qzGo")?.focus();
 }
 function qzClock() {
   clearInterval(qz.timer); if (!$("#qzTimed").checked || qz.picked !== null) return;
@@ -154,7 +155,7 @@ function qzClock() {
 function qzRender() {
   const c = qz.list[qz.i], done = qz.picked !== null, good = done && qz.picked >= 0 && qz.order[qz.picked].ok, timedOut = done && qz.picked < 0;
   $("#qzStage").innerHTML = `<div class="qtop"><span>Question ${qz.i + 1} of ${qz.list.length}</span>${$("#qzTimed").checked && !done ? `<span class="clock" id="qzClock"></span>` : ""}<span>${qz.res.filter((r) => r.ok).length} correct</span></div><div class="bar"><span style="width:${(qz.i / qz.list.length) * 100}%"></span></div>
-    <div class="cmeta"><span class="pill">${esc(TOPICS[c.topic].name)}</span>${c.fig ? `<span class="pill fig">${esc(c.fig)}</span>` : ""}${missed(c) && !done ? `<span class="pill no">Missed before</span>` : ""}</div><p class="qq">${esc(c.q)}</p>
+    <div class="cmeta"><span class="pill">${esc(TOPICS[c.topic].name)}</span>${c.fig ? `<span class="pill fig">${esc(c.fig)}</span>` : ""}${missed(c) && !done ? `<span class="pill no">Missed before</span>` : ""}</div><p class="qq">${esc(c.q)}</p>${c.code ? `<p class="qcode">${esc(c.code)}</p>` : ""}
     ${qz.order.map((o, k) => `<button class="choice ${done && o.ok ? "right" : done && k === qz.picked ? "wrong" : ""}" data-k="${k}" ${done ? "disabled" : ""}><span class="lt">${"ABC"[k]}</span><span>${esc(o.t)}</span></button>`).join("")}
     ${done ? `<div class="fb ${good ? "" : "no"}"><p><b>${good ? "Correct." : timedOut ? "Time's up." : "Not quite."}</b> ${good ? "" : "Answer: " + esc(c.c[0])}</p>${c.why ? `<p>${esc(c.why)}</p>` : ""}${c.ref ? `<p class="cref">${esc(c.ref)}</p>` : ""}</div><div class="actions"><button class="btn primary" id="qzGo">${qz.i + 1 < qz.list.length ? "Next →" : "See results"}</button></div>` : ""}`;
   document.querySelectorAll("#qzStage .choice").forEach((b) => b.onclick = () => qzAnswer(+b.dataset.k));
@@ -164,7 +165,7 @@ function qzRender() {
 function qzEnd() {
   const r = qz.res.filter((x) => x.ok).length, p = Math.round(100 * r / qz.res.length), wrong = qz.res.filter((x) => !x.ok);
   $("#qzStage").innerHTML = `<div class="result"><p class="eyebrow">Quiz result</p><p class="big ${p >= 70 ? "pass" : "fail"}">${p}%</p><p>${r} of ${qz.res.length} · ${p >= 70 ? "above" : "below"} the 70% passing score</p>
-    ${wrong.length ? `<ol class="miss">${wrong.map((w) => `<li><p>${esc(w.c.q)}</p><p><s>${esc(w.picked)}</s> → <b>${esc(w.c.c[0])}</b></p></li>`).join("")}</ol>` : "<p>Clean sweep.</p>"}
+    ${wrong.length ? `<ol class="miss">${wrong.map((w) => `<li><p>${esc(w.c.q)}${w.c.code ? ` <code>${esc(w.c.code)}</code>` : ""}</p><p><s>${esc(w.picked)}</s> → <b>${esc(w.c.c[0])}</b></p></li>`).join("")}</ol>` : "<p>Clean sweep.</p>"}
     <div class="actions">${wrong.length ? `<button class="btn" id="qzRetry">Retry the ${wrong.length} I missed</button>` : ""}<button class="btn primary" id="qzAgain">New quiz</button></div></div>`;
   $("#qzRetry") && ($("#qzRetry").onclick = () => qzStart(wrong.map((w) => w.c)));
   $("#qzAgain").onclick = () => qzStart();
@@ -259,6 +260,8 @@ async function boot() {
   $("#qzStart").onclick = () => qzStart(); qzStart();
   $("#qzScen").innerHTML = SCENARIOS.map((sc) => `<button class="chipbtn" data-sc="${sc.key}">${esc(sc.label)} <span>${scenarioPool(sc).length}</span></button>`).join("");
   $("#qzScen").querySelectorAll("[data-sc]").forEach((b) => (b.onclick = () => { const sc = SCENARIOS.find((x) => x.key === b.dataset.sc); qzStart(shuffle(scenarioPool(sc)), sc.label); }));
+  $("#qzDrills").innerHTML = DRILLS.map((d) => `<button class="chipbtn" data-dr="${d.key}">${esc(d.label)} <span>∞</span></button>`).join("");
+  $("#qzDrills").querySelectorAll("[data-dr]").forEach((b) => (b.onclick = () => { const d = DRILLS.find((x) => x.key === b.dataset.dr); qzStart(drillSet(d.key, Math.min(20, +$("#qzLen").value || 10)), d.label); }));
   $("#exStart").onclick = () => exStart(); renderForms();
   $("#qlDeck").onchange = $("#qlWhy").onchange = qlRender; qlRender();
   $("#qlCopy").onclick = () => { const ta = $("#qlText"); const n = ta.value.split("\n").length; navigator.clipboard?.writeText(ta.value).then(() => ($("#qlStatus").textContent = `Copied ${n} cards. Paste them into Quizlet's Import box.`), () => { ta.select(); $("#qlStatus").textContent = "Press Ctrl+C (⌘C) to copy the selected text."; }); };
