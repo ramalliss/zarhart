@@ -310,7 +310,7 @@ function monitors(dt) {
 function handleEvents() {
   for (const e of ac.events) {
     if (e.type === "touchdown") {
-      const td = e.msg; sim.lastTouchdown = { ...td, used: false }; audio.thump(td.fpm); buzz(td.fpm > 400 ? 160 : 60, Math.min(1, 0.3 + td.fpm / 900));
+      const td = e.msg; sim.lastTouchdown = { ...td, used: false }; audio.thump(td.fpm, ac.derived.gs); buzz(td.fpm > 400 ? 160 : 60, Math.min(1, 0.3 + td.fpm / 900));
       const g = td.fpm < 200 ? "Smooth" : td.fpm < 400 ? "Good" : td.fpm < 650 ? "Firm" : "Hard";
       say(`Touchdown ${td.fpm} fpm · ${td.kias} KIAS · ${g}`, td.fpm < 650 ? "good" : "warn");
     } else if (e.type === "crash") showCrash(e.msg);
@@ -853,7 +853,7 @@ function tick(now) {
     }
     updateControlIndicator();
     hudT += dt; if (hudT > 0.12) { hudT = 0; hudUpdate(); }
-    audio.update(ac, d, sim.paused);
+    audio.update(ac, d, sim.paused, vr.active ? "cockpit" : sim.view);
   }
 }
 
