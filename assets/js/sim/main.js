@@ -15,6 +15,7 @@ import { LESSONS, LessonRunner } from "./lessons.js";
 import { VR, VR_CONTROLS, PHONE_VR_CONTROLS } from "./vr.js";
 import { buildCall, scoreCall, Listener } from "./radio.js";
 import { Traffic } from "./traffic.js";
+import { Multiplayer } from "./mp.js";
 
 const $ = (s, r = document) => r.querySelector(s);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -78,8 +79,21 @@ const traffic = new Traffic(scene, {
   weather, atis: () => weatherLetter(), player: () => ({ x: ac.pos.x, z: ac.pos.z, onGround: ac.derived.onGround, gs: ac.derived.gs }),
   onRadio(freq, from, text) { const r = sim.radio; if (ac.powered && ac.elec.avionics && !r.failed && ((r.rx1 && Math.abs(r.com1 - freq) < 0.004) || (r.rx2 && Math.abs(r.com2 - freq) < 0.004))) radioLog(from, text); },
 });
+/* multiplayer: a shared sky and the real radio (server/README.md) */
+const LIGHTS = () => { const L = ac.elec.lights; return (L.nav ? 1 : 0) | (L.beacon ? 2 : 0) | (L.strobe ? 4 : 0) | (L.landing ? 8 : 0); };
+const mp = new Multiplayer({
+  scene, ctx: () => { audio.start(); return audio.ctx; }, radio: () => sim.radio,
+  state: () => { const d = ac.derived, r = sim.radio; return { x: ac.pos.x, y: ac.pos.y, z: ac.pos.z, qx: ac.q.x, qy: ac.q.y, qz: ac.q.z, qw: ac.q.w, agl: d.agl, alt: d.altInd, gs: d.gs, hdg: d.hdg, onGround: d.onGround, flaps: ac.flaps, lights: LIGHTS(), rpm: ac.eng.rpm, xpdr: ac.xpdr.code, mode: ac.xpdr.mode, com1: r.com1, com2: r.com2, rx1: r.rx1, rx2: r.rx2 }; },
+  on: {
+    text: (from, text, freq) => { const r = sim.radio; if ((r.rx1 && Math.abs(r.com1 - freq) < 0.004) || (r.rx2 && Math.abs(r.com2 - freq) < 0.004) || mp.role === "atc") radioLog(from, text); },
+    notice: (text) => say(text, "info", 5000),
+    world: (w) => { sim.setWeather(PRESETS[w.preset] || PRESETS.scattered); sim.setTime(w.hour); },
+    status: (text, bad) => { if (bad) say(text, "warn", 6000); if (!mp.connected) populateTraffic(); else traffic.clear(); if (openDrawerName === "online") renderDrawer(); },
+    roster: () => { if (openDrawerName === "online") renderDrawer(); },
+  },
+});
 function populateTraffic() {
-  traffic.clear(); if (settings.traffic === false || lessons.lesson) return;
+  traffic.clear(); if (settings.traffic === false || lessons.lesson || mp.connected) return;
   traffic.add(KZAR, "pattern", { name: "Skyhawk", tail: "4AB", start: 6 });
   traffic.add(KZAR, "depart", { name: "Cherokee", tail: "7ED", type: "pa28", stripe: 0xd23a2a });
   traffic.add(KAME, "pattern", { name: "Skyhawk", tail: "2KL", stripe: 0x5be38a, start: 3 });
@@ -273,11 +287,14 @@ const listener = new Listener();
 const ptt = { down: false, t0: 0, listening: false, pad: false, result: null };
 function pttDown() {
   ptt.down = true; ptt.t0 = performance.now(); $("#radioStrip")?.classList.add("tx");
+  if (mp.connected && (mp.role === "atc" || (ac.powered && ac.elec.avionics && !sim.radio.failed))) mp.pttDown(micFreq());
   if (!ac.powered || !ac.elec.avionics || sim.radio.failed) return;
+  if (mp.connected && mp.hasController(micFreq())) return; // a real controller is listening: no practice scoring
   if (settings.radioPractice !== false && listener.ok) ptt.listening = listener.start((txt) => { const el = $("#pvHeard"); if (el) el.textContent = txt; });
 }
 async function pttUp() {
   ptt.down = false; $("#radioStrip")?.classList.remove("tx");
+  if (mp.connected) mp.pttUp();
   const held = performance.now() - ptt.t0;
   if (held < 350) { if (ptt.listening) { listener.stop(); ptt.listening = false; } return pttClick(); } // a click, not a call
   if (!ptt.listening) return;
@@ -287,8 +304,10 @@ async function pttUp() {
   transmit(alts);
 }
 /** a spoken or typed call: matched against what fits this frequency; ATC answers a good call and asks again otherwise */
-function transmit(alts) {
+function transmit(alts, typed) {
   const fi = freqInfo(micFreq()); audio.click();
+  if (mp.connected && typed) mp.sendText(micFreq(), alts[0]);
+  if (mp.connected && mp.hasController(micFreq())) { radioLog("You", alts[0], false); return; } // the controller is a person: they'll answer
   if (!ac.powered || !ac.elec.avionics) return say("The radios have no power. Turn on the master and avionics switches.", "warn");
   const kinds = callsFor(fi);
   let best = null;
@@ -430,7 +449,7 @@ function togglePause() { if (!sim.ready || !$("#start").hidden) return; sim.paus
 /* ---------------- drawers ---------------- */
 let openDrawerName = null;
 const drawer = $("#drawer"), drawerBody = $("#drawerBody");
-const DRAWER_TITLES = { lessons: "Lessons & flights", aircraft: "Aircraft", radio: "Radios", map: "VFR map", check: "Checklists", weather: "Weather & time", fail: "Failures", settings: "Settings", help: "Controls" };
+const DRAWER_TITLES = { lessons: "Lessons & flights", aircraft: "Aircraft", radio: "Radios", map: "VFR map", check: "Checklists", weather: "Weather & time", fail: "Failures", settings: "Settings", help: "Controls", online: "Online: one sky, real radios" };
 function toggleDrawer(n) { if (openDrawerName === n) closeDrawer(); else openDrawer(n); }
 function openDrawer(n) { openDrawerName = n; drawer.hidden = false; drawer.dataset.kind = n; $("#drawerTitle").textContent = DRAWER_TITLES[n]; document.querySelectorAll("[data-drawer]").forEach((b) => b.setAttribute("aria-pressed", b.dataset.drawer === n)); renderDrawer(); }
 function closeDrawer() { openDrawerName = null; drawer.hidden = true; document.querySelectorAll("[data-drawer]").forEach((b) => b.setAttribute("aria-pressed", "false")); view.focus(); }
@@ -526,7 +545,7 @@ function renderDrawer() {
     $("#c2swap", B).addEventListener("click", () => { [r.com2, r.com2s] = [r.com2s, r.com2]; renderDrawer(); });
     B.querySelectorAll("[data-mic]").forEach((b) => b.addEventListener("click", () => { r.mic = +b.dataset.mic; renderDrawer(); }));
     B.querySelectorAll("[data-rx]").forEach((b) => b.addEventListener("click", () => { r["rx" + b.dataset.rx] = !r["rx" + b.dataset.rx]; renderDrawer(); }));
-    const send = () => { const t = $("#pvType", B).value.trim(); if (t) transmit([t]); };
+    const send = () => { const t = $("#pvType", B).value.trim(); if (t) transmit([t], true); };
     $("#pvSend", B).addEventListener("click", send); $("#pvType", B).addEventListener("keydown", (e) => { if (e.key === "Enter") send(); });
     $("#pvShow", B).addEventListener("change", (e) => { settings.showWords = e.target.checked; saveSettings(); renderDrawer(); });
   } else if (n === "map") {
@@ -633,9 +652,33 @@ function renderDrawer() {
     $("#sSound", B).addEventListener("change", (e) => { settings.sound = audio.enabled = e.target.checked; saveSettings(); });
     $("#sVoice", B).addEventListener("change", (e) => { settings.voice = e.target.checked; saveSettings(); });
     $("#sPanel", B).addEventListener("change", (e) => { settings.panel = panel.mode = e.target.value; saveSettings(); layout(); });
+  } else if (n === "online") {
+    const ON = mp.connected, roles = [["pilot", "Pilot (fly)"], ["KZAR_TWR", "Controller: Zarhart Tower 118.300"], ["KZAR_GND", "Controller: Zarhart Ground 121.900"], ["ZAR_APP", "Controller: Zarhart Approach 125.500"], ["KAME_UNI", "Earhart UNICOM 122.800"]];
+    const list = [...mp.players.values()].map((p) => { const r = mp.remote.get(p.id); return `<li><b>${esc(p.role === "atc" ? mp.facilities[p.facility]?.name : p.callsign)}</b> <span>${p.role === "atc" ? `${mp.facilities[p.facility]?.freq.toFixed(3)}` : `${esc(p.type)}${r ? ` · ${Math.round(r.alt / 100) * 100} ft · ${r.gs} kt · COM1 ${(+r.com1).toFixed(3)}` : ""}`}</span></li>`; }).join("");
+    B.innerHTML = ON ? `<p class="dnote">${esc(mp.statusText || "")}</p>
+      ${mp.role === "atc" ? `<canvas id="scope" class="scope" aria-label="Traffic scope"></canvas><p class="dnote">Hold Space to transmit on ${mp.facilities[mp.facility].freq.toFixed(3)}. You hear every pilot on your frequency within range.</p>` : `<p class="dnote">Hold Space (or Talk) to transmit on the radio your MIC is set to. You hear stations on COM1 and COM2 when they're in range, like a real radio.</p>`}
+      <h3 class="dsub">On the server (${mp.players.size + 1})</h3><ul class="roster"><li><b>${esc(mp.role === "atc" ? mp.facilities[mp.facility].name : mp.callsign)}</b> <span>you</span></li>${list}</ul>
+      <button class="sbtn" id="mpLeave">Leave the server</button>`
+      : `<p class="dnote">Fly with other people in the same sky and talk on the radio like the real thing: push to talk, only stations in range on your frequency, static when they're far, a squeal when two transmit at once. Someone hosts a server (it's one command, see <a href="https://github.com/ramalliss/zarhart/blob/main/server/README.md" target="_blank" rel="noopener">how to host</a>); everyone else joins its address.</p>
+      <div class="form"><label>Server address <input id="mpUrl" placeholder="https://your-server.example" value="${esc(settings.mpUrl || (mpHere ? location.host : ""))}"></label>
+      <label>Callsign <input id="mpCs" maxlength="24" value="${esc(settings.mpCallsign || CALLSIGN)}"></label>
+      <label>Seat <select id="mpRole">${roles.map(([k, l]) => `<option value="${k}" ${settings.mpRole === k ? "selected" : ""}>${esc(l)}</option>`).join("")}</select></label>
+      <label>Password (if the server has one) <input id="mpPw" type="password" autocomplete="off"></label>
+      <button class="sbtn primary" id="mpJoin">Join</button></div>
+      <p class="dnote">${esc(mp.statusText || "")}</p>
+      <p class="dnote">Online, your callsign, position and radio settings go to that server, and your voice while you hold push-to-talk goes to the people who can hear you. Nothing goes to Zarhart.</p>`;
+    $("#mpLeave", B)?.addEventListener("click", () => { mp.disconnect(); populateTraffic(); renderDrawer(); });
+    $("#mpJoin", B)?.addEventListener("click", () => {
+      const url = $("#mpUrl", B).value.trim(), role = $("#mpRole", B).value, cs = $("#mpCs", B).value.trim() || CALLSIGN;
+      if (!url) return say("Enter the server's address.", "warn");
+      Object.assign(settings, { mpUrl: url, mpCallsign: cs, mpRole: role }); saveSettings(); audio.start();
+      mp.connect(url, { callsign: cs, type: settings.acType, role: role === "pilot" ? "pilot" : "atc", facility: role === "pilot" ? null : role, password: $("#mpPw", B).value });
+      if (role !== "pilot") { const f = { KZAR_TWR: 118.3, KZAR_GND: 121.9, ZAR_APP: 125.5, KAME_UNI: 122.8 }[role]; sim.radio.com1 = f; sim.radio.mic = 1; sim.radio.rx1 = true; }
+    });
+    if (mp.role === "atc" && ON) drawScope();
   } else if (n === "help") {
     const k = (keys, what) => `<li><span class="keys">${keys.map((x) => `<kbd>${esc(x)}</kbd>`).join(" ")}</span><span>${esc(what)}</span></li>`;
-    B.innerHTML = `<ul class="keylist">${k(["↑", "W"], "Nose down")}${k(["↓", "S"], "Nose up")}${k(["←", "→", "A", "D"], "Roll (ailerons)")}${k(["Q", "E"], "Rudder / nosewheel steering")}${k(["R", "F"], "Throttle up / down (Shift = full / idle)")}${k(["[", "]"], "Flaps up / down a notch")}${k(["T", "G"], "Trim nose up / down")}${k(["Z", "X"], "Mixture richer / leaner")}${k(["B"], "Brakes (with rudder for differential)")}${k(["Shift+B"], "Parking brake")}${k(["H"], "Carburetor heat")}${k(["L"], "Landing light")}${k(["O"], "Set the heading indicator to the compass")}${k(["Space"], "Click the mic (pilot-controlled lighting)")}${k(["N"], "Swap NAV1")}${k(["C"], "Change view: cockpit, chase, orbit, tower")}${k(["I"], "Panel: six-pack, glass, hidden")}${k(["M"], "Map")}${k(["K"], "Checklist")}${k(["Y"], "Mouse yoke on/off")}${k(["U"], "Flight assist: Assisted → Auto-rudder → Manual")}${k(["P", "Esc"], "Pause")}</ul>
+    B.innerHTML = `<ul class="keylist">${k(["↑", "W"], "Nose down")}${k(["↓", "S"], "Nose up")}${k(["←", "→", "A", "D"], "Roll (ailerons)")}${k(["Q", "E"], "Rudder / nosewheel steering")}${k(["R", "F"], "Throttle up / down (Shift = full / idle)")}${k(["[", "]"], "Flaps up / down a notch")}${k(["T", "G"], "Trim nose up / down")}${k(["Z", "X"], "Mixture richer / leaner")}${k(["B"], "Brakes (with rudder for differential)")}${k(["Shift+B"], "Parking brake")}${k(["H"], "Carburetor heat")}${k(["L"], "Landing light")}${k(["O"], "Set the heading indicator to the compass")}${k(["Space"], "Push to talk: hold and speak a call (or talk online); a quick tap clicks the mic for pilot-controlled lighting")}${k(["N"], "Swap NAV1")}${k(["C"], "Change view: cockpit, chase, orbit, tower")}${k(["I"], "Panel: six-pack, glass, hidden")}${k(["M"], "Map")}${k(["K"], "Checklist")}${k(["Y"], "Mouse yoke on/off")}${k(["U"], "Flight assist: Assisted → Auto-rudder → Manual")}${k(["P", "Esc"], "Pause")}</ul>
       <h3 class="dsub">VR headset (Meta Quest)</h3><ul class="keylist">${VR_CONTROLS.map(([c, what]) => `<li><span class="keys"><kbd>${esc(c)}</kbd></span><span>${esc(what)}</span></li>`).join("")}</ul>
       <h3 class="dsub">Phone VR viewer (Cardboard-style)</h3><ul class="keylist">${PHONE_VR_CONTROLS.map(([c, what]) => `<li><span class="keys"><kbd>${esc(c)}</kbd></span><span>${esc(what)}</span></li>`).join("")}</ul>
       <p class="dnote">Mouse: drag to look around (cockpit) or orbit (outside views). Scroll to zoom. Double-click to recentre. Scroll over panel knobs (Kollsman, OBS, heading bug, attitude indicator) to set them. Click the HI knob to align it with the compass.</p>`;
@@ -666,6 +709,23 @@ function drawWB() {
   $("#wbOut").innerHTML = `${esc(T.name)}: weight <b>${Math.round(wb.lb)} lb</b> (max ${T.maxGrossLb.toLocaleString()}) · CG <b>${wb.cgIn.toFixed(1)} in</b> (limits ${wb.fwdLimit.toFixed(1)}–${wb.aftLimit}) · Moment ${Math.round(wb.moment).toLocaleString()} lb-in · <b class="${wb.inEnvelope ? "okc" : "badc"}">${wb.inEnvelope ? "Within limits" : wb.overGross ? "Over gross weight" : "CG out of limits"}</b>`;
 }
 const bigMap = { canvas: null, range: 9, toWorld: () => ({ x: 0, z: 0 }) };
+/** controller's scope: the chart, each pilot as a target with a data block (callsign, altitude in hundreds, groundspeed) */
+function drawScope() {
+  const cv = $("#scope"); if (!cv || !sectionalBase) return;
+  const r = cv.getBoundingClientRect(), dpr = Math.min(2, devicePixelRatio || 1); if (cv.width !== Math.round(r.width * dpr)) { cv.width = Math.round(r.width * dpr); cv.height = Math.round(r.height * dpr); }
+  const g = cv.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const f = mp.facilities[mp.facility] || { x: 0, z: 0 }, range = mp.facility === "ZAR_APP" ? 20 : 8;
+  drawMap(g, 0, 0, r.width, r.height, { base: sectionalBase, cx: f.x, cz: f.z, rangeNm: range, own: null, route: null, style: "sectional" });
+  const k = (r.width / 2) / (range * NM);
+  g.fillStyle = "rgba(5, 10, 16, .35)"; g.fillRect(0, 0, r.width, r.height);
+  for (const [id, rm] of mp.remote) {
+    const p = mp.players.get(id), x = r.width / 2 + (rm.g.position.x - f.x) * k, y = r.height / 2 + (rm.g.position.z - f.z) * k; if (!p) continue;
+    g.fillStyle = "#7fe3ff"; g.strokeStyle = "#7fe3ff"; g.beginPath(); g.arc(x, y, 4, 0, 7); g.fill();
+    g.beginPath(); g.moveTo(x + 4, y - 4); g.lineTo(x + 14, y - 14); g.stroke();
+    g.font = "600 11px IBM Plex Mono, monospace"; g.fillText(p.callsign, x + 16, y - 16); g.fillText(`${String(Math.round(rm.alt / 100)).padStart(3, "0")} ${rm.gs}`, x + 16, y - 3);
+  }
+}
+const mpHere = !!document.querySelector('meta[name="zarhart-server"]'); // served by a Zarhart server: its address is the default
 function drawBigMap() {
   const cv = bigMap.canvas; if (!cv || !sectionalBase || openDrawerName !== "map") return;
   const dpr = Math.min(2, devicePixelRatio || 1); const r = cv.getBoundingClientRect(); if (cv.width !== Math.round(r.width * dpr)) { cv.width = Math.round(r.width * dpr); cv.height = Math.round(r.height * dpr); }
@@ -741,8 +801,8 @@ function hudUpdate() {
   if (d.stallWarn && !sim.paused && performance.now() - (hudUpdate.buzzT || 0) > 450) { hudUpdate.buzzT = performance.now(); buzz(70, 0.35); }
   coach(0.12);
   { const rs = $("#radioStrip"), r = sim.radio, f1 = freqInfo(r.com1), f2 = freqInfo(r.com2), fi = freqInfo(micFreq()), sug = suggestCall(fi);
-    const c = sug && settings.radioPractice !== false ? buildCall(sug, callContext(fi)) : null;
-    rs.innerHTML = `<span class="${r.mic === 1 ? "mic" : ""}">COM1 ${r.com1.toFixed(3)} <i>${esc(f1?.name || "")}</i></span><span class="${r.mic === 2 ? "mic" : ""}">COM2 ${r.com2.toFixed(3)} <i>${esc(f2?.name || "")}</i></span><b class="txl">TX</b>${c ? `<em>${settings.showWords === false ? "Say: " + esc(c.parts.map((p) => p.label.replace(/ \(.*\)$/, "")).join(" · ")) : "Say: " + esc(c.text)}</em>` : ""}`;
+    const c = sug && settings.radioPractice !== false && !(mp.connected && mp.role === "atc") ? buildCall(sug, callContext(fi)) : null; // controllers give instructions, not pilot calls
+    rs.innerHTML = `<span class="${r.mic === 1 ? "mic" : ""}">COM1 ${r.com1.toFixed(3)} <i>${esc(f1?.name || "")}</i></span><span class="${r.mic === 2 ? "mic" : ""}">COM2 ${r.com2.toFixed(3)} <i>${esc(f2?.name || "")}</i></span><b class="txl">TX</b>${[r.com1, r.com2].map((f) => { const l = mp.connected ? mp.transmitting(f) : []; return l.length > 1 ? `<b class="rxl blk">BLOCKED</b>` : l.length ? `<b class="rxl">RX ${esc(l[0].from || "")}</b>` : ""; }).join("")}${c ? `<em>${settings.showWords === false ? "Say: " + esc(c.parts.map((p) => p.label.replace(/ \(.*\)$/, "")).join(" · ")) : "Say: " + esc(c.text)}</em>` : ""}`;
     rs.hidden = !ac.powered || !ac.elec.avionics || sim.paused; }
   if (openDrawerName === "settings") ctlBars();
   // light gun
@@ -799,7 +859,7 @@ $("#startPick").addEventListener("click", () => { startFlying(); sim.paused = tr
 $("#startFree").addEventListener("click", () => { startFlying(); freeFlight("kzar27", "scattered", 13); });
 $("#crashRetry").addEventListener("click", retry);
 /* ---------------- VR ---------------- */
-let viewBeforeVR = "cockpit";
+let viewBeforeVR = "cockpit", scopeT = 0;
 function enterVR() {
   if (!vr.supported) { openPhoneVR(); return; }
   closeDrawer(); hideCrash(); $("#paused").hidden = true; sim.paused = false;
@@ -954,6 +1014,7 @@ function tick(now) {
     { const pp = plane.userData.parts, cp = cockpit.userData.ext?.userData.parts; if (cp) for (const k of ["ailL", "ailR", "flapL", "flapR"]) cp[k].rotation.x = pp[k].rotation.x; }
     { const gh = groundAt(ac.pos.x, ac.pos.z).h, agl = ac.pos.y - gh; shadow.position.set(ac.pos.x, gh + 0.06, ac.pos.z); shadow.rotation.y = -ac.derived.hdg * DEG; shadow.material.opacity = Math.max(0, 1 - agl / 160) * (world.night ? 0.25 : 0.85); shadow.visible = shadow.material.opacity > 0.02; }
     traffic.update(sim.paused ? 0 : dt, sim.t, sim.t);
+    mp.update(dt, sim.t);
     updateCamera(dt);
     const eye = vr.active ? vr.headWorld(headPos) : camera.position;
     const probe = world.clouds.probe(eye.x, eye.y, eye.z);
@@ -970,6 +1031,7 @@ function tick(now) {
     }
     updateControlIndicator();
     hudT += dt; if (hudT > 0.12) { hudT = 0; hudUpdate(); }
+    if (openDrawerName === "online" && mp.role === "atc" && mp.connected) { scopeT = (scopeT || 0) + dt; if (scopeT > 0.5) { scopeT = 0; drawScope(); } }
     audio.update(ac, d, sim.paused, vr.active ? "cockpit" : sim.view);
   }
 }
@@ -996,7 +1058,7 @@ async function boot() {
   renderer.setAnimationLoop(tick);
 }
 window.__zarhart = {
-  sim, ac, weather, world, lessons, camera, panel, settings, keys: input.keys, frame: (ms) => tick(ms), radioCall, traffic, transmit, pttClick, renderer, scene, plane, cockpit, camState, layout, panelState, updateCamera, vr,
+  sim, ac, weather, world, lessons, camera, panel, settings, keys: input.keys, frame: (ms) => tick(ms), radioCall, traffic, transmit, mp, pttClick, renderer, scene, plane, cockpit, camState, layout, panelState, updateCamera, vr,
   /** headless stepping for tests: advance `secs` of sim time at 30 Hz without rendering; pilot(ac, d, sim, dt) flies */
   step(secs, pilot) { for (let i = 0, n = Math.round(secs * 30); i < n; i++) { if (ac.crashed || lessons.done) break; stepSim(1 / 30, pilot); } return ac.derived; },
 };

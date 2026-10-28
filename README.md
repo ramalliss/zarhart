@@ -22,6 +22,12 @@ Created by **Sophia Ramalli**, a student pilot who built it while studying for t
 
 `↑/↓` pitch · `←/→` roll · `Q/E` rudder · `R/F` throttle · `[ ]` flaps · `T/G` trim · `B` brakes · `Shift+B` parking brake · `H` carb heat · `C` view · `I` panel · `M` map · `K` checklist · `U` flight assist · `Space` mic click · `P` pause. Gamepads, joysticks and touch work too: in **Settings → Joystick, throttle and pedals**, click Assign and move any axis or press any button to map it, across several devices at once (stick, throttle quadrant, rudder pedals), with invert and a sensitivity curve. No keyboard? The on-screen stick and throttle lever work with a mouse too (drag the stick, push the lever up for power), and a coach reminds you about the parking brake, when to rotate and how to hold the climb on your first takeoffs. On phones the stick floats under your left thumb, the right thumb gets either a throttle lever with buttons (rudder, flaps, brakes, parking brake, view, pause) or a second throttle/rudder stick, and you can turn on tilt-to-fly. Phones vibrate and gamepads rumble with the stall horn and on touchdown. Flight assist starts in **Assisted** (let go of the controls and the airplane holds its pitch and bank, with auto-trim and auto-rudder); `U` switches to **Auto-rudder** only or full **Manual** to practise coordination.
 
+## Radio practice, traffic and multiplayer
+
+- **Radio practice:** hold Space (or Talk) and speak the call the radio strip suggests. Your browser's speech recognition transcribes it, the call is scored part by part against standard phraseology, and ATC answers a good call. You can also type calls.
+- **Automated traffic** in free flight taxis, departs and flies the pattern at four airports, talking to Ground, Tower or the CTAF. Tower gives you traffic advisories.
+- **Multiplayer:** `node server/zarhart-server.mjs` hosts a shared sky that serves the site too. Players join in the **Online** menu as pilots or controllers. Voice is push-to-talk and only reaches stations tuned to your frequency and in line of sight, with AM-radio static, squelch tails and blocked transmissions. See [server/README.md](server/README.md).
+
 ## Install it on a phone
 
 The site is an installable web app. On iPhone or iPad, open it in Safari and tap **Share → Add to Home Screen**; on Android or desktop Chrome and Edge, use **Install the app** on the home page (or Install in the browser menu). It opens full screen, and pages you've visited work offline (`sw.js`, network first, so online visitors always get the latest version).
