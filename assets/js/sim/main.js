@@ -14,6 +14,7 @@ import { CHECKLISTS, suggestChecklist } from "./checklists.js";
 import { LESSONS, LessonRunner } from "./lessons.js";
 import { VR, VR_CONTROLS, PHONE_VR_CONTROLS } from "./vr.js";
 import { buildCall, scoreCall, Listener } from "./radio.js";
+import { Traffic } from "./traffic.js";
 
 const $ = (s, r = document) => r.querySelector(s);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -72,10 +73,23 @@ const sim = {
   setTime(h) { weather.hour = h; },
 };
 const lessons = new LessonRunner(sim);
+/* automated traffic: heard only on the frequencies your audio panel is listening to */
+const traffic = new Traffic(scene, {
+  weather, atis: () => weatherLetter(), player: () => ({ x: ac.pos.x, z: ac.pos.z, onGround: ac.derived.onGround, gs: ac.derived.gs }),
+  onRadio(freq, from, text) { const r = sim.radio; if (ac.powered && ac.elec.avionics && !r.failed && ((r.rx1 && Math.abs(r.com1 - freq) < 0.004) || (r.rx2 && Math.abs(r.com2 - freq) < 0.004))) radioLog(from, text); },
+});
+function populateTraffic() {
+  traffic.clear(); if (settings.traffic === false || lessons.lesson) return;
+  traffic.add(KZAR, "pattern", { name: "Skyhawk", tail: "4AB", start: 6 });
+  traffic.add(KZAR, "depart", { name: "Cherokee", tail: "7ED", type: "pa28", stripe: 0xd23a2a });
+  traffic.add(KAME, "pattern", { name: "Skyhawk", tail: "2KL", stripe: 0x5be38a, start: 3 });
+  traffic.add(KSRH, "pattern", { name: "Warrior", tail: "5SR", type: "pa28", stripe: 0xff9a1f, start: 8 });
+}
 
 function spawn(spec) {
   sim.lastSpawn = { ...spec };
   setAircraftType(lessons.lesson ? "c172" : settings.acType);
+  if (lessons.lesson) traffic.clear(); // lessons script their own traffic
   ac.reset(spec);
   ac.frost = (spec.frost ?? (weather.frost && spec.onGround !== false)) ? 1 : 0;
   if (spec.coldDark) ac.inst.kollsman = 29.92; else ac.inst.kollsman = weather.qnhInHg;
@@ -251,8 +265,8 @@ function radioCall(kind, spoken) {
   const { dnm, dir } = posReport(KZAR);
   if (kind === "taxi") { radioLog("You", spoken || `Zarhart Ground, ${CALLSIGN}, at the ramp with information ${weatherLetter()}, ready to taxi.`, false); setTimeout(() => radioLog("Zarhart Ground", `${SHORT}, runway ${rw}, taxi via Alpha. Hold short of runway ${rw}.`), 1800); sim.flags.taxiClr = true; return; }
   if (kind === "depart") { radioLog("You", spoken || `Zarhart Tower, ${CALLSIGN}, holding short runway ${rw}, ready for departure.`, false); setTimeout(() => { radioLog("Zarhart Tower", `${SHORT}, wind ${String(Math.round(weather.windDir / 10) * 10).padStart(3, "0")} at ${Math.round(weather.windKt)}, runway ${rw}, cleared for takeoff.`); sim.flags.departCall = true; sim.flags.dContact = true; }, 1800); return; }
-  if (kind === "inbound") { radioLog("You", spoken || `Zarhart Tower, ${CALLSIGN}, ${Math.round(dnm)} miles ${dir}, ${Math.round(d.altInd / 100) * 100}, inbound for landing with ${weatherLetter()}.`, false); setTimeout(() => { const side = rw === "27" || rw === "36" ? "left" : "right"; radioLog("Zarhart Tower", `${SHORT}, Zarhart Tower, enter ${side} downwind runway ${rw}, report midfield.`); sim.flags.inboundCall = true; sim.flags.dContact = true; }, 1800); return; }
-  if (kind === "land") { radioLog("You", spoken || `Zarhart Tower, ${SHORT}, midfield ${rw === "27" ? "left" : ""} downwind, full stop.`, false); setTimeout(() => radioLog("Zarhart Tower", `${SHORT}, runway ${rw}, cleared to land.`), 1600); sim.flags.dContact = true; return; }
+  if (kind === "inbound") { radioLog("You", spoken || `Zarhart Tower, ${CALLSIGN}, ${Math.round(dnm)} miles ${dir}, ${Math.round(d.altInd / 100) * 100}, inbound for landing with ${weatherLetter()}.`, false); setTimeout(() => { const side = rw === "27" || rw === "36" ? "left" : "right"; radioLog("Zarhart Tower", `${SHORT}, Zarhart Tower, enter ${side} downwind runway ${rw}, report midfield.${traffic.advisory(KZAR)}`); sim.flags.inboundCall = true; sim.flags.dContact = true; }, 1800); return; }
+  if (kind === "land") { radioLog("You", spoken || `Zarhart Tower, ${SHORT}, midfield ${rw === "27" ? "left" : ""} downwind, full stop.`, false); setTimeout(() => radioLog("Zarhart Tower", `${SHORT}, runway ${rw}, cleared to land.${traffic.advisory(KZAR)}`), 1600); sim.flags.dContact = true; return; }
 }
 function weatherLetter() { return weather.atis(KZAR, weather.hour).letter; }
 const listener = new Listener();
@@ -563,6 +577,7 @@ function renderDrawer() {
       <label>Flight assist <select id="sAssist"><option value="assisted">Assisted: arrows change pitch and bank, let go to hold (easiest)</option><option value="rudder">Auto-rudder only: real stick, rudder handled for you</option><option value="off">Off: fully manual (practise P-factor and coordination)</option></select></label>
       <label class="chk"><input type="checkbox" id="sSound" ${settings.sound ? "checked" : ""}> Sound</label>
       <label class="chk"><input type="checkbox" id="sRadioPr" ${settings.radioPractice !== false ? "checked" : ""}> Voice radio practice (hold Space or Talk to speak a call)</label>
+      <label class="chk"><input type="checkbox" id="sTraffic" ${settings.traffic !== false ? "checked" : ""}> Automated traffic in free flight (flies the pattern and talks on the radio)</label>
       <label class="chk"><input type="checkbox" id="sLabels" ${settings.labels !== false ? "checked" : ""}> Airport labels (ID and name over each field)</label>
       <label class="chk"><input type="checkbox" id="sVoice" ${settings.voice ? "checked" : ""}> Spoken ATC & ATIS (text-to-speech)</label>
       <label>Instrument panel (I) <select id="sPanel"><option value="steam">Six-pack (steam gauges)</option><option value="glass">Glass cockpit (G1000 style)</option><option value="off">Hidden</option></select></label></div>
@@ -613,6 +628,7 @@ function renderDrawer() {
     $("#sAssist", B).value = settings.assist;
     $("#sAssist", B).addEventListener("change", (e) => { setAssist(e.target.value); });
     $("#sRadioPr", B).addEventListener("change", (e) => { settings.radioPractice = e.target.checked; saveSettings(); });
+    $("#sTraffic", B).addEventListener("change", (e) => { settings.traffic = e.target.checked; saveSettings(); populateTraffic(); });
     $("#sLabels", B).addEventListener("change", (e) => { settings.labels = world.labelsOn = e.target.checked; saveSettings(); });
     $("#sSound", B).addEventListener("change", (e) => { settings.sound = audio.enabled = e.target.checked; saveSettings(); });
     $("#sVoice", B).addEventListener("change", (e) => { settings.voice = e.target.checked; saveSettings(); });
@@ -772,6 +788,7 @@ function freeFlight(where, wx, hour) {
   sim.setWeather(PRESETS[wx]); sim.setTime(hour);
   const sp = { kzarRamp: { ...KZAR.spawn.ramp, onGround: true, engineRunning: false, coldDark: true }, kzar27: { ...KZAR.spawn.rwy27, onGround: true }, kzar09: { ...KZAR.spawn.rwy09, onGround: true }, kame36: { ...KAME.spawn.rwy36, onGround: true }, z19: { ...Z19.spawn.rwy04, onGround: true }, z40: { ...Z40.spawn.rwy36, onGround: true }, ksrh: { ...KSRH.spawn.rwy31, onGround: true }, z23: { ...Z23.spawn.rwy34, onGround: true }, air: { x: -2000, z: 6000, hdg: 60, onGround: false, altFt: 3500, kias: 100 } }[where];
   spawn(sp); if (where === "air") ac.ctl.throttle = 0.66;
+  populateTraffic();
   const home = { kame36: KAME, z19: Z19, z40: Z40, ksrh: KSRH, z23: Z23 }[where];
   sim.radio.com1 = home ? home.freqs.ctaf : where === "kzarRamp" ? KZAR.freqs.atis : KZAR.freqs.twr;
   if (where === "kzarRamp") { checkTab = "start"; say("Cold and dark. Open the checklist (K) and the Aircraft drawer to start the engine.", "lesson", 9000); }
@@ -936,6 +953,7 @@ function tick(now) {
     animateAirplane(plane, ac, sim.t, sim.paused ? 0 : dt);
     { const pp = plane.userData.parts, cp = cockpit.userData.ext?.userData.parts; if (cp) for (const k of ["ailL", "ailR", "flapL", "flapR"]) cp[k].rotation.x = pp[k].rotation.x; }
     { const gh = groundAt(ac.pos.x, ac.pos.z).h, agl = ac.pos.y - gh; shadow.position.set(ac.pos.x, gh + 0.06, ac.pos.z); shadow.rotation.y = -ac.derived.hdg * DEG; shadow.material.opacity = Math.max(0, 1 - agl / 160) * (world.night ? 0.25 : 0.85); shadow.visible = shadow.material.opacity > 0.02; }
+    traffic.update(sim.paused ? 0 : dt, sim.t, sim.t);
     updateCamera(dt);
     const eye = vr.active ? vr.headWorld(headPos) : camera.position;
     const probe = world.clouds.probe(eye.x, eye.y, eye.z);
@@ -978,7 +996,7 @@ async function boot() {
   renderer.setAnimationLoop(tick);
 }
 window.__zarhart = {
-  sim, ac, weather, world, lessons, camera, panel, settings, keys: input.keys, frame: (ms) => tick(ms), radioCall, pttClick, renderer, scene, plane, cockpit, camState, layout, panelState, updateCamera, vr,
+  sim, ac, weather, world, lessons, camera, panel, settings, keys: input.keys, frame: (ms) => tick(ms), radioCall, traffic, transmit, pttClick, renderer, scene, plane, cockpit, camState, layout, panelState, updateCamera, vr,
   /** headless stepping for tests: advance `secs` of sim time at 30 Hz without rendering; pilot(ac, d, sim, dt) flies */
   step(secs, pilot) { for (let i = 0, n = Math.round(secs * 30); i < n; i++) { if (ac.crashed || lessons.done) break; stepSim(1 / 30, pilot); } return ac.derived; },
 };
