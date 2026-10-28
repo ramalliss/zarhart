@@ -589,6 +589,25 @@ export class Clouds {
   }
 }
 
+/* ===================== airport labels ===================== */
+/** an ID-and-name tag over each airport, a constant size on screen, faded in between about 1 and 25 NM */
+function buildAirportLabels() {
+  const grp = new THREE.Group(); grp.name = "airportLabels";
+  for (const ap of AIRPORTS) {
+    const c = canvas(512, 150), g = c.getContext("2d");
+    g.fillStyle = "rgba(5, 6, 7, 0.78)"; g.strokeStyle = ap.towered ? "#3f8bff" : "#e64bd0"; g.lineWidth = 6;
+    g.beginPath(); g.roundRect(4, 4, 504, 104, 14); g.fill(); g.stroke();
+    g.fillStyle = "#fff"; g.font = "bold 58px Arial"; g.textAlign = "left"; g.textBaseline = "middle"; g.fillText(ap.id, 24, 46);
+    g.font = "26px Arial"; g.fillStyle = "#c9d1da"; g.fillText(`${ap.name} · ${ap.elevFt.toLocaleString()} ft`, 24, 86);
+    g.fillStyle = g.strokeStyle; g.beginPath(); g.moveTo(236, 108); g.lineTo(256, 146); g.lineTo(276, 108); g.fill(); // a pointer down to the field
+    const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
+    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, sizeAttenuation: false, transparent: true, depthWrite: false, fog: false }));
+    sp.center.set(0.5, 0); sp.scale.set(0.2, 0.2 * 150 / 512, 1); sp.position.set(ap.x, ap.elev + 40, ap.z); sp.renderOrder = 8; sp.userData.ap = ap;
+    grp.add(sp);
+  }
+  return grp;
+}
+
 /* ===================== rain and snow ===================== */
 /**
  * Drops live in a box that travels with the eye. Each frame they fall and drift with the wind; rain is drawn as
@@ -662,6 +681,7 @@ export class World {
     this.scene.fog = new THREE.Fog(0xb9c7d6, 2000, 40000);
     this.clouds = new Clouds(this.scene);
     this.precip = new Precip(this.scene, this.quality);
+    this.labels = buildAirportLabels(); this.scene.add(this.labels); this.labelsOn = true;
     // a storm's rain shaft: the visible sign of a possible microburst underneath
     const shaftTex = (() => { const c = canvas(4, 128), g = c.getContext("2d"), gr = g.createLinearGradient(0, 0, 0, 128); gr.addColorStop(0, "rgba(60,66,74,0.9)"); gr.addColorStop(0.75, "rgba(70,76,84,0.6)"); gr.addColorStop(1, "rgba(80,86,94,0.15)"); g.fillStyle = gr; g.fillRect(0, 0, 4, 128); return new THREE.CanvasTexture(c); })();
     this.shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 1, 1, 32, 1, true), new THREE.MeshBasicMaterial({ map: shaftTex, transparent: true, depthWrite: false, side: THREE.DoubleSide, fog: true }));
@@ -715,8 +735,12 @@ export class World {
     if (this.envRT) this.envRT.dispose();
     this.envRT = rt; this.scene.environment = rt.texture;
   }
-  /** per-frame animation: lights, beacons, VASI, windsocks */
+  /** per-frame animation: lights, beacons, VASI, windsocks, airport labels */
   update(t, eye, state) {
+    if (this.labels) for (const sp of this.labels.children) {
+      const ap = sp.userData.ap, d = Math.hypot(eye.x - ap.x, eye.z - ap.z), o = Math.min(1, (d - 1500) / 1500) * Math.min(1, (46000 - d) / 8000);
+      sp.visible = this.labelsOn && o > 0.02; sp.material.opacity = Math.max(0, o);
+    }
     const night = this.night, dusk = this.dusk;
     for (const p of this.ap.lights.kzar) p.visible = dusk;
     for (const p of this.ap.lights.taxi) p.visible = dusk;

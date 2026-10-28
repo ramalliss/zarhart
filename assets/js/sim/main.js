@@ -13,6 +13,7 @@ import { buildSectionalBase, drawMap } from "./map.js";
 import { CHECKLISTS, suggestChecklist } from "./checklists.js";
 import { LESSONS, LessonRunner } from "./lessons.js";
 import { VR, VR_CONTROLS, PHONE_VR_CONTROLS } from "./vr.js";
+import { buildCall, scoreCall, Listener } from "./radio.js";
 
 const $ = (s, r = document) => r.querySelector(s);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -60,7 +61,7 @@ const audio = new Audio(); audio.enabled = settings.sound;
 
 const sim = {
   t: 0, ac, d: ac.derived, weather, world, scene, paused: true, ready: false,
-  radio: { com1: 118.3, com1s: 127.85, nav1: 113.9, nav1s: 116.4, failed: false, log: [] },
+  radio: { com1: 118.3, com1s: 127.85, com2: 121.9, com2s: 122.8, rx1: true, rx2: true, mic: 1, nav1: 113.9, nav1s: 116.4, failed: false, log: [] },
   flags: {}, pcl: { level: 0, until: 0, clicks: [] }, route: null, gpsWp: null, gpsFrom: null,
   lastTouchdown: null, lightGun: null, showG: false, view: "cockpit", vor1: null,
   say, radioLog, callsign: SHORT, spawn, setRoute, vasi: (ap, endId) => world.vasiAt(ap, endId, { x: ac.pos.x, y: ac.pos.y + 0.6, z: ac.pos.z }),
@@ -212,36 +213,87 @@ function posReport(ap) {
   const brg = (Math.atan2(dx, -dz) / DEG + 360) % 360; const dirs = ["north", "northeast", "east", "southeast", "south", "southwest", "west", "northwest"];
   return { dnm, dir: dirs[Math.round(brg / 45) % 8] };
 }
-function radioCall(kind) {
-  const r = sim.radio; const fi = freqInfo(r.com1);
+const micFreq = () => (sim.radio.mic === 2 ? sim.radio.com2 : sim.radio.com1);
+/** what a good call sounds like here, for the radio on the MIC selector */
+function callContext(fi) {
+  const ap = fi?.ap || KZAR, { dnm, dir } = posReport(ap), d = ac.derived;
+  return { facility: fi?.name.replace(/ (CTAF|AWOS|ATIS)$/, "") || "", callsign: CALLSIGN, short: SHORT, rw: activeRwy(ap), atis: weatherLetter(), miles: Math.max(1, Math.round(dnm)), dir, alt: Math.round(d.altInd / 100) * 100,
+    apName: ap.name, pattern: (ap.segmentedCircle && ap.segmentedCircle.pattern[activeRwy(ap)]) || "left", onGround: d.onGround, emergency: ac.failures.engine || !ac.eng.running ? "engine failure" : "emergency" };
+}
+function callsFor(fi) { return !fi ? [] : fi.kind === "ctaf" ? ["announce"] : fi.kind === "gnd" ? ["taxi"] : fi.kind === "twr" ? ["depart", "inbound", "land"] : fi.kind === "guard" ? ["mayday"] : []; }
+/** the call this moment calls for */
+function suggestCall(fi) {
+  const k = callsFor(fi); if (!k.length) return null;
+  if (fi.kind !== "twr") return k[0];
+  const d = ac.derived, { dnm } = posReport(KZAR);
+  if (d.onGround) return Math.hypot(ac.pos.x + 300, ac.pos.z + 250) < 400 ? null : "depart"; // at the ramp you call Ground, not Tower
+  return dnm < 2.5 && d.agl < 1500 ? "land" : "inbound";
+}
+function radioCall(kind, spoken) {
+  const r = sim.radio; const fi = freqInfo(micFreq());
   if (!ac.powered || !ac.elec.avionics) return say("The radios have no power. Turn on the master and avionics switches.", "warn");
   if (r.failed) return say("Your radio is dead in this lesson. Squawk 7600 and watch the tower for light gun signals.", "warn");
   audio.click();
   const d = ac.derived;
-  if (!fi) return radioLog("You", `(${r.com1.toFixed(3)}) No one answers on this frequency.`);
+  if (!fi) return radioLog("You", spoken || `(${micFreq().toFixed(3)}) No one answers on this frequency.`);
   const ap = fi.ap; const rw = ap ? activeRwy(ap) : "";
   if (fi.kind === "ctaf") {
     const { dnm, dir } = posReport(ap);
     const pattern = ap.segmentedCircle ? ap.segmentedCircle.pattern[rw] : "left";
     const msg = d.onGround ? `${ap.name} traffic, ${CALLSIGN}, departing runway ${rw}, ${ap.name}.` : `${ap.name} traffic, ${CALLSIGN}, ${Math.max(1, Math.round(dnm))} miles ${dir}, ${Math.round(d.altInd / 100) * 100} feet, inbound for landing runway ${rw}, ${pattern || "left"} traffic, ${ap.name}.`;
-    radioLog("You", msg, false);
+    radioLog("You", spoken || msg, false);
     if (d.onGround) sim.flags.departCall = true; else { sim.flags.inboundCall = true; if (ap === KAME && dnm > 6.5 && dnm < 13.5) sim.flags.inboundCallKAME = true; if (dnm < 6.5) say("Tip: make your first CTAF call about 10 NM out (AIM 4-1-9).", "tip"); if (dnm > 13.5) say("A little early. About 10 NM out is the standard first call.", "tip"); }
     return;
   }
   if (fi.kind === "atis" || fi.kind === "awos") return say("That's a broadcast. Just listen.", "tip");
-  if (fi.kind === "guard") { radioLog("You", `Mayday, mayday, mayday, ${CALLSIGN}, ${ac.failures.engine || !ac.eng.running ? "engine failure" : "emergency"}, ${Math.round(d.altInd)} feet.`, false); setTimeout(() => radioLog("Zarhart Approach", `${SHORT}, roger mayday. Squawk 7700. Zarhart altimeter ${weather.qnhInHg.toFixed(2)}. Nearest airport ${nearestAirport(ac.pos.x, ac.pos.z).airport.name}.`), 2200); return; }
+  if (fi.kind === "guard") { radioLog("You", spoken || `Mayday, mayday, mayday, ${CALLSIGN}, ${ac.failures.engine || !ac.eng.running ? "engine failure" : "emergency"}, ${Math.round(d.altInd)} feet.`, false); setTimeout(() => radioLog("Zarhart Approach", `${SHORT}, roger mayday. Squawk 7700. Zarhart altimeter ${weather.qnhInHg.toFixed(2)}. Nearest airport ${nearestAirport(ac.pos.x, ac.pos.z).airport.name}.`), 2200); return; }
   // tower / ground at KZAR
   const { dnm, dir } = posReport(KZAR);
-  if (kind === "taxi") { radioLog("You", `Zarhart Ground, ${CALLSIGN}, at the ramp with information ${weatherLetter()}, ready to taxi.`, false); setTimeout(() => radioLog("Zarhart Ground", `${SHORT}, runway ${rw}, taxi via Alpha. Hold short of runway ${rw}.`), 1800); sim.flags.taxiClr = true; return; }
-  if (kind === "depart") { radioLog("You", `Zarhart Tower, ${CALLSIGN}, holding short runway ${rw}, ready for departure.`, false); setTimeout(() => { radioLog("Zarhart Tower", `${SHORT}, wind ${String(Math.round(weather.windDir / 10) * 10).padStart(3, "0")} at ${Math.round(weather.windKt)}, runway ${rw}, cleared for takeoff.`); sim.flags.departCall = true; sim.flags.dContact = true; }, 1800); return; }
-  if (kind === "inbound") { radioLog("You", `Zarhart Tower, ${CALLSIGN}, ${Math.round(dnm)} miles ${dir}, ${Math.round(d.altInd / 100) * 100}, inbound for landing with ${weatherLetter()}.`, false); setTimeout(() => { const side = rw === "27" || rw === "36" ? "left" : "right"; radioLog("Zarhart Tower", `${SHORT}, Zarhart Tower, enter ${side} downwind runway ${rw}, report midfield.`); sim.flags.inboundCall = true; sim.flags.dContact = true; }, 1800); return; }
-  if (kind === "land") { radioLog("You", `Zarhart Tower, ${SHORT}, midfield ${rw === "27" ? "left" : ""} downwind, full stop.`, false); setTimeout(() => radioLog("Zarhart Tower", `${SHORT}, runway ${rw}, cleared to land.`), 1600); sim.flags.dContact = true; return; }
+  if (kind === "taxi") { radioLog("You", spoken || `Zarhart Ground, ${CALLSIGN}, at the ramp with information ${weatherLetter()}, ready to taxi.`, false); setTimeout(() => radioLog("Zarhart Ground", `${SHORT}, runway ${rw}, taxi via Alpha. Hold short of runway ${rw}.`), 1800); sim.flags.taxiClr = true; return; }
+  if (kind === "depart") { radioLog("You", spoken || `Zarhart Tower, ${CALLSIGN}, holding short runway ${rw}, ready for departure.`, false); setTimeout(() => { radioLog("Zarhart Tower", `${SHORT}, wind ${String(Math.round(weather.windDir / 10) * 10).padStart(3, "0")} at ${Math.round(weather.windKt)}, runway ${rw}, cleared for takeoff.`); sim.flags.departCall = true; sim.flags.dContact = true; }, 1800); return; }
+  if (kind === "inbound") { radioLog("You", spoken || `Zarhart Tower, ${CALLSIGN}, ${Math.round(dnm)} miles ${dir}, ${Math.round(d.altInd / 100) * 100}, inbound for landing with ${weatherLetter()}.`, false); setTimeout(() => { const side = rw === "27" || rw === "36" ? "left" : "right"; radioLog("Zarhart Tower", `${SHORT}, Zarhart Tower, enter ${side} downwind runway ${rw}, report midfield.`); sim.flags.inboundCall = true; sim.flags.dContact = true; }, 1800); return; }
+  if (kind === "land") { radioLog("You", spoken || `Zarhart Tower, ${SHORT}, midfield ${rw === "27" ? "left" : ""} downwind, full stop.`, false); setTimeout(() => radioLog("Zarhart Tower", `${SHORT}, runway ${rw}, cleared to land.`), 1600); sim.flags.dContact = true; return; }
 }
 function weatherLetter() { return weather.atis(KZAR, weather.hour).letter; }
+const listener = new Listener();
+const ptt = { down: false, t0: 0, listening: false, pad: false, result: null };
+function pttDown() {
+  ptt.down = true; ptt.t0 = performance.now(); $("#radioStrip")?.classList.add("tx");
+  if (!ac.powered || !ac.elec.avionics || sim.radio.failed) return;
+  if (settings.radioPractice !== false && listener.ok) ptt.listening = listener.start((txt) => { const el = $("#pvHeard"); if (el) el.textContent = txt; });
+}
+async function pttUp() {
+  ptt.down = false; $("#radioStrip")?.classList.remove("tx");
+  const held = performance.now() - ptt.t0;
+  if (held < 350) { if (ptt.listening) { listener.stop(); ptt.listening = false; } return pttClick(); } // a click, not a call
+  if (!ptt.listening) return;
+  ptt.listening = false;
+  const alts = await listener.stop();
+  if (!alts.length) return say(listener.error === "not-allowed" ? "Microphone blocked. Allow the microphone for this site to practise radio calls." : "Nothing heard. Hold the button the whole time you talk.", "tip");
+  transmit(alts);
+}
+/** a spoken or typed call: matched against what fits this frequency; ATC answers a good call and asks again otherwise */
+function transmit(alts) {
+  const fi = freqInfo(micFreq()); audio.click();
+  if (!ac.powered || !ac.elec.avionics) return say("The radios have no power. Turn on the master and avionics switches.", "warn");
+  const kinds = callsFor(fi);
+  let best = null;
+  for (const kind of kinds) { const call = buildCall(kind, callContext(fi)); for (const t of alts) { const sc = scoreCall(t, call); if (!best || sc.score > best.score) best = { ...sc, kind, t, call }; } }
+  ptt.result = best;
+  if (!best) { radioLog("You", alts[0], false); if (openDrawerName === "radio") renderDrawer(); return; }
+  if (best.pass) radioCall(best.kind, best.t);
+  else {
+    radioLog("You", best.t, false);
+    const missing = best.parts.filter((p) => !p.ok).map((p) => { const l = p.label.replace(/ \(.*\)$/, ""); return l[0].toLowerCase() + l.slice(1); });
+    if (fi.kind === "twr" || fi.kind === "gnd") setTimeout(() => radioLog(fi.name, best.parts[1].ok ? `${SHORT}, say again.` : "Station calling, say again your callsign."), 1400);
+    say(`Almost. Add ${missing.join(", ")}.`, "tip", 7000);
+  }
+  if (openDrawerName === "radio") renderDrawer();
+}
 function pttClick() {
   audio.click();
   if (!ac.powered || !ac.elec.avionics || sim.radio.failed) return;
-  const fi = freqInfo(sim.radio.com1);
+  const fi = freqInfo(micFreq());
   if (fi?.kind === "ctaf" && fi.ap?.pcl) {
     sim.pcl.clicks.push(sim.t); sim.pcl.clicks = sim.pcl.clicks.filter((c) => sim.t - c <= 5);
     clearTimeout(sim.pcl.timer);
@@ -340,18 +392,21 @@ const keymap = {
   n: () => { [sim.radio.nav1, sim.radio.nav1s] = [sim.radio.nav1s, sim.radio.nav1]; },
   y: () => { input.mouseYoke = settings.mouseYoke = !settings.mouseYoke; saveSettings(); say(`Mouse yoke ${input.mouseYoke ? "ON: move the mouse away from the centre ring to fly" : "OFF"}`, "info", 2200); },
   u: () => { const m = ["assisted", "rudder", "off"]; setAssist(m[(m.indexOf(settings.assist) + 1) % 3]); },
-  " ": () => pttClick(),
   Enter: () => { if (!$("#crash").hidden) retry(); },
 };
 input.on("keymap", keymap);
 const ASSIST_LABEL = { assisted: "Assisted", rudder: "Auto-rudder", off: "Manual" };
 function setAssist(mode) { settings.assist = input.assist = mode; input.autoRudder = mode !== "off"; input.tgt = null; saveSettings(); say(`Flight assist: ${ASSIST_LABEL[mode]}${mode === "assisted" ? ". Arrows change pitch and bank; let go and the airplane holds its attitude." : mode === "rudder" ? ". You fly the stick; rudder is automatic." : ". Fully manual, including rudder."}`, "info", 4000); }
-const ctlEls = { dot: document.querySelector("#ctl .ctl-dot"), rud: document.querySelector("#ctl .ctl-rud span"), thr: document.querySelector("#ctl .ctl-thr span"), txt: document.querySelector("#ctl .ctl-txt"), yoke: document.querySelector("#yoke"), yokeDot: document.querySelector("#yoke span") };
+const ctlEls = { ail: [$("#cvAilL"), $("#cvAilR")], elev: [$("#cvElevL"), $("#cvElevR")], rud: $("#cvRud"), thr: $("#ctl .ctl-thr b"), mix: $("#ctl .ctl-mix b"), trim: $("#ctl .ctl-trim b"), txt: document.querySelector("#ctl .ctl-txt"), yoke: document.querySelector("#yoke"), yokeDot: document.querySelector("#yoke span") };
 function updateControlIndicator() {
-  const c = ac.ctl; if (!ctlEls.dot) return;
-  ctlEls.dot.style.transform = `translate(${c.aileron * 30}px, ${c.elevator * 30}px)`;
-  ctlEls.rud.style.transform = `translateX(${c.rudder * 30}px)`;
-  ctlEls.thr.style.height = `${Math.round(c.throttle * 100)}%`;
+  const c = ac.ctl; if (!ctlEls.rud) return;
+  // seen from behind: right roll raises the right aileron and lowers the left; pulling raises the elevator; right rudder swings right
+  const [aL, aR] = ctlEls.ail, [eL, eR] = ctlEls.elev, ay = c.aileron * 7, ey = c.elevator * 7;
+  aL.setAttribute("y2", 47 + ay); aL.setAttribute("x2", 34); aR.setAttribute("y1", 45 - ay);
+  eL.setAttribute("y1", 34 - ey); eR.setAttribute("y2", 34 - ey);
+  ctlEls.rud.setAttribute("x2", 80 + c.rudder * 8);
+  ctlEls.thr.style.height = `${Math.round(c.throttle * 100)}%`; ctlEls.mix.style.height = `${Math.round(ac.eng.mixture * 100)}%`;
+  ctlEls.trim.style.bottom = `${Math.round(50 + c.trim * 46)}%`;
   ctlEls.txt.textContent = `${ASSIST_LABEL[settings.assist].toUpperCase()} · FLAPS ${ac.flapsSet} · TRIM ${c.trim >= 0 ? "+" : ""}${Math.round(c.trim * 100)}`;
   ctlEls.yoke.hidden = !input.mouseYoke || sim.paused;
   if (input.mouseYoke) ctlEls.yokeDot.style.transform = `translate(${input.mouse.x * innerWidth / 2}px, ${input.mouse.y * (innerHeight - (parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--panel-h")) || 0)) / 2}px)`;
@@ -419,17 +474,26 @@ function renderDrawer() {
   } else if (n === "radio") {
     const r = sim.radio; const opt = (sel) => FREQS.map((q) => `<option value="${q.f}" ${Math.abs(q.f - sel) < 0.004 ? "selected" : ""}>${q.f.toFixed(3)} ${esc(q.name)}</option>`).join("");
     const nopt = (sel) => NAVAIDS.map((q) => `<option value="${q.freq}" ${Math.abs(q.freq - sel) < 0.004 ? "selected" : ""}>${q.freq.toFixed(2)} ${q.id} ${esc(q.name)} VOR</option>`).join("");
-    const fi = freqInfo(r.com1);
+    const fi = freqInfo(micFreq()), sug = suggestCall(fi), sugCall = sug ? buildCall(sug, callContext(fi)) : null, res = ptt.result;
     const calls = fi?.kind === "ctaf" ? [["announce", ac.derived.onGround ? "Announce departure" : "Self-announce position"]] : fi?.kind === "twr" || fi?.kind === "gnd" ? [["taxi", "Request taxi"], ["depart", "Ready for departure"], ["inbound", "Inbound call"], ["land", "Midfield downwind, request landing"]] : fi?.kind === "guard" ? [["mayday", "Declare emergency (Mayday)"]] : [];
     const a = weather.atis(KZAR, weather.hour);
     B.innerHTML = `${r.failed ? `<p class="dwarn">Radio failure (lesson). Squawk 7600 and watch for light gun signals.</p>` : ""}
       <div class="form"><label>COM1 active <select id="c1">${opt(r.com1)}</select></label><label>COM1 standby <select id="c1s">${opt(r.com1s)}</select></label><button class="sbtn" id="c1swap">⇄ Swap COM1</button>
+      <label>COM2 active <select id="c2">${opt(r.com2)}</select></label><label>COM2 standby <select id="c2s">${opt(r.com2s)}</select></label><button class="sbtn" id="c2swap">⇄ Swap COM2</button>
+      <label>Audio panel <span class="seg"><button data-mic="1" class="${r.mic === 1 ? "on" : ""}" title="Transmit on COM1">MIC 1</button><button data-mic="2" class="${r.mic === 2 ? "on" : ""}" title="Transmit on COM2">MIC 2</button><button data-rx="1" class="${r.rx1 ? "on" : ""}" title="Listen to COM1">COM1 ♪</button><button data-rx="2" class="${r.rx2 ? "on" : ""}" title="Listen to COM2">COM2 ♪</button></span></label>
       <label>NAV1 active <select id="n1">${nopt(r.nav1)}</select></label><label>NAV1 standby <select id="n1s">${nopt(r.nav1s)}</select></label><button class="sbtn" id="n1swap">⇄ Swap NAV1 (N)</button>
       <label>OBS <input type="number" id="obs" min="0" max="359" value="${Math.round(ac.inst.obs)}"></label>
       <label>Transponder <input id="xp" inputmode="numeric" maxlength="4" value="${ac.xpdr.code}" pattern="[0-7]{4}"></label>
       <span class="seg">${["1200", "7600", "7700"].map((c) => `<button data-xp="${c}" class="${ac.xpdr.code === c ? "on" : ""}">${c}</button>`).join("")}</span>
       <label>Mode <span class="seg">${["STBY", "ON", "ALT"].map((m) => `<button data-xm="${m}" class="${ac.xpdr.mode === m ? "on" : ""}">${m}</button>`).join("")}</span></label></div>
-      <h3 class="dsub">Talk on ${esc(fi?.name || r.com1.toFixed(3))}</h3>
+      <h3 class="dsub">Practise the call · ${esc(fi?.name || micFreq().toFixed(3))}</h3>
+      ${sugCall ? `<p class="saythis"><b>Say:</b> ${settings.showWords === false ? sugCall.parts.map((p) => esc(p.label)).join(" → ") : esc(sugCall.text)}</p>` : `<p class="dnote">${fi?.kind === "twr" && ac.derived.onGround ? "At the ramp, call Zarhart Ground (121.9) for taxi first. Call Tower (118.3) when you're holding short." : "Tune Zarhart Ground (121.9) for taxi, Tower (118.3) when holding short or inbound, a CTAF at an uncontrolled field, or 121.5 in an emergency, on the radio your MIC is set to."}</p>`}
+      <div class="pvrow"><input id="pvType" placeholder="${listener.ok ? "Hold Space (or Talk) and speak, or type the call here" : "Type your call here and press Enter"}" autocomplete="off"><button class="sbtn primary" id="pvSend">Transmit</button></div>
+      <p class="dnote" id="pvHeard">${res ? `Heard: “${esc(res.t)}”` : ""}</p>
+      ${res ? `<ul class="pvparts">${res.parts.map((p) => `<li class="${p.ok ? "ok" : "no"}">${p.ok ? "✓" : "✗"} ${esc(p.label)}</li>`).join("")}</ul>` : ""}
+      <label class="chk"><input type="checkbox" id="pvShow" ${settings.showWords === false ? "" : "checked"}> Show the words (off: only what to include)</label>
+      <p class="dnote">${listener.ok ? "Voice practice uses your browser's speech recognition. In Chrome and Edge your voice is sent to Google or Microsoft to turn it into text; Zarhart never receives it. Turn it off in Settings." : "This browser has no speech recognition, so type your calls. (Chrome, Edge and Safari can listen.)"}</p>
+      <h3 class="dsub">Or let us make the call</h3>
       <div class="calls">${calls.length ? calls.map(([k, t]) => `<button class="sbtn primary" data-call="${k}">${esc(t)}</button>`).join("") : `<p class="dnote">Tune a tower, ground, CTAF or guard frequency to talk.</p>`}<button class="sbtn" id="ptt" title="Pilot-controlled lighting: 7 clicks within 5 seconds">Click the mic (Space)</button></div>
       <h3 class="dsub">Zarhart ATIS ${esc(a.letter)} <span class="exams">${examLink("e53")}</span></h3><p class="atis">${esc(a.text)}</p>${a.skyOmitted ? `<p class="dnote">No sky condition or visibility in the ATIS means the ceiling is at least 5,000 ft and visibility at least 5 SM.</p>` : ""}
       <p class="metar mono">${esc(weather.metar(KZAR, weather.hour))}</p>
@@ -444,6 +508,13 @@ function renderDrawer() {
     B.querySelectorAll("[data-xm]").forEach((b) => b.addEventListener("click", () => { ac.xpdr.mode = b.dataset.xm; renderDrawer(); }));
     B.querySelectorAll("[data-call]").forEach((b) => b.addEventListener("click", () => radioCall(b.dataset.call === "announce" ? "announce" : b.dataset.call === "mayday" ? "mayday" : b.dataset.call)));
     $("#ptt", B).addEventListener("click", pttClick);
+    $("#c2", B).addEventListener("change", (e) => { r.com2 = +e.target.value; renderDrawer(); }); $("#c2s", B).addEventListener("change", (e) => { r.com2s = +e.target.value; });
+    $("#c2swap", B).addEventListener("click", () => { [r.com2, r.com2s] = [r.com2s, r.com2]; renderDrawer(); });
+    B.querySelectorAll("[data-mic]").forEach((b) => b.addEventListener("click", () => { r.mic = +b.dataset.mic; renderDrawer(); }));
+    B.querySelectorAll("[data-rx]").forEach((b) => b.addEventListener("click", () => { r["rx" + b.dataset.rx] = !r["rx" + b.dataset.rx]; renderDrawer(); }));
+    const send = () => { const t = $("#pvType", B).value.trim(); if (t) transmit([t]); };
+    $("#pvSend", B).addEventListener("click", send); $("#pvType", B).addEventListener("keydown", (e) => { if (e.key === "Enter") send(); });
+    $("#pvShow", B).addEventListener("change", (e) => { settings.showWords = e.target.checked; saveSettings(); renderDrawer(); });
   } else if (n === "map") {
     B.innerHTML = `<canvas id="bigMap" aria-label="VFR sectional-style map. Click to fly direct to a point."></canvas>
       <div class="maptools"><button class="sbtn" id="mzIn">＋</button><button class="sbtn" id="mzOut">−</button><span class="dnote">Click the map to go direct (GPS).</span></div>
@@ -491,6 +562,8 @@ function renderDrawer() {
       <label class="chk"><input type="checkbox" id="sMouse" ${settings.mouseYoke ? "checked" : ""}> Mouse yoke (Y)</label>
       <label>Flight assist <select id="sAssist"><option value="assisted">Assisted: arrows change pitch and bank, let go to hold (easiest)</option><option value="rudder">Auto-rudder only: real stick, rudder handled for you</option><option value="off">Off: fully manual (practise P-factor and coordination)</option></select></label>
       <label class="chk"><input type="checkbox" id="sSound" ${settings.sound ? "checked" : ""}> Sound</label>
+      <label class="chk"><input type="checkbox" id="sRadioPr" ${settings.radioPractice !== false ? "checked" : ""}> Voice radio practice (hold Space or Talk to speak a call)</label>
+      <label class="chk"><input type="checkbox" id="sLabels" ${settings.labels !== false ? "checked" : ""}> Airport labels (ID and name over each field)</label>
       <label class="chk"><input type="checkbox" id="sVoice" ${settings.voice ? "checked" : ""}> Spoken ATC & ATIS (text-to-speech)</label>
       <label>Instrument panel (I) <select id="sPanel"><option value="steam">Six-pack (steam gauges)</option><option value="glass">Glass cockpit (G1000 style)</option><option value="off">Hidden</option></select></label></div>
       <p class="dnote">Graphics changes take effect after a reload.</p>
@@ -539,12 +612,14 @@ function renderDrawer() {
     $("#sMouse", B).addEventListener("change", (e) => { settings.mouseYoke = input.mouseYoke = e.target.checked; saveSettings(); });
     $("#sAssist", B).value = settings.assist;
     $("#sAssist", B).addEventListener("change", (e) => { setAssist(e.target.value); });
+    $("#sRadioPr", B).addEventListener("change", (e) => { settings.radioPractice = e.target.checked; saveSettings(); });
+    $("#sLabels", B).addEventListener("change", (e) => { settings.labels = world.labelsOn = e.target.checked; saveSettings(); });
     $("#sSound", B).addEventListener("change", (e) => { settings.sound = audio.enabled = e.target.checked; saveSettings(); });
     $("#sVoice", B).addEventListener("change", (e) => { settings.voice = e.target.checked; saveSettings(); });
     $("#sPanel", B).addEventListener("change", (e) => { settings.panel = panel.mode = e.target.value; saveSettings(); layout(); });
   } else if (n === "help") {
     const k = (keys, what) => `<li><span class="keys">${keys.map((x) => `<kbd>${esc(x)}</kbd>`).join(" ")}</span><span>${esc(what)}</span></li>`;
-    B.innerHTML = `<ul class="keylist">${k(["↑", "W"], "Nose down")}${k(["↓", "S"], "Nose up")}${k(["←", "→", "A", "D"], "Roll (ailerons)")}${k(["Q", "E"], "Rudder / nosewheel steering")}${k(["R", "F"], "Throttle up / down (Shift = full / idle)")}${k(["[", "]"], "Flaps up / down a notch")}${k(["T", "G"], "Trim nose up / down")}${k(["B"], "Brakes (with rudder for differential)")}${k(["Shift+B"], "Parking brake")}${k(["H"], "Carburetor heat")}${k(["L"], "Landing light")}${k(["O"], "Set the heading indicator to the compass")}${k(["Space"], "Click the mic (pilot-controlled lighting)")}${k(["N"], "Swap NAV1")}${k(["C"], "Change view: cockpit, chase, orbit, tower")}${k(["I"], "Panel: six-pack, glass, hidden")}${k(["M"], "Map")}${k(["K"], "Checklist")}${k(["Y"], "Mouse yoke on/off")}${k(["U"], "Flight assist: Assisted → Auto-rudder → Manual")}${k(["P", "Esc"], "Pause")}</ul>
+    B.innerHTML = `<ul class="keylist">${k(["↑", "W"], "Nose down")}${k(["↓", "S"], "Nose up")}${k(["←", "→", "A", "D"], "Roll (ailerons)")}${k(["Q", "E"], "Rudder / nosewheel steering")}${k(["R", "F"], "Throttle up / down (Shift = full / idle)")}${k(["[", "]"], "Flaps up / down a notch")}${k(["T", "G"], "Trim nose up / down")}${k(["Z", "X"], "Mixture richer / leaner")}${k(["B"], "Brakes (with rudder for differential)")}${k(["Shift+B"], "Parking brake")}${k(["H"], "Carburetor heat")}${k(["L"], "Landing light")}${k(["O"], "Set the heading indicator to the compass")}${k(["Space"], "Click the mic (pilot-controlled lighting)")}${k(["N"], "Swap NAV1")}${k(["C"], "Change view: cockpit, chase, orbit, tower")}${k(["I"], "Panel: six-pack, glass, hidden")}${k(["M"], "Map")}${k(["K"], "Checklist")}${k(["Y"], "Mouse yoke on/off")}${k(["U"], "Flight assist: Assisted → Auto-rudder → Manual")}${k(["P", "Esc"], "Pause")}</ul>
       <h3 class="dsub">VR headset (Meta Quest)</h3><ul class="keylist">${VR_CONTROLS.map(([c, what]) => `<li><span class="keys"><kbd>${esc(c)}</kbd></span><span>${esc(what)}</span></li>`).join("")}</ul>
       <h3 class="dsub">Phone VR viewer (Cardboard-style)</h3><ul class="keylist">${PHONE_VR_CONTROLS.map(([c, what]) => `<li><span class="keys"><kbd>${esc(c)}</kbd></span><span>${esc(what)}</span></li>`).join("")}</ul>
       <p class="dnote">Mouse: drag to look around (cockpit) or orbit (outside views). Scroll to zoom. Double-click to recentre. Scroll over panel knobs (Kollsman, OBS, heading bug, attitude indicator) to set them. Click the HI knob to align it with the compass.</p>`;
@@ -625,7 +700,8 @@ function hudUpdate() {
   const v = sim.vfr; if (v) {
     const cls = v.special.length ? v.special.map((s) => s.id).join(" · ") : `Class ${v.cls}`;
     $("#vfr").className = `vfr ${v.ok ? "ok" : "bad"}`;
-    $("#vfr").innerHTML = `<b>${esc(cls)}</b><span>${esc(v.ok ? v.mins.text : v.why)}</span>`;
+    const na = nearestAirport(ac.pos.x, ac.pos.z), nb = Math.round((Math.atan2(na.airport.x - ac.pos.x, -(na.airport.z - ac.pos.z)) * 180 / Math.PI + 360) % 360) || 360;
+    $("#vfr").innerHTML = `<b>${esc(cls)}</b><span>${esc(v.ok ? v.mins.text : v.why)}</span><span class="near">${esc(na.airport.id)} ${esc(na.airport.name)} · ${(na.dist / 1852).toFixed(1)} NM · ${String(nb).padStart(3, "0")}°</span>`;
     $("#vfr").title = `VFR minimums here: ${v.mins.text} (14 CFR 91.155)`;
   }
   // data strip when the panel is hidden or outside views
@@ -640,11 +716,18 @@ function hudUpdate() {
   // touch controls follow the airplane: the throttle slider (unless a thumb is on it) and the parking brake button
   if (!$("#touch").hidden) {
     if (!input.touch.thrBusy) { input.showLever($("#lever"), ac.ctl.throttle); $("#knob2").style.transform = `translate(0px, ${Math.round((1 - 2 * ac.ctl.throttle) * 34)}px)`; }
-    $('#touch [data-t="park"]').classList.toggle("on", ac.parkingBrake);
+    $('#touch [data-t="ptt"]').classList.toggle("on", ptt.down);
+    $('#touch [data-t="park"]').classList.toggle("on", ac.parkingBrake); $('#touch [data-t="carb"]').classList.toggle("on", ac.eng.carbHeat);
+    input.showLever(ctlEls.mixLever, ac.eng.mixture);
+    ctlEls.trimWheel.style.setProperty("--trim", ac.ctl.trim.toFixed(3)); ctlEls.trimWheel.setAttribute("aria-valuenow", Math.round(ac.ctl.trim * 100));
   }
   // haptics: a buzz with the stall horn (phones vibrate, gamepads rumble)
   if (d.stallWarn && !sim.paused && performance.now() - (hudUpdate.buzzT || 0) > 450) { hudUpdate.buzzT = performance.now(); buzz(70, 0.35); }
   coach(0.12);
+  { const rs = $("#radioStrip"), r = sim.radio, f1 = freqInfo(r.com1), f2 = freqInfo(r.com2), fi = freqInfo(micFreq()), sug = suggestCall(fi);
+    const c = sug && settings.radioPractice !== false ? buildCall(sug, callContext(fi)) : null;
+    rs.innerHTML = `<span class="${r.mic === 1 ? "mic" : ""}">COM1 ${r.com1.toFixed(3)} <i>${esc(f1?.name || "")}</i></span><span class="${r.mic === 2 ? "mic" : ""}">COM2 ${r.com2.toFixed(3)} <i>${esc(f2?.name || "")}</i></span><b class="txl">TX</b>${c ? `<em>${settings.showWords === false ? "Say: " + esc(c.parts.map((p) => p.label.replace(/ \(.*\)$/, "")).join(" · ")) : "Say: " + esc(c.text)}</em>` : ""}`;
+    rs.hidden = !ac.powered || !ac.elec.avionics || sim.paused; }
   if (openDrawerName === "settings") ctlBars();
   // light gun
   const lg = $("#lightgun"); lg.hidden = !sim.lightGun; if (sim.lightGun) lg.innerHTML = `<span class="dot ${sim.lightGun.color} ${sim.lightGun.flash ? "flash" : ""}"></span>${esc(sim.lightGun.text)}`;
@@ -776,13 +859,28 @@ function padLayout() { const on = TOUCH || settings.pad; $("#touch").hidden = !o
 input.attachPad({ stick: $("#stick"), knob: $("#knob"), lever: $("#lever"), stick2: $("#stick2"), knob2: $("#knob2") });
 padLayout(); touchLayout();
 {
-  const tap = { flapsDown: () => keymap["]"](), flapsUp: () => keymap["["](), park: () => keymap["S+b"](), view: () => keymap.c(), pause: () => togglePause() };
-  const holds = { brake: (on) => { input.touch.brake = on; }, rudL: (on) => { input.touch.yaw = on ? -1 : 0; }, rudR: (on) => { input.touch.yaw = on ? 1 : 0; } };
+  const tap = { flapsDown: () => keymap["]"](), flapsUp: () => keymap["["](), park: () => keymap["S+b"](), view: () => keymap.c(), pause: () => togglePause(), carb: () => keymap.h() };
+  const holds = { ptt: (on) => { ptt.pad = on; }, brake: (on) => { input.touch.brake = on; }, rudL: (on) => { input.touch.yaw = on ? -1 : 0; }, rudR: (on) => { input.touch.yaw = on ? 1 : 0; } };
   document.querySelectorAll("#touch [data-t]").forEach((b) => {
     if (!holds[b.dataset.t]) return b.addEventListener("click", tap[b.dataset.t]);
     const hold = (on) => (e) => { e.preventDefault(); holds[b.dataset.t](on); b.classList.toggle("on", on); };
     b.addEventListener("pointerdown", hold(true)); for (const t of ["pointerup", "pointercancel", "pointerleave"]) b.addEventListener(t, hold(false));
   });
+}
+// trim wheel: roll it like the real one, down (toward you) for nose up; and the red mixture lever
+{
+  const tw = $("#trimWheel"); let last = null;
+  tw.addEventListener("pointerdown", (e) => { e.preventDefault(); tw.setPointerCapture(e.pointerId); last = e.clientY; tw.classList.add("live"); });
+  tw.addEventListener("pointermove", (e) => { if (last == null) return; ac.ctl.trim = Math.max(-1, Math.min(1, ac.ctl.trim + (e.clientY - last) * 0.006)); last = e.clientY; });
+  for (const t of ["pointerup", "pointercancel"]) tw.addEventListener(t, () => { last = null; tw.classList.remove("live"); });
+  const ml = $("#mixLever"); let drag = false;
+  const setMix = (v) => { ac.eng.mixture = Math.max(0, Math.min(1, v)); input.showLever(ml, ac.eng.mixture); };
+  const at = (e) => { const r = ml.getBoundingClientRect(); setMix(1 - (e.clientY - r.top) / r.height); };
+  ml.addEventListener("pointerdown", (e) => { e.preventDefault(); ml.setPointerCapture(e.pointerId); drag = true; at(e); });
+  ml.addEventListener("pointermove", (e) => { if (drag) at(e); });
+  for (const t of ["pointerup", "pointercancel"]) ml.addEventListener(t, () => { drag = false; });
+  document.querySelectorAll("[data-mx]").forEach((b) => b.addEventListener("click", () => setMix(+b.dataset.mx)));
+  ctlEls.mixLever = ml; ctlEls.trimWheel = tw;
 }
 if (TOUCH) {
   // iPhones only grant motion access from a tap, so tilt waits for the first touch there
@@ -829,6 +927,7 @@ function stepSim(dt, pilot) {
 function tick(now) {
   const dt = Math.max(0, Math.min(0.05, (now - last) / 1000)); last = Math.max(last, now);
   if (vr.active) vr.poll();
+  { const held = input.held(" ") || !!input._holds?.mic || ptt.pad; if (held !== ptt.down) { if (held) pttDown(); else pttUp(); } }
   input.poll(); // assigning a joystick control works while paused too
   if (sim.ready && !sim.paused) stepSim(dt);
   if (sim.ready) {
@@ -865,7 +964,7 @@ async function boot() {
     await world.build((m) => { prog.textContent = m + "…"; });
     prog.textContent = "Drawing the sectional chart…"; await new Promise((r) => setTimeout(r, 16));
     sectionalBase = buildSectionalBase(settings.quality === "low" ? 480 : 640);
-    addParked();
+    addParked(); world.labelsOn = settings.labels !== false;
     sim.setWeather(PRESETS.scattered); sim.setTime(13);
     spawn({ ...KZAR.spawn.rwy27, onGround: true });
     sim.ready = true; sim.d = ac.derived;

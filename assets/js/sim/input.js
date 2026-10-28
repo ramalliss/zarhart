@@ -3,7 +3,7 @@ const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 const D2R = Math.PI / 180;
 const CURVES = { gentle: { e: 0.75, g: 0.9 }, normal: { e: 0.5, g: 1 }, sharp: { e: 0.2, g: 1 } };
 /** controller buttons that can be assigned: name -> [label, keymap key or "hold"] */
-export const BUTTONS = { flapsDown: ["Flaps down", "]"], flapsUp: ["Flaps up", "["], brake: ["Brakes (hold)", "hold"], park: ["Parking brake", "S+b"], trimUp: ["Trim nose up (hold)", "hold"], trimDown: ["Trim nose down (hold)", "hold"], view: ["Change view", "c"], mic: ["Click the mic", " "], pause: ["Pause", "p"], assist: ["Flight assist", "u"] };
+export const BUTTONS = { flapsDown: ["Flaps down", "]"], flapsUp: ["Flaps up", "["], brake: ["Brakes (hold)", "hold"], park: ["Parking brake", "S+b"], trimUp: ["Trim nose up (hold)", "hold"], trimDown: ["Trim nose down (hold)", "hold"], throttleUp: ["Throttle up (hold)", "hold"], throttleDown: ["Throttle down (hold)", "hold"], mixRich: ["Mixture richer (hold)", "hold"], mixLean: ["Mixture leaner (hold)", "hold"], carbHeat: ["Carb heat on/off", "h"], view: ["Change view", "c"], mic: ["Push to talk (hold)", "hold"], pause: ["Pause", "p"], assist: ["Flight assist", "u"] };
 export const AXES = { roll: "Roll (ailerons)", pitch: "Pitch (elevator)", yaw: "Rudder", throttle: "Throttle" };
 
 export class Input {
@@ -64,7 +64,8 @@ export class Input {
   /** the usual layout of one controller: a standard gamepad (Xbox/PlayStation) or a flight joystick */
   autoMap(g) {
     const a = (axis) => (g.axes.length > axis ? { id: g.id, axis, inv: false } : null), b = (btn) => ({ id: g.id, btn });
-    if (g.mapping === "standard") return { roll: a(0), pitch: a(1), yaw: a(2), throttle: null, flapsDown: b(0), flapsUp: b(1), brake: b(2), view: b(3) };
+    // standard pads: left stick flies, right stick X is rudder, bumpers move the throttle, the d-pad trims (up = nose down, like rolling the wheel forward)
+    if (g.mapping === "standard") return { roll: a(0), pitch: a(1), yaw: a(2), throttle: null, flapsDown: b(0), flapsUp: b(1), brake: b(2), view: b(3), throttleDown: b(4), throttleUp: b(5), pause: b(9), trimDown: b(12), trimUp: b(13), park: b(14), carbHeat: b(15) };
     return { roll: a(0), pitch: a(1), throttle: a(2), yaw: a(5) || a(3) };
   }
   /** the assigned layout on top of the first controller's automatic one, so assigning one control keeps the rest working */
@@ -185,6 +186,11 @@ export class Input {
     if (this.held("f", "PageDown", "-")) c.throttle = clamp(c.throttle - 0.45 * dt, 0, 1);
     if (this.touch.throttle != null) { c.throttle = this.touch.throttle; this.touch.throttle = null; } // slider moves set it once; lessons and keys can still change it
     if (xr?.thr) c.throttle = clamp(c.throttle + xr.thr * 0.5 * dt, 0, 1);
+    if (this._holds.throttleUp) c.throttle = clamp(c.throttle + 0.45 * dt, 0, 1);
+    if (this._holds.throttleDown) c.throttle = clamp(c.throttle - 0.45 * dt, 0, 1);
+    // mixture: Z richer, X leaner (or the red lever, or the Aircraft drawer)
+    if (this.held("z") || this._holds.mixRich) ac.eng.mixture = clamp(ac.eng.mixture + 0.3 * dt, 0, 1);
+    if (this.held("x") || this._holds.mixLean) ac.eng.mixture = clamp(ac.eng.mixture - 0.3 * dt, 0, 1);
     if (this.held("t", "Home") || this._holds.trimUp) c.trim = clamp(c.trim + 0.22 * dt, -1, 1);
     if (this.held("g", "End") || this._holds.trimDown) c.trim = clamp(c.trim - 0.22 * dt, -1, 1);
     const b = Math.max(this.held("b") ? 1 : 0, xr ? xr.brake : 0, this.touch.brake || this._holds.brake ? 1 : 0);

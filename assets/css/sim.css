@@ -269,3 +269,50 @@ kbd { font: 600 12px/1 var(--f-mono); padding: 4px 6px; border-radius: 3px; back
 .pvrbar { position: fixed; z-index: 61; top: calc(env(safe-area-inset-top, 0px) + 10px); right: var(--gutter-r); display: flex; gap: 8px; }
 .pvrbar .sbtn { background: rgba(5, 6, 7, .72); }
 .pvrbar[hidden] { display: none; }
+
+/* control-surface view (seen from behind), throttle/mixture/trim bars */
+.ctl { grid-template-columns: auto; grid-template-rows: auto; width: 184px; }
+.ctl-view { width: 160px; height: 70px; display: block; }
+.ctl-view .fix { stroke: rgba(255, 255, 255, .55); stroke-width: 3; stroke-linecap: round; fill: none; }
+.ctl-view .fus { fill: rgba(255, 255, 255, .25); stroke-width: 1.5; }
+.ctl-view .mov { stroke: var(--magenta); stroke-width: 4; stroke-linecap: round; }
+.ctl-view .lbl { font: 600 7px var(--f-mono); fill: var(--muted); text-anchor: middle; letter-spacing: .08em; }
+.ctl-bars { display: grid; grid-template-columns: repeat(3, auto 1fr); align-items: center; gap: 4px 6px; font: 600 8.5px var(--f-mono); color: var(--muted); }
+.ctl-bars i { position: relative; display: block; height: 24px; width: 10px; border-radius: 2px; background: rgba(255, 255, 255, .12); overflow: hidden; }
+.ctl-bars i b { position: absolute; left: 0; right: 0; bottom: 0; background: var(--green); }
+.ctl-bars .ctl-mix b { background: #e5484d; }
+.ctl-bars .ctl-trim b { height: 3px; bottom: 50%; background: #fff; }
+.padon .ctl { display: grid; left: var(--gutter); right: auto; }
+/* stick labels, trim wheel, mixture lever */
+.stick { position: relative; }
+.stick .sl { position: absolute; font: 700 8px var(--f-mono); letter-spacing: .06em; color: rgba(255, 255, 255, .55); pointer-events: none; white-space: nowrap; }
+.sl-t { top: 6px; left: 50%; transform: translateX(-50%); } .sl-b { bottom: 6px; left: 50%; transform: translateX(-50%); }
+.sl-l { left: 6px; top: 50%; transform: translateY(-50%); } .sl-r { right: 6px; top: 50%; transform: translateY(-50%); }
+.trimw { --trim: 0; pointer-events: auto; position: relative; align-self: flex-end; width: 22px; height: 120px; border-radius: 6px; border: 1px solid var(--line-2); background: rgba(5, 6, 7, .7); touch-action: none; cursor: ns-resize; overflow: hidden; }
+.trimw .tw-ridges { position: absolute; inset: 14px 3px 3px; border-radius: 3px; background: repeating-linear-gradient(180deg, #2b3036 0 3px, #15181c 3px 6px); background-position-y: calc(var(--trim) * 40px); }
+.trimw.live .tw-ridges { outline: 1px solid var(--magenta); }
+.trimw .tw-lbl { position: absolute; top: 2px; left: 0; right: 0; text-align: center; font: 700 7px var(--f-mono); color: var(--muted); }
+.trimw .tw-mark { position: absolute; left: -2px; right: -2px; height: 3px; background: #fff; top: calc(14px + (1 + var(--trim)) / 2 * (100% - 20px)); }
+.mixcol { pointer-events: auto; display: grid; justify-items: center; gap: 4px; font: 700 11px var(--f-mono); color: var(--muted); }
+.lever.mix { width: 24px; }
+.lever.mix .lv-fill { background: #e5484d; }
+.lever.mix .lv-knob { background: #c0303a; color: #fff; font-size: 8px; }
+@media (max-width: 520px) { .mixcol { display: none; } } /* narrow phones: mixture stays in the Aircraft drawer and on Z/X */
+@media (pointer: coarse) and (max-width: 720px) { .trimw { height: 100px; } }
+@media (max-height: 500px) { .trimw { height: 92px; } .lever.mix { height: 92px; } }
+.touch.twostick .mixcol { display: none; }
+.vfr .near { font: 600 11.5px var(--f-mono); color: var(--muted); letter-spacing: .02em; }
+
+/* radio: strip on the HUD, practice panel */
+.radiostrip { position: fixed; z-index: 14; left: 50%; transform: translateX(-50%); bottom: calc(var(--panel-h, 0px) + 12px); max-width: min(560px, 46vw); display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: center; padding: 7px 12px; border-radius: 4px; background: rgba(5, 6, 7, .72); border: 1px solid var(--line); font: 600 11.5px var(--f-mono); color: var(--muted); pointer-events: none; }
+.radiostrip span.mic { color: var(--text); }
+.radiostrip i { font-style: normal; color: var(--muted); font-weight: 500; }
+.radiostrip .txl { color: #555b63; border: 1px solid #3a4048; border-radius: 3px; padding: 1px 5px; }
+.radiostrip.tx .txl { color: #fff; background: #d23a2a; border-color: #d23a2a; }
+.radiostrip em { flex-basis: 100%; font: 500 12.5px/1.35 var(--f-body); font-style: normal; color: #f3b6ea; }
+@media (max-width: 1100px), (max-height: 600px) { .radiostrip { display: none; } }
+.saythis { margin: 0; padding: 10px 12px; border-left: 3px solid var(--magenta); background: rgba(255, 255, 255, .03); font-size: 14.5px; line-height: 1.45; }
+.pvrow { display: flex; gap: 8px; margin: 8px 0 4px; }
+.pvrow input { flex: 1; min-width: 0; font: 500 14px var(--f-body); background: var(--panel); color: var(--text); border: 1px solid var(--line-2); border-radius: 3px; padding: 8px 10px; }
+.pvparts { list-style: none; margin: 4px 0 8px; padding: 0; display: grid; gap: 2px; font-size: 13px; }
+.pvparts .ok { color: var(--green); } .pvparts .no { color: var(--amber); }

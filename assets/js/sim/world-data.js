@@ -85,6 +85,8 @@ export const AIRPORTS = [
       rect(-745, -90, 0, 150, 15, "asphalt", "A1"),
       rect(-200, -90, 0, 150, 15, "asphalt", "A3"),
       rect(745, -90, 0, 150, 15, "asphalt", "A6"),
+      rect(470, 175, 0, 690, 15, "asphalt", "B"), // east of 18/36, crossing runway 9/27
+      rect(410, 515, 90, 120, 15, "asphalt", "B1"),
     ],
     aprons: [rect(-300, -265, 90, 420, 170, "asphalt", "Main ramp")],
     holdShort: [
@@ -93,6 +95,8 @@ export const AIRPORTS = [
       { x: 745, z: -62, hdg: 0, sign: "27-9", twy: "A6" },
       { x: 350 - 55, z: -165, hdg: 90, sign: "18-36", twy: "A" },
       { x: 350 + 55, z: -165, hdg: 270, sign: "18-36", twy: "A" },
+      { x: 470, z: -42, hdg: 180, sign: "9-27", twy: "B" }, { x: 470, z: 42, hdg: 0, sign: "27-9", twy: "B" },
+      { x: 350 + 34, z: 515, hdg: 270, sign: "18-36", twy: "B1" },
     ],
     rwyHold: [ // runway/runway hold position signs on 09/27 before the 18/36 intersection
       { x: 350 - 70, z: -22, sign: "18-36" }, { x: 350 + 70, z: 22, sign: "18-36" },
@@ -105,7 +109,7 @@ export const AIRPORTS = [
   {
     id: "KAME", name: "Earhart Municipal", city: "Atchison", x: 14000, z: 9000, towered: false, pcl: true, calmRwy: "36",
     freqs: { ctaf: 122.8, awos: 118.525 },
-    runways: [rwy(["18", "36"], 14000, 9000, 180, 1100, 23, "asphalt", { lights: true, vasi: ["36"], pcl: true })],
+    runways: [rwy(["18", "36"], 14000, 9000, 180, 1100, 23, "asphalt", { lights: true, vasi: ["36"], pcl: true }), rwy(["09", "27"], 13640, 9350, 90, 600, 20, "grass", { lights: false })],
     taxiways: [rect(14110, 9000, 180, 1100, 12, "asphalt", "A"), rect(14055, 8460, 90, 110, 12, "asphalt", "A1"), rect(14055, 9540, 90, 110, 12, "asphalt", "A2")],
     aprons: [rect(14230, 9080, 180, 260, 110, "asphalt", "Ramp")],
     holdShort: [{ x: 14062, z: 8460, hdg: 270, sign: "18-36", twy: "A1" }, { x: 14062, z: 9540, hdg: 270, sign: "36-18", twy: "A2" }],
@@ -232,6 +236,31 @@ function rawHeight(x, z) {
   return h;
 }
 LAUNCH.h = Math.round(rawHeight(LAUNCH.x, LAUNCH.z) + 25);
+
+// Runway holding position signs read like the runway in front of you: the runway whose threshold is on your left is
+// written first ("15-33": runway 15's threshold to the left, AIM 2-3-8). Worked out here from where each sign stands and
+// which way a pilot holding there faces (toward the runway, as the hold-short marking is drawn), so none reads backwards.
+{
+  const strip = (id) => id.replace(/^0/, "");
+  const same = (rw, sign) => rw.ids.map(strip).sort().join() === sign.split("-").map(strip).sort().join();
+  const orient = (h, r, fx, fz) => { // facing (fx, fz); its right-hand side is (-fz, fx)
+    const [e0, e1] = r.ends, e0Right = (e0.x - h.x) * -fz + (e0.z - h.z) * fx > 0;
+    h.sign = e0Right ? `${strip(e1.id)}-${strip(e0.id)}` : `${strip(e0.id)}-${strip(e1.id)}`;
+  };
+  for (const ap of AIRPORTS) {
+    for (const h of ap.holdShort) { // facing the nearest point on that runway's centreline
+      const r = ap.runways.find((rw) => same(rw, h.sign)); if (!r) continue;
+      const t = (h.x - r.cx) * r.dir[0] + (h.z - r.cz) * r.dir[1];
+      orient(h, r, r.cx + r.dir[0] * t - h.x, r.cz + r.dir[1] * t - h.z);
+    }
+    for (const h of ap.rwyHold) { // standing on one runway, facing along it toward the runway it crosses
+      const other = ap.runways.find((rw) => same(rw, h.sign)), on = ap.runways.filter((rw) => rw !== other).sort((p, q) => rectDist(h.x, h.z, p) - rectDist(h.x, h.z, q))[0]; // the sign stands beside the runway it's on
+      if (!other || !on) continue;
+      const k = Math.sign((other.cx - h.x) * on.dir[0] + (other.cz - h.z) * on.dir[1]) || 1;
+      orient(h, other, on.dir[0] * k, on.dir[1] * k);
+    }
+  }
+}
 
 // field elevations follow the natural terrain, rounded to the nearest 10 ft
 for (const ap of AIRPORTS) {

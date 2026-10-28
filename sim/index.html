@@ -58,8 +58,21 @@
 <div id="gmeter" class="gmeter" hidden></div>
 <div id="lightgun" class="lightgun" hidden></div>
 <div id="strip" class="strip" hidden></div>
-<div id="ctl" class="ctl" title="Control positions (U changes flight assist)"><div class="ctl-stick"><span class="ctl-dot"></span></div><div class="ctl-thr" aria-label="Throttle"><span></span></div><div class="ctl-rud"><span></span></div><div class="ctl-txt"></div></div>
+<div id="ctl" class="ctl" title="Your controls and what they move (U changes flight assist)">
+  <svg class="ctl-view" viewBox="0 0 160 70" aria-label="Control surfaces seen from behind: ailerons, elevator and rudder">
+    <text x="80" y="9" class="lbl">RUDDER</text>
+    <line x1="80" y1="44" x2="80" y2="20" class="fix"/><line id="cvRud" x1="80" y1="20" x2="80" y2="13" class="mov"/>
+    <line x1="58" y1="34" x2="102" y2="34" class="fix"/><line id="cvElevL" x1="58" y1="34" x2="66" y2="34" class="mov"/><line id="cvElevR" x1="94" y1="34" x2="102" y2="34" class="mov"/>
+    <text x="106" y="31" class="lbl" text-anchor="start" style="text-anchor:start">ELEV</text>
+    <line x1="12" y1="47" x2="148" y2="45" class="fix"/><line id="cvAilL" x1="12" y1="47" x2="34" y2="47" class="mov"/><line id="cvAilR" x1="126" y1="45" x2="148" y2="45" class="mov"/>
+    <circle cx="80" cy="46" r="6" class="fix fus"/>
+    <text x="22" y="62" class="lbl">AIL</text><text x="138" y="62" class="lbl">AIL</text>
+  </svg>
+  <div class="ctl-bars"><span>THR</span><i class="ctl-thr"><b></b></i><span>MIX</span><i class="ctl-mix"><b></b></i><span>TRIM</span><i class="ctl-trim"><b></b></i></div>
+  <div class="ctl-txt"></div>
+</div>
 <div id="yoke" class="yoke" hidden aria-hidden="true"><span></span></div>
+<div id="radioStrip" class="radiostrip" hidden aria-live="off"></div>
 
 <aside id="drawer" class="drawer" hidden aria-labelledby="drawerTitle">
   <header><h2 id="drawerTitle"></h2><button id="drawerClose" class="xbtn" aria-label="Close">✕</button></header>
@@ -67,8 +80,9 @@
 </aside>
 
 <div id="touch" class="touch" hidden>
-  <div id="stick" class="stick"><div id="knob" class="knob"></div></div>
+  <div id="stick" class="stick" aria-label="Control stick: pull back to raise the nose, push to lower it; left and right roll the wings"><span class="sl sl-t">NOSE ▼</span><span class="sl sl-b">NOSE ▲</span><span class="sl sl-l">◀ ROLL</span><span class="sl sl-r">ROLL ▶</span><div id="knob" class="knob"></div></div>
   <div class="tright">
+    <div id="trimWheel" class="trimw" role="slider" aria-label="Trim wheel: drag down for nose up, up for nose down" aria-valuemin="-100" aria-valuemax="100" aria-valuenow="0"><span class="tw-lbl">TRIM</span><span class="tw-ridges"></span><span class="tw-mark"></span></div>
     <div class="tbtns">
       <button type="button" data-t="rudL" aria-label="Left rudder: hold">◀ Rudder</button>
       <button type="button" data-t="rudR" aria-label="Right rudder: hold">Rudder ▶</button>
@@ -76,6 +90,8 @@
       <button type="button" data-t="flapsUp" aria-label="Retract the flaps one notch">Flaps −</button>
       <button type="button" data-t="brake" aria-label="Wheel brakes: hold">Brakes</button>
       <button type="button" data-t="park" aria-label="Parking brake on or off">Park brk</button>
+      <button type="button" data-t="carb" aria-label="Carburetor heat on or off">Carb heat</button>
+      <button type="button" data-t="ptt" aria-label="Push to talk: hold and speak">Talk (PTT)</button>
       <button type="button" data-t="view" aria-label="Change the view">View</button>
       <button type="button" data-t="pause" aria-label="Pause">Pause</button>
     </div>
@@ -84,6 +100,12 @@
       <div id="lever" class="lever" role="slider" aria-label="Throttle: drag up for more power" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span class="lv-fill"></span><span class="lv-knob">THR</span></div>
       <button type="button" class="lvbtn" data-lv="0" aria-label="Idle">Idle</button>
       <span class="lv-pct">0%</span>
+    </div>
+    <div class="mixcol">
+      <button type="button" class="lvbtn" data-mx="1" aria-label="Mixture full rich">Rich</button>
+      <div id="mixLever" class="lever mix" role="slider" aria-label="Mixture: drag down to lean" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100"><span class="lv-fill"></span><span class="lv-knob">MIX</span></div>
+      <button type="button" class="lvbtn" data-mx="0.08" aria-label="Mixture idle cutoff">Cutoff</button>
+      <span class="lv-pct">100%</span>
     </div>
     <div id="stick2" class="stick stick2" hidden aria-label="Throttle (up and down) and rudder (left and right)"><span class="s2l">THR</span><div id="knob2" class="knob"></div><span class="s2r">RUD</span></div>
   </div>
