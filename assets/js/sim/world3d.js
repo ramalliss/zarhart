@@ -427,10 +427,23 @@ function buildTowns(Q = { pbr: false }) {
  * Tree models for High and above, 1 unit tall: a vertex-coloured trunk and a crown whose normals point out from the crown's
  * centre, so a low-poly crown shades like a soft round mass. aTrunk marks the trunk (it ignores the instance's leaf colour).
  */
+/** join corners that share a position, so a shape built face by face (the icosahedron) is drawn with shared vertices */
+function weld(g) {
+  if (g.index) return g;
+  const p = g.attributes.position, seen = new Map(), pos = [], idx = [];
+  for (let i = 0; i < p.count; i++) {
+    const key = `${p.getX(i).toFixed(4)},${p.getY(i).toFixed(4)},${p.getZ(i).toFixed(4)}`;
+    let k = seen.get(key); if (k === undefined) { k = pos.length / 3; seen.set(key, k); pos.push(p.getX(i), p.getY(i), p.getZ(i)); }
+    idx.push(k);
+  }
+  const out = new THREE.BufferGeometry();
+  out.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3)); out.setAttribute("normal", new THREE.Float32BufferAttribute(new Float32Array(pos.length), 3)); out.setIndex(idx);
+  return out;
+}
 function treeGeometry(kind) {
   const parts = [];
   const part = (g, trunk, cy = 0.6, ry = 0.45) => {
-    if (g.index) g = g.toNonIndexed(); const p = g.attributes.position, n = g.attributes.normal, cnt = p.count;
+    g = weld(g); const p = g.attributes.position, n = g.attributes.normal, cnt = p.count;
     const col = new Float32Array(cnt * 3), tr = new Float32Array(cnt);
     for (let i = 0; i < cnt; i++) {
       const x = p.getX(i), y = p.getY(i), z = p.getZ(i);
@@ -444,14 +457,16 @@ function treeGeometry(kind) {
   };
   if (kind === "conifer") {
     part(new THREE.CylinderGeometry(0.035, 0.05, 0.3, 5, 1, true).translate(0, 0.15, 0), true);
-    part(new THREE.ConeGeometry(0.36, 0.62, 6, 1).translate(0, 0.45, 0), false, 0.55, 0.45);
+    part(new THREE.ConeGeometry(0.36, 0.62, 6, 1, true).translate(0, 0.45, 0), false, 0.55, 0.45); // no base: nobody sees under a tree
     part(new THREE.ConeGeometry(0.24, 0.5, 6, 1, true).rotateY(0.5).translate(0, 0.75, 0), false, 0.55, 0.45); // its base hides inside the lower tier
   } else {
     part(new THREE.CylinderGeometry(0.04, 0.06, 0.42, 5, 1, true).translate(0, 0.21, 0), true);
     const crown = new THREE.IcosahedronGeometry(0.42, 0); crown.scale(1, 0.78, 1).translate(0, 0.66, 0);
     part(crown, false, 0.66, 0.33);
   }
-  const geo = new THREE.BufferGeometry();
+  const geo = new THREE.BufferGeometry(), index = []; let base = 0;
+  for (const g of parts) { for (const i of g.index.array) index.push(i + base); base += g.attributes.position.count; }
+  geo.setIndex(index);
   for (const name of ["position", "normal", "color", "aTrunk"]) {
     const size = parts[0].attributes[name].itemSize, arr = new Float32Array(parts.reduce((s, g) => s + g.attributes[name].array.length, 0)); let o = 0;
     for (const g of parts) { arr.set(g.attributes[name].array, o); o += g.attributes[name].array.length; }
@@ -483,11 +498,18 @@ function buildTrees(quality, Q = preset(quality)) {
     pts.push([x, h, z]);
   }
   if (Q.pbr) { // conifers on high ground, broadleaf trees in the valleys, mixed in between
-    const kinds = { conifer: [], broad: [] };
-    for (const p of pts) kinds[R() < 0.25 + 0.6 * Math.min(1, Math.max(0, (p[1] - 250) / 450)) ? "conifer" : "broad"].push(p);
-    const g = new THREE.Group(); g.userData.mats = [];
-    for (const [kind, list] of Object.entries(kinds)) {
-      const mat = treeMaterial(), mesh = new THREE.InstancedMesh(treeGeometry(kind), mat, list.length);
+    const CELL = 26000 / 3, cells = new Map(); // 6 × 6 squares
+    for (const p of pts) {
+      const kind = R() < 0.25 + 0.6 * Math.min(1, Math.max(0, (p[1] - 250) / 450)) ? "conifer" : "broad";
+      const ci = Math.floor((p[0] + 26000) / CELL), cj = Math.floor((p[2] + 26000) / CELL), key = `${kind}:${ci}:${cj}`;
+      if (!cells.has(key)) cells.set(key, { kind, list: [], box: { x0: ci * CELL - 26000, x1: (ci + 1) * CELL - 26000, z0: cj * CELL - 26000, z1: (cj + 1) * CELL - 26000 } });
+      cells.get(key).list.push(p);
+    }
+    const mats = { conifer: treeMaterial(), broad: treeMaterial() }, geos = { conifer: treeGeometry("conifer"), broad: treeGeometry("broad") };
+    const g = new THREE.Group(); g.userData.mats = Object.values(mats); g.userData.range = Q.treeRange;
+    for (const { kind, list, box } of cells.values()) {
+      // each square gets its own copy of the shape: three.js caches vertex setup per geometry, so squares sharing one would re-bind it every draw
+      const mesh = new THREE.InstancedMesh(geos[kind].clone(), mats[kind], list.length); mesh.userData.box = box;
       const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), col = new THREE.Color(), up = new THREE.Vector3(0, 1, 0);
       list.forEach(([x, h, z], i) => {
         const conifer = kind === "conifer", s = conifer ? 11 + R() * 14 : 8 + R() * 9, r = s * (conifer ? 0.85 + R() * 0.3 : 1.05 + R() * 0.4);
@@ -496,7 +518,7 @@ function buildTrees(quality, Q = preset(quality)) {
         if (conifer) col.setRGB(0.1 + R() * 0.05, 0.19 + R() * 0.08, 0.11 + R() * 0.04); else col.setRGB(0.17 + R() * 0.1, 0.27 + R() * 0.12, 0.1 + R() * 0.05);
         mesh.setColorAt(i, col);
       });
-      g.add(mesh); g.userData.mats.push(mat);
+      mesh.computeBoundingSphere(); g.add(mesh);
     }
     return g;
   }
@@ -1162,6 +1184,9 @@ export class World {
   /** per-frame animation: lights, beacons, VASI, windsocks, airport labels */
   update(t, eye, state) {
     if (this.stars) this.stars.position.copy(eye);
+    // forest squares farther than a tree can be seen aren't drawn at all
+    const range = this.trees?.userData.range;
+    if (range) for (const m of this.trees.children) { const b = m.userData.box, dx = Math.max(b.x0 - eye.x, 0, eye.x - b.x1), dz = Math.max(b.z0 - eye.z, 0, eye.z - b.z1); m.visible = dx * dx + dz * dz < range * range; }
     if (this.labels) for (const sp of this.labels.children) {
       const ap = sp.userData.ap, d = Math.hypot(eye.x - ap.x, eye.z - ap.z), o = Math.min(1, (d - 1500) / 1500) * Math.min(1, (46000 - d) / 8000);
       sp.visible = this.labelsOn && o > 0.02; sp.material.opacity = Math.max(0, o);

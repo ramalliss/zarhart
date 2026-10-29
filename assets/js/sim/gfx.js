@@ -9,8 +9,8 @@ import * as THREE from "three";
  */
 export const QUALITY = {
   low: { id: "low", pixelRatio: 1, shadows: 0, pbr: false, terrainN: 256, groundPx: 1024, trees: 4000, runwayScale: 1, post: false },
-  high: { id: "high", pixelRatio: 1.6, shadows: 2048, pbr: true, terrainN: 400, groundPx: 2048, trees: 14000, runwayScale: 1, post: false },
-  ultra: { id: "ultra", pixelRatio: 2, shadows: 4096, pbr: true, terrainN: 512, groundPx: 2048, trees: 32000, runwayScale: 2, post: true },
+  high: { id: "high", pixelRatio: 1.6, shadows: 2048, pbr: true, terrainN: 400, groundPx: 2048, trees: 14000, treeRange: 11000, runwayScale: 1, post: false },
+  ultra: { id: "ultra", pixelRatio: 2, shadows: 4096, pbr: true, terrainN: 512, groundPx: 2048, trees: 32000, treeRange: 16000, runwayScale: 2, post: true },
 };
 export const preset = (q) => QUALITY[q] || QUALITY.high;
 
