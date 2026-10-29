@@ -4,6 +4,10 @@ import * as THREE from "three";
 const DEG = Math.PI / 180;
 const TAU = Math.PI * 2;
 
+/** graphics preset for every airplane built from here on (main.js sets it from the Graphics setting before building any) */
+const CFG = { pbr: false, shadows: false };
+export function configurePlanes(Q) { CFG.pbr = !!Q.pbr; CFG.shadows = Q.shadows > 0; }
+
 /* ---------------- helpers ---------------- */
 const cr = (p0, p1, p2, p3, t) => { const t2 = t * t, t3 = t2 * t; return 0.5 * (2 * p1 + (-p0 + p2) * t + (2 * p0 - 5 * p1 + 4 * p2 - p3) * t2 + (-p0 + 3 * p1 - 3 * p2 + p3) * t3); };
 const se = (v, n) => Math.sign(v) * Math.pow(Math.abs(v), 2 / n); // superellipse shaping
@@ -133,13 +137,10 @@ function liveryTexture(reg, stripe, navy = "#1b2a44", scale = 1) {
   }
   // windows
   const win = (th0, th1, z0, z1) => { const x = Math.min(U(th0), U(th1)), w = Math.abs(U(th1) - U(th0)), y = V(z0), h = V(z1) - V(z0); const gr = g.createLinearGradient(x, 0, x + w, 0); gr.addColorStop(0, "#1a2430"); gr.addColorStop(0.6, "#2b3a4c"); gr.addColorStop(1, "#16202b"); g.fillStyle = gr; g.beginPath(); g.roundRect(x, y, w, h, 14); g.fill(); };
-  for (const side of [0, 1]) {
-    const t0 = 0.32, t1 = 0.98; const a = side ? Math.PI - t1 : t0, b = side ? Math.PI - t0 : t1;
-    win(a, b, -0.60, 0.26); win(a, b, 0.36, 1.02);
+  liveryWindows(win, (side) => {
     // door outline
     g.strokeStyle = "rgba(120,130,145,0.55)"; g.lineWidth = 3; const dx = Math.min(U(side ? Math.PI - 1.02 : 0.04), U(side ? Math.PI - 0.04 : 1.02)); g.strokeRect(dx, V(-0.66), Math.abs(U(1.02) - U(0.04)), V(0.31) - V(-0.66));
-  }
-  win(1.0, Math.PI - 1.0, -1.13, -0.70); // windshield
+  });
   g.fillStyle = "#e8eaee"; g.fillRect(U(Math.PI / 2) - 3 * scale, V(-1.13), 6 * scale, V(-0.70) - V(-1.13)); // centre post
   // cowling seam and oil door
   g.fillStyle = "rgba(110,120,135,0.45)"; g.fillRect(0, V(-1.52), W, 3 * scale); g.strokeStyle = "rgba(110,120,135,0.5)"; g.strokeRect(U(Math.PI / 2) - 40 * scale, V(-2.0), 80 * scale, V(-1.7) - V(-2.0));
@@ -153,6 +154,36 @@ function liveryTexture(reg, stripe, navy = "#1b2a44", scale = 1) {
   regText(0); regText(1);
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.flipY = false; t.anisotropy = 4; return t;
 }
+/** the side windows (two per side, plus `extra(side)` for the door) and the windshield, on the livery's UV layout */
+function liveryWindows(win, extra) {
+  for (const side of [0, 1]) {
+    const t0 = 0.32, t1 = 0.98; const a = side ? Math.PI - t1 : t0, b = side ? Math.PI - t0 : t1;
+    win(a, b, -0.60, 0.26); win(a, b, 0.36, 1.02);
+    extra?.(side);
+  }
+  win(1.0, Math.PI - 1.0, -1.13, -0.70); // windshield
+}
+/** roughness map for the livery (green channel): polished paint, a slightly more weathered cowling, and glass-smooth windows */
+function liveryRoughness(scale = 1) {
+  const W = 1024 * scale, H = 512 * scale; const c = document.createElement("canvas"); c.width = W; c.height = H; const g = c.getContext("2d");
+  const U = (th) => (((th / TAU) % 1) + 1) % 1 * W, V = (z) => ((z - Z0) / (Z1 - Z0)) * H;
+  g.fillStyle = "rgb(0,92,0)"; g.fillRect(0, 0, W, H);
+  g.fillStyle = "rgb(0,125,0)"; g.fillRect(0, 0, W, V(-1.52)); // the cowling: a little more weathered
+  g.fillStyle = "rgb(0,12,0)";
+  liveryWindows((th0, th1, z0, z1) => { const x = Math.min(U(th0), U(th1)), w = Math.abs(U(th1) - U(th0)); g.beginPath(); g.roundRect(x, V(z0), w, V(z1) - V(z0), 7 * scale); g.fill(); });
+  const t = new THREE.CanvasTexture(c); t.flipY = false; return t;
+}
+/** High and above: hide an airplane from the camera but keep its shadow (the cockpit view still casts the whole airplane's shadow) */
+const GHOST = {};
+export function setGhost(group, on) {
+  if (!!group.userData.ghost === on) return;
+  group.userData.ghost = on;
+  group.traverse((o) => {
+    if (!o.isMesh) return;
+    if (on) { o.userData.mat = o.material; o.material = GHOST[o.material.side] ||= new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: false, side: o.material.side }); }
+    else if (o.userData.mat) { o.material = o.userData.mat; o.userData.mat = null; }
+  });
+}
 
 /* ---------------- airplane ---------------- */
 /** type: c172 (high wing, struts) | c152 (the same, a size smaller) | pa28 (low wing, no struts, wider main gear) */
@@ -160,10 +191,14 @@ export function buildAirplane({ reg = "N19ZR", stripe = 0xe64bd0, simple = false
   const low = type === "pa28", gearX = low ? 1.55 : 1.25;
   const g = new THREE.Group();
   const stripeHex = "#" + new THREE.Color(stripe).getHexString();
-  const paint = new THREE.MeshStandardMaterial({ map: liveryTexture(reg, stripeHex, "#1b2a44", simple ? 0.5 : 1), roughness: 0.32, metalness: 0.05 });
-  const white = new THREE.MeshStandardMaterial({ color: 0xf1f2f4, roughness: 0.34, metalness: 0.05, side: THREE.DoubleSide });
-  const metal = new THREE.MeshStandardMaterial({ color: 0x9aa1a9, roughness: 0.45, metalness: 0.6 });
-  const rubber = new THREE.MeshStandardMaterial({ color: 0x15171a, roughness: 0.9 });
+  const livery = liveryTexture(reg, stripeHex, "#1b2a44", simple ? 0.5 : 1);
+  // High and above: clear-coated paint (windows read as glass through the roughness map), bare metal struts, rough tyres
+  const paint = CFG.pbr ? new THREE.MeshPhysicalMaterial({ map: livery, roughnessMap: liveryRoughness(simple ? 0.5 : 1), roughness: 1, metalness: 0, clearcoat: 0.6, clearcoatRoughness: 0.1 })
+    : new THREE.MeshStandardMaterial({ map: livery, roughness: 0.32, metalness: 0.05 });
+  const white = CFG.pbr ? new THREE.MeshPhysicalMaterial({ color: 0xf1f2f4, roughness: 0.4, metalness: 0, clearcoat: 0.5, clearcoatRoughness: 0.14, side: THREE.DoubleSide })
+    : new THREE.MeshStandardMaterial({ color: 0xf1f2f4, roughness: 0.34, metalness: 0.05, side: THREE.DoubleSide });
+  const metal = CFG.pbr ? new THREE.MeshStandardMaterial({ color: 0xc3c8ce, roughness: 0.3, metalness: 0.9 }) : new THREE.MeshStandardMaterial({ color: 0x9aa1a9, roughness: 0.45, metalness: 0.6 });
+  const rubber = new THREE.MeshStandardMaterial({ color: CFG.pbr ? 0x111214 : 0x15171a, roughness: CFG.pbr ? 0.96 : 0.9 });
   const dark = new THREE.MeshStandardMaterial({ color: 0x22262c, roughness: 0.6, side: THREE.DoubleSide });
   const accent = new THREE.MeshStandardMaterial({ color: stripe, roughness: 0.4 });
   const parts = {};
@@ -256,11 +291,16 @@ export function buildAirplane({ reg = "N19ZR", stripe = 0xe64bd0, simple = false
   parts.strobeR = add(new THREE.Mesh(new THREE.SphereGeometry(0.075, 8, 6), lightMat(0xffffff))); parts.strobeR.position.set(5.53, wy(5.45), tipZ + 0.25);
   parts.beacon = add(new THREE.Mesh(new THREE.SphereGeometry(0.07, 8, 6), lightMat(0xff2200))); parts.beacon.position.set(0, 1.92, 5.0);
   if (!simple) {
-    const spot = new THREE.SpotLight(0xfff2d8, 0, 900, 0.32, 0.45, 1.2); spot.position.set(-0.9, 0.98, -0.95);
+    // High and above: a real landing light, about 90,000 candela with inverse-square falloff; Low keeps its old short beam
+    const spot = CFG.pbr ? new THREE.SpotLight(0xfff2d8, 0, 0, 0.2, 0.55, 2) : new THREE.SpotLight(0xfff2d8, 0, 900, 0.32, 0.45, 1.2); spot.position.set(-0.9, 0.98, -0.95);
     const tgt = new THREE.Object3D(); tgt.position.set(-0.9, -6, -40); g.add(spot, tgt); spot.target = tgt; parts.landingLight = spot;
   }
   if (type === "c152") g.scale.setScalar(0.92);
   g.userData.parts = parts;
+  if (CFG.shadows) {
+    const lit = new Set([disc, parts.navL, parts.navR, parts.strobeL, parts.strobeR, parts.beacon]);
+    g.traverse((o) => { if (o.isMesh && !lit.has(o)) o.castShadow = o.receiveShadow = true; });
+  }
   return g;
 }
 
@@ -299,6 +339,7 @@ export function buildCockpit(type = "c172") {
   const top = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.06, 0.9), frame); top.position.set(0, 1.1, -0.95); g.add(top);
   const compass = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.1, 0.1), dash); compass.position.set(0, 0.98, -0.95); g.add(compass);
   const ext = cockpitExterior(type); g.add(ext); g.userData.ext = ext;
+  if (CFG.shadows) g.traverse((o) => { if (o.isMesh) o.receiveShadow = true; });
   return g;
 }
 /** the exterior wings, struts and control surfaces seen from the cockpit, so the view out the window matches the airplane */
@@ -307,6 +348,7 @@ export function cockpitExterior(type = "c172") {
   const keep = new Set(), floor = type === "pa28" ? -0.95 : -0.6;
   ext.traverse((o) => { if (o.isMesh) { const b = new THREE.Box3().setFromObject(o); if (Math.max(Math.abs(b.min.x), Math.abs(b.max.x)) > 0.9 && b.min.y > floor) keep.add(o); } });
   ext.traverse((o) => { if (o.isMesh && (!keep.has(o) || o.material.isMeshBasicMaterial)) o.visible = false; });
+  if (CFG.shadows) ext.traverse((o) => { if (o.isMesh) o.castShadow = false; }); // the hidden full airplane casts the shadow instead
   return ext;
 }
 
@@ -326,5 +368,5 @@ export function animateAirplane(group, ac, t, dt = 1 / 60) {
   p.beacon.visible = pw && L.beacon && (t % 1.2) < 0.15;
   const st = pw && L.strobe && ((t % 1.1) < 0.06 || ((t - 0.15) % 1.1 < 0.06 && t % 1.1 > 0.15));
   p.strobeL.visible = p.strobeR.visible = st;
-  if (p.landingLight) p.landingLight.intensity = pw && L.landing ? 120 : 0;
+  if (p.landingLight) p.landingLight.intensity = pw && L.landing ? (CFG.pbr ? 90000 : 120) : 0;
 }

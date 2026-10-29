@@ -3,7 +3,8 @@ import * as THREE from "three";
 import { Aircraft, C172, TYPES, KT, FT, weightBalance, RWY_COND, hydroplaneKt } from "./fdm.js";
 import { AIRPORTS, NAVAIDS, groundAt, airspaceAt, vfrMinimums, nearestAirport, heightAt, rectDist } from "./world-data.js";
 import { World } from "./world3d.js";
-import { buildAirplane, buildCockpit, cockpitExterior, animateAirplane, buildShadow } from "./plane3d.js";
+import { buildAirplane, buildCockpit, cockpitExterior, animateAirplane, buildShadow, configurePlanes, setGhost } from "./plane3d.js";
+import { preset, tuneShaders, SunGlare, Post, cockpitSunMask } from "./gfx.js";
 import { Weather, PRESETS } from "./weather.js";
 import { vor, gps, WAYPOINTS, wrap180 } from "./nav.js";
 import { Input, BUTTONS, AXES } from "./input.js";
@@ -37,11 +38,20 @@ const saveSettings = () => store.set("settings", settings);
 
 /* ---------------- renderer & scene ---------------- */
 const view = $("#view");
+const Q = preset(settings.quality); // Graphics: low, high or ultra (gfx.js)
 const renderer = new THREE.WebGLRenderer({ canvas: view, antialias: true, logarithmicDepthBuffer: true, powerPreference: "high-performance" });
-renderer.setPixelRatio(Math.min(devicePixelRatio || 1, settings.quality === "low" ? 1 : 1.6));
+renderer.setPixelRatio(Math.min(devicePixelRatio || 1, Q.pixelRatio));
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
+if (Q.shadows) { // the sun's shadow map, redrawn once a frame (both phone-VR eyes share it)
+  renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap; renderer.shadowMap.autoUpdate = false;
+}
+configurePlanes(Q); tuneShaders(Q);
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(62, 1, 0.12, 160000);
+/* sun glare on High and above; Ultra renders through HDR post-processing (loaded on demand, never used in VR) */
+const glare = Q.pbr ? new SunGlare() : null;
+let post = null;
+if (Q.post) Post.create(renderer, scene, camera, glare).then((p) => { post = p; post.overlay = world.labels || null; layout(); }).catch((err) => console.warn("Post-processing unavailable:", err));
 const world = new World(renderer, scene, { quality: settings.quality });
 const weather = new Weather();
 const env = {
@@ -120,6 +130,7 @@ function setRoute(pts) { sim.route = pts; if (pts?.length) { sim.gpsWp = pts[pts
 /* ---------------- visuals: airplane, cockpit, parked aircraft ---------------- */
 let plane = buildAirplane({ reg: "N19ZR" }); scene.add(plane);
 const shadow = buildShadow(); scene.add(shadow);
+if (Q.shadows) shadow.scale.set(8.5, 1, 6); // with real shadows the blob is only a faint contact shadow under the wheels
 const cockpit = buildCockpit(); scene.add(cockpit);
 const cockpitProp = new THREE.Mesh(new THREE.CircleGeometry(0.98, 32), new THREE.MeshBasicMaterial({ color: 0x9aa3ad, transparent: true, opacity: 0.035, side: THREE.DoubleSide, depthWrite: false }));
 cockpitProp.position.set(0, -0.08, -2.34); cockpit.add(cockpitProp);
@@ -166,10 +177,13 @@ view.addEventListener("wheel", (e) => { e.preventDefault(); if (sim.view === "co
 
 function updateCamera(dt) {
   const p = ac.pos, q = ac.q; const aq = tmpQ.set(q.x, q.y, q.z, q.w);
-  plane.visible = sim.view !== "cockpit"; cockpit.visible = sim.view === "cockpit";
+  // with shadows, the airplane stays in the scene from the cockpit, unseen, so its shadow and landing light still work
+  const inside = sim.view === "cockpit" || vr.active;
+  if (Q.shadows) { plane.visible = true; setGhost(plane, inside); } else plane.visible = sim.view !== "cockpit";
+  cockpit.visible = sim.view === "cockpit";
   cockpit.position.set(p.x, p.y, p.z); cockpit.quaternion.copy(aq);
   cockpitProp.visible = ac.eng.rpm > 400;
-  if (vr.active) { plane.visible = false; cockpit.visible = true; vr.place(ac.pos, aq); camState.reset = false; return; }
+  if (vr.active) { plane.visible = Q.shadows > 0; cockpit.visible = true; vr.place(ac.pos, aq); camState.reset = false; return; }
   if (sim.view === "cockpit") {
     const hfov = 78 + camState.fovZoom; camera.fov = Math.max(30, Math.min(70, 2 * Math.atan(Math.tan(hfov * DEG / 2) / camera.aspect) / DEG));
     const eye = new THREE.Vector3(-0.32, 0.62, -0.42).applyQuaternion(aq);
@@ -623,7 +637,7 @@ function renderDrawer() {
     B.querySelectorAll("[data-f]").forEach((b) => b.addEventListener("click", () => { F[b.dataset.f] = !F[b.dataset.f]; if (b.dataset.f === "engine" && !F.engine && !ac.eng.running) say("Engine failure cleared. Restart: mixture rich, magnetos to START.", "info"); renderDrawer(); }));
     $("#iceNow", B).addEventListener("click", () => { ac.eng.carbIce = Math.max(ac.eng.carbIce, 0.45); say("Carburetor ice is forming.", "warn"); });
   } else if (n === "settings") {
-    B.innerHTML = `<div class="form"><label>Graphics <select id="sQ"><option value="high">High</option><option value="low">Low (faster)</option></select></label>
+    B.innerHTML = `<div class="form"><label>Graphics <select id="sQ"><option value="ultra">Ultra (HDR bloom, needs a strong graphics card)</option><option value="high">High</option><option value="low">Low (faster)</option></select></label>
       <label class="chk"><input type="checkbox" id="sInv" ${settings.invert ? "checked" : ""}> Invert pitch (↑ = nose up)</label>
       <label class="chk"><input type="checkbox" id="sMouse" ${settings.mouseYoke ? "checked" : ""}> Mouse yoke (Y)</label>
       <label>Flight assist <select id="sAssist"><option value="assisted">Assisted: arrows change pitch and bank, let go to hold (easiest)</option><option value="rudder">Auto-rudder only: real stick, rudder handled for you</option><option value="off">Off: fully manual (practise P-factor and coordination)</option></select></label>
@@ -863,6 +877,7 @@ function layout() {
   $("#panel").hidden = ph === 0;
   const w = innerWidth, h = Math.max(100, innerHeight - ph);
   renderer.setSize(w, h, false); view.style.width = w + "px"; view.style.height = h + "px";
+  post?.setSize(w, h, renderer.getPixelRatio());
   camera.aspect = w / h; camera.updateProjectionMatrix();
   if (ph) panel.resize();
 }
@@ -1051,7 +1066,7 @@ function tick(now) {
     plane.position.set(ac.pos.x, ac.pos.y, ac.pos.z); plane.quaternion.set(ac.q.x, ac.q.y, ac.q.z, ac.q.w);
     animateAirplane(plane, ac, sim.t, sim.paused ? 0 : dt);
     { const pp = plane.userData.parts, cp = cockpit.userData.ext?.userData.parts; if (cp) for (const k of ["ailL", "ailR", "flapL", "flapR"]) cp[k].rotation.x = pp[k].rotation.x; }
-    { const gh = groundAt(ac.pos.x, ac.pos.z).h, agl = ac.pos.y - gh; shadow.position.set(ac.pos.x, gh + 0.06, ac.pos.z); shadow.rotation.y = -ac.derived.hdg * DEG; shadow.material.opacity = Math.max(0, 1 - agl / 160) * (world.night ? 0.25 : 0.85); shadow.visible = shadow.material.opacity > 0.02; }
+    { const gh = groundAt(ac.pos.x, ac.pos.z).h, agl = ac.pos.y - gh; shadow.position.set(ac.pos.x, gh + 0.06, ac.pos.z); shadow.rotation.y = -ac.derived.hdg * DEG; shadow.material.opacity = Q.shadows ? Math.max(0, 1 - agl / 5) * (world.night ? 0.2 : 0.3) : Math.max(0, 1 - agl / 160) * (world.night ? 0.25 : 0.85); shadow.visible = shadow.material.opacity > 0.02; }
     traffic.update(sim.paused ? 0 : dt, sim.t, sim.t);
     mp.update(dt, sim.t);
     updateCamera(dt);
@@ -1059,10 +1074,21 @@ function tick(now) {
     const probe = world.clouds.probe(eye.x, eye.y, eye.z);
     const below = eye.y < Math.min(...weather.cloudLayersMsl().map((c) => c.baseMsl), Infinity);
     const cover = Math.max(0, ...weather.clouds.map((c) => ({ OVC: 0.55, BKN: 0.3 }[c.cover] || 0)));
-    world.setEnvironment({ hour: weather.hour, visSM: weather.visSM, inCloud: probe.inside, gloom: below ? Math.min(1, cover + 0.4 * weather.precipRate) : 0, snow: weather.snowCover ? 1 : 0, wet: { wet: 0.7, water: 1 }[weather.rwy] || 0 });
+    if (Q.shadows) world.setShadowFocus(ac.pos);
+    const gloom = below ? Math.min(1, cover + 0.4 * weather.precipRate) : 0;
+    world.setEnvironment({ hour: weather.hour, visSM: weather.visSM, inCloud: probe.inside, gloom, snow: weather.snowCover ? 1 : 0, wet: { wet: 0.7, water: 1 }[weather.rwy] || 0,
+      t: sim.t, rain: weather.precip === "rain" || weather.precip === "fzra" ? weather.precipRate : 0, windDir: weather.windDir, windKt: weather.windKt });
     world.precip.update(sim.paused ? 0 : dt, below || weather.precip === "none" ? weather.precip : "none", weather.precipRate, eye, ac.vel, weather.windAt(eye.x, eye.y, eye.z, sim.t));
     world.update(sim.t, eye, { pclLevel: sim.pcl.level, windDir: weather.windDir, windKt: weather.windKt, lightGun: sim.lightGun, beaconDay: weather.visSM < 3 || weather.clouds.some((c) => (c.cover === "BKN" || c.cover === "OVC") && c.baseFt < 1000) });
-    if (vr.phone) vr.render(scene); else renderer.render(scene, camera);
+    if (Q.shadows) renderer.shadowMap.needsUpdate = world.elev > -3;
+    if (glare && !vr.active) {
+      let vis = world.sunVisibility(eye) * Math.min(1, weather.visSM / 6) * (1 - 0.8 * gloom);
+      if (sim.view === "cockpit") vis *= cockpitSunMask(tmpV.copy(world.sunDir).applyQuaternion(tmpQ.set(ac.q.x, ac.q.y, ac.q.z, ac.q.w).invert()));
+      glare.update(camera, world.sunDir, vis, world.sunWarm, post ? 1.4 / renderer.toneMappingExposure : 1, dt);
+    }
+    if (vr.phone) vr.render(scene);
+    else if (post && !renderer.xr.isPresenting) post.render(gradeFor(world));
+    else { renderer.render(scene, camera); if (glare && !vr.active) glare.render(renderer); }
     if (vr.active) vr.update(dt);
     panelT += dt; if (!vr.active && !panelOff() && panelT > 1 / 40) {
       panelT = 0;
@@ -1073,6 +1099,15 @@ function tick(now) {
     if (openDrawerName === "online" && mp.role === "atc" && mp.connected) { scopeT = (scopeT || 0) + dt; if (scopeT > 0.5) { scopeT = 0; drawScope(); } }
     audio.update(ac, d, sim.paused, vr.active ? "cockpit" : sim.view);
   }
+}
+
+/** Ultra's colour grade: a touch warmer at golden hour, cooler and less saturated at night, flatter under grey skies */
+const grade = { tint: new THREE.Color(), sat: 1, contrast: 1 };
+function gradeFor(w) {
+  const golden = Math.max(0, 1 - Math.abs(w.elev - 4) / 10), night = Math.max(0, Math.min(1, (-w.elev - 2) / 8));
+  grade.tint.setRGB(1 + 0.05 * golden - 0.08 * night, 1 - 0.01 * golden - 0.03 * night, 0.98 - 0.08 * golden + 0.08 * night);
+  grade.sat = 1.12 - 0.12 * w.gloom - 0.2 * night; grade.contrast = 1.1 - 0.06 * w.gloom;
+  return grade;
 }
 
 /* ---------------- boot ---------------- */
@@ -1087,6 +1122,7 @@ async function boot() {
     sim.setWeather(PRESETS.scattered); sim.setTime(13);
     spawn({ ...KZAR.spawn.rwy27, onGround: true });
     sim.ready = true; sim.d = ac.derived;
+    if (post) post.overlay = world.labels;
     $("#loading").hidden = true; $("#startChoices").hidden = false;
     const p = new URLSearchParams(location.search).get("lesson");
     if (p && LESSONS.some((l) => l.id === p)) { startLessonId = p; $("#startLesson").textContent = `Start lesson: ${LESSONS.find((l) => l.id === p).title}`; }

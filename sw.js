@@ -7,7 +7,7 @@ const CORE = [
   "./", "sim/", "prep/", "learn/", "pricing/",
   "assets/css/site.css", "assets/css/sim.css", "assets/css/prep.css", "assets/css/learn.css",
   "assets/js/pwa.js", "assets/js/prep/prep.js", "assets/data/questions.json", "assets/img/favicon.svg",
-  ...["main", "fdm", "world-data", "world3d", "plane3d", "panel", "map", "nav", "weather", "input", "audio", "checklists", "lessons", "vr"].map((m) => `assets/js/sim/${m}.js`),
+  ...["main", "fdm", "world-data", "world3d", "plane3d", "gfx", "panel", "map", "nav", "weather", "input", "audio", "checklists", "lessons", "vr"].map((m) => `assets/js/sim/${m}.js`),
   "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
   "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/objects/Sky.js",
 ];
