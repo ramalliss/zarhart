@@ -110,6 +110,13 @@ export class Weather {
     if (this.visSM < 0.625) k.push("FG"); else if (this.visSM <= 6 && this.tempC - this.dewC <= 2 && this.precip === "none") k.push(this.visSM < 1 ? "FG" : "BR");
     return k.join(" ");
   }
+  /** an automated (AWOS) report: no letter, no runway, just the observation, as a non-towered field broadcasts it */
+  awos(ap, hour = this.hour) {
+    const wind = this.windKt < 3 ? "Wind calm" : `Wind ${String(Math.round(this.windDir / 10) * 10).padStart(3, "0")} at ${Math.round(this.windKt)}${this.gustKt > this.windKt ? `, gusts ${Math.round(this.gustKt)}` : ""}`;
+    const sky = this.clouds.length ? this.clouds.map((c) => `${{ FEW: "Few clouds", SCT: "Scattered", BKN: "Ceiling broken", OVC: "Ceiling overcast" }[c.cover]} ${c.baseFt.toLocaleString()}`).join(". ") : "Sky clear";
+    const wx = this.precip !== "none" ? ` ${{ rain: "Rain", snow: "Snow", fzra: "Freezing rain" }[this.precip]}${this.precipRate >= 0.9 ? ", heavy" : this.precipRate < 0.45 ? ", light" : ""}.` : "";
+    return `${ap.name} automated weather observation, ${this.zulu(hour)} Zulu. ${wind}. Visibility ${this.visSM >= 10 ? "1 0" : this.visSM}.${wx} ${sky}. Temperature ${Math.round(this.tempC)}, dew point ${Math.round(this.dewC)}. Altimeter ${this.qnhInHg.toFixed(2)}.`;
+  }
   atis(ap = this.home, hour = this.hour) {
     const letter = PHONETIC[this.atisIndex];
     const act = this.activeRunway(ap);

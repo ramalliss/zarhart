@@ -62,14 +62,14 @@ export class Multiplayer {
 
   /* ---------- other airplanes ---------- */
   onState(s) {
-    const [id, x, y, z, qx, qy, qz, qw, gs, flaps, lights, rpm, alt, xpdr, com1, com2] = s, p = this.players.get(id); if (!p) return;
+    const [id, x, y, z, qx, qy, qz, qw, gs, flaps, lights, rpm, alt, xpdr, com1, com2, mode = "ALT", ident = 0] = s, p = this.players.get(id); if (!p) return;
     let r = this.remote.get(id);
     if (!r) {
       const g = buildAirplane({ reg: p.callsign.slice(0, 8), stripe: 0x3fd8f2, simple: true, type: p.type }); const tag = tagSprite(p.callsign); tag.position.set(0, 2.6, 0); g.add(tag);
       this.o.scene.add(g); r = { g, buf: [], fake: { ctl: { elevator: 0, aileron: 0, rudder: 0, trim: 0 }, eng: { rpm: 0 }, elec: { lights: {} }, powered: true, flaps: 0 } }; this.remote.set(id, r);
     }
     r.buf.push({ t: performance.now(), p: new THREE.Vector3(x, y, z), q: new THREE.Quaternion(qx, qy, qz, qw) }); if (r.buf.length > 8) r.buf.shift();
-    Object.assign(r, { gs, alt, xpdr, com1, com2 }); r.fake.eng.rpm = rpm; r.fake.flaps = flaps;
+    Object.assign(r, { gs, alt, xpdr, com1, com2, mode, ident: !!ident }); r.fake.eng.rpm = rpm; r.fake.flaps = flaps;
     r.fake.elec.lights = { nav: !!(lights & 1), beacon: !!(lights & 2), strobe: !!(lights & 4), landing: !!(lights & 8) };
   }
   /** draw everyone 250 ms in the past, between the two updates around that moment */
@@ -91,6 +91,7 @@ export class Multiplayer {
   /** is anyone controlling this frequency? (then the automated controller stays quiet) */
   hasController(freq) { return [...this.players.values()].some((p) => p.role === "atc" && Math.abs(this.facilities[p.facility]?.freq - freq) < 0.004) || (this.role === "atc" && Math.abs(this.facilities[this.facility]?.freq - freq) < 0.004); }
   transmitting(freq) { return [...this.rx.values()].filter((x) => Math.abs(x.freq - freq) < 0.004); }
+  setVolume(v) { this.volume = v; if (this.fx) this.fx.out.gain.value = 0.9 * v / 0.8; }
   sendText(freq, text) { this.send({ t: "text", freq, text }); }
 
   async pttDown(freq) {
@@ -122,11 +123,11 @@ export class Multiplayer {
     const input = ctx.createGain(), hp = f("highpass", 350, 0.7), lp = f("lowpass", 2700, 0.9), pk = f("peaking", 1800, 1, 4);
     const sh = ctx.createWaveShaper(), curve = new Float32Array(1024); for (let i = 0; i < 1024; i++) { const x = i / 511.5 - 1; curve[i] = Math.tanh(2.2 * x) / Math.tanh(2.2); } sh.curve = curve;
     const comp = ctx.createDynamicsCompressor(); comp.threshold.value = -26; comp.ratio.value = 6;
-    const out = ctx.createGain(); out.gain.value = 0.9; input.connect(hp).connect(lp).connect(pk).connect(sh).connect(comp).connect(out).connect(ctx.destination);
+    const out = ctx.createGain(); out.gain.value = 0.9 * (this.volume ?? 0.8) / 0.8; input.connect(hp).connect(lp).connect(pk).connect(sh).connect(comp).connect(out).connect(ctx.destination);
     const nb = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate), d = nb.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
     const ns = ctx.createBufferSource(); ns.buffer = nb; ns.loop = true; const noise = ctx.createGain(); noise.gain.value = 0; ns.connect(f("bandpass", 1600, 0.5)).connect(noise).connect(out); ns.start();
     const het = ctx.createOscillator(); het.frequency.value = 1150; const hg = ctx.createGain(); hg.gain.value = 0; het.connect(hg).connect(out); het.start();
-    this.fx = { ctx, input, noise, hg, het };
+    this.fx = { ctx, input, noise, hg, het, out };
     return this.fx;
   }
   /** a station keyed or unkeyed on a frequency we're listening to */

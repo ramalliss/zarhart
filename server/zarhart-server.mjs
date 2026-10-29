@@ -144,7 +144,7 @@ function onMessage(c, op, data) {
   if (m.t === "state" && c.role === "pilot") {
     const n = (v, d = 0) => (Number.isFinite(+v) ? +v : d);
     c.s = { x: n(m.x), y: n(m.y), z: n(m.z), qx: n(m.qx), qy: n(m.qy), qz: n(m.qz), qw: n(m.qw, 1), agl: n(m.agl), alt: n(m.alt), gs: n(m.gs), hdg: n(m.hdg), onGround: !!m.onGround, flaps: n(m.flaps), lights: n(m.lights), rpm: n(m.rpm),
-      xpdr: clean(m.xpdr, 4), mode: clean(m.mode, 4), com1: n(m.com1), com2: n(m.com2), rx1: !!m.rx1, rx2: !!m.rx2, type: c.type };
+      xpdr: clean(m.xpdr, 4), mode: ["STBY", "ON", "ALT"].includes(m.mode) ? m.mode : "STBY", ident: !!m.ident, com1: n(m.com1), com2: n(m.com2), rx1: !!m.rx1, rx2: !!m.rx2, type: c.type };
     return;
   }
   if (m.t === "tx") { // key or unkey the mic
@@ -177,9 +177,9 @@ function onAudio(c, data) {
   }
 }
 
-/* positions out at 5 Hz: [id, x, y, z, qx, qy, qz, qw, gs, flaps, lights, rpm, alt, xpdr] */
+/* positions out at 5 Hz: [id, x, y, z, qx, qy, qz, qw, gs, flaps, lights, rpm, alt, xpdr, com1, com2, mode, ident] */
 setInterval(() => {
-  const list = [...clients.values()].filter((c) => c.ready && c.role === "pilot" && c.s).map((c) => { const s = c.s; return [c.id, +s.x.toFixed(1), +s.y.toFixed(1), +s.z.toFixed(1), +s.qx.toFixed(4), +s.qy.toFixed(4), +s.qz.toFixed(4), +s.qw.toFixed(4), +s.gs.toFixed(0), s.flaps, s.lights, Math.round(s.rpm), Math.round(s.alt), s.xpdr, s.com1, s.com2]; });
+  const list = [...clients.values()].filter((c) => c.ready && c.role === "pilot" && c.s).map((c) => { const s = c.s; return [c.id, +s.x.toFixed(1), +s.y.toFixed(1), +s.z.toFixed(1), +s.qx.toFixed(4), +s.qy.toFixed(4), +s.qz.toFixed(4), +s.qw.toFixed(4), +s.gs.toFixed(0), s.flaps, s.lights, Math.round(s.rpm), Math.round(s.alt), s.xpdr, s.com1, s.com2, s.mode, s.ident ? 1 : 0]; });
   if (list.length) broadcast({ t: "states", list, at: Date.now() });
 }, 200);
 setInterval(() => { for (const c of clients.values()) sendFrame(c, 0x9, Buffer.alloc(0)); }, 20000);

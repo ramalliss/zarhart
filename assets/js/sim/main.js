@@ -83,7 +83,7 @@ const traffic = new Traffic(scene, {
 const LIGHTS = () => { const L = ac.elec.lights; return (L.nav ? 1 : 0) | (L.beacon ? 2 : 0) | (L.strobe ? 4 : 0) | (L.landing ? 8 : 0); };
 const mp = new Multiplayer({
   scene, ctx: () => { audio.start(); return audio.ctx; }, radio: () => sim.radio,
-  state: () => { const d = ac.derived, r = sim.radio; return { x: ac.pos.x, y: ac.pos.y, z: ac.pos.z, qx: ac.q.x, qy: ac.q.y, qz: ac.q.z, qw: ac.q.w, agl: d.agl, alt: d.altInd, gs: d.gs, hdg: d.hdg, onGround: d.onGround, flaps: ac.flaps, lights: LIGHTS(), rpm: ac.eng.rpm, xpdr: ac.xpdr.code, mode: ac.xpdr.mode, com1: r.com1, com2: r.com2, rx1: r.rx1, rx2: r.rx2 }; },
+  state: () => { const d = ac.derived, r = sim.radio; return { x: ac.pos.x, y: ac.pos.y, z: ac.pos.z, qx: ac.q.x, qy: ac.q.y, qz: ac.q.z, qw: ac.q.w, agl: d.agl, alt: d.altInd, gs: d.gs, hdg: d.hdg, onGround: d.onGround, flaps: ac.flaps, lights: LIGHTS(), rpm: ac.eng.rpm, xpdr: ac.xpdr.code, mode: ac.xpdr.mode, ident: (ac.xpdr.identUntil || 0) > sim.t, com1: r.com1, com2: r.com2, rx1: r.rx1, rx2: r.rx2 }; },
   on: {
     text: (from, text, freq) => { const r = sim.radio; if ((r.rx1 && Math.abs(r.com1 - freq) < 0.004) || (r.rx2 && Math.abs(r.com2 - freq) < 0.004) || mp.role === "atc") radioLog(from, text); },
     notice: (text) => say(text, "info", 5000),
@@ -231,7 +231,34 @@ function say(text, kind = "info", ms = 5200) {
   while (toasts.children.length > 4) toasts.lastChild.remove();
   setTimeout(() => { el.classList.add("out"); setTimeout(() => el.remove(), 400); }, ms);
 }
-function speak(text) { if (!settings.voice || !("speechSynthesis" in window)) return; try { speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(text.replace(/(\d)\.(\d)/g, "$1 point $2")); u.rate = 1.05; speechSynthesis.speak(u); } catch { /* ignore */ } }
+/** read digits the aviation way: "29.92" → "two niner niner two", "270" → "two seven zero" */
+const DIGITS = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "niner"];
+const radioSpeech = (text) => text
+  .replace(/altimeter (\d\d)\.(\d\d)/gi, "altimeter $1$2") // the altimeter setting is read as four digits
+  .replace(/\b(\d{1,2}),(\d)00\b/g, (m, a, b) => `${a} thousand${b !== "0" ? ` ${b} hundred` : ""}`) // "2,800": two thousand eight hundred
+  .replace(/(\d+)\.(\d+)/g, "$1 point $2") // frequencies: one one eight point three
+  .replace(/\d{2,}/g, (n) => n.split("").map((d) => DIGITS[+d]).join(" "))
+  .replace(/\b9\b/g, "niner");
+/* ATIS and AWOS play on their frequencies, over and over, whenever a radio you're listening to is tuned to one */
+const broadcast = { key: null, timer: 0 };
+function broadcastText(fi) { return fi.kind === "atis" ? weather.atis(fi.ap, weather.hour).text : weather.awos(fi.ap, weather.hour); }
+function updateBroadcast() {
+  const r = sim.radio, on = ac.powered && ac.elec.avionics && !r.failed && settings.sound !== false && settings.atisAudio !== false && "speechSynthesis" in window;
+  const fi = on && [r.rx1 && freqInfo(r.com1), r.rx2 && freqInfo(r.com2)].find((f) => f && (f.kind === "atis" || f.kind === "awos"));
+  const key = fi ? `${fi.f}` : null;
+  if (key === broadcast.key) return;
+  broadcast.key = key; clearTimeout(broadcast.timer);
+  if (broadcast.u) { broadcast.u = null; speechSynthesis.cancel(); }
+  if (!fi) return;
+  const play = () => {
+    if (broadcast.key !== key) return;
+    const u = broadcast.u = new SpeechSynthesisUtterance(radioSpeech(broadcastText(fi))); u.rate = 1.02; u.pitch = 0.95; u.volume = (settings.radioVol ?? 80) / 100;
+    u.onend = () => { if (broadcast.u === u) broadcast.timer = setTimeout(play, 1800); };
+    speechSynthesis.speak(u);
+  };
+  play();
+}
+function speak(text) { if (!settings.voice || !("speechSynthesis" in window)) return; try { speechSynthesis.cancel(); broadcast.key = null; broadcast.u = null; const u = new SpeechSynthesisUtterance(radioSpeech(text)); u.rate = 1.05; u.volume = (settings.radioVol ?? 80) / 100; speechSynthesis.speak(u); } catch { /* ignore */ } }
 function radioLog(from, text, speakIt = true) { sim.radio.log.unshift({ from, text, t: sim.t }); sim.radio.log = sim.radio.log.slice(0, 30); say(`${from}: ${text}`, from === "You" ? "you" : "atc", 7000); if (speakIt && from !== "You") speak(text); if (openDrawerName === "radio") renderDrawer(); }
 
 /* ---------------- radio / ATC ---------------- */
@@ -518,7 +545,10 @@ function renderDrawer() {
       <label>OBS <input type="number" id="obs" min="0" max="359" value="${Math.round(ac.inst.obs)}"></label>
       <label>Transponder <input id="xp" inputmode="numeric" maxlength="4" value="${ac.xpdr.code}" pattern="[0-7]{4}"></label>
       <span class="seg">${["1200", "7600", "7700"].map((c) => `<button data-xp="${c}" class="${ac.xpdr.code === c ? "on" : ""}">${c}</button>`).join("")}</span>
-      <label>Mode <span class="seg">${["STBY", "ON", "ALT"].map((m) => `<button data-xm="${m}" class="${ac.xpdr.mode === m ? "on" : ""}">${m}</button>`).join("")}</span></label></div>
+      <label>Mode <span class="seg">${["STBY", "ON", "ALT"].map((m) => `<button data-xm="${m}" class="${ac.xpdr.mode === m ? "on" : ""}">${m}</button>`).join("")}</span></label>
+      <button class="sbtn ${ac.xpdr.identUntil > sim.t ? "primary" : ""}" id="xpId" title="Makes your target bloom on the controller's radar for about 18 seconds">IDENT</button>
+      <label>Radio volume <input type="range" id="rVol" min="0" max="100" value="${settings.radioVol ?? 80}"></label>
+      <label class="chk"><input type="checkbox" id="rAtis" ${settings.atisAudio !== false ? "checked" : ""}> Play ATIS and AWOS when tuned</label></div>
       <h3 class="dsub">Practise the call · ${esc(fi?.name || micFreq().toFixed(3))}</h3>
       ${sugCall ? `<p class="saythis"><b>Say:</b> ${settings.showWords === false ? sugCall.parts.map((p) => esc(p.label)).join(" → ") : esc(sugCall.text)}</p>` : `<p class="dnote">${fi?.kind === "twr" && ac.derived.onGround ? "At the ramp, call Zarhart Ground (121.9) for taxi first. Call Tower (118.3) when you're holding short." : "Tune Zarhart Ground (121.9) for taxi, Tower (118.3) when holding short or inbound, a CTAF at an uncontrolled field, or 121.5 in an emergency, on the radio your MIC is set to."}</p>`}
       <div class="pvrow"><input id="pvType" placeholder="${listener.ok ? "Hold Space (or Talk) and speak, or type the call here" : "Type your call here and press Enter"}" autocomplete="off"><button class="sbtn primary" id="pvSend">Transmit</button></div>
@@ -539,6 +569,9 @@ function renderDrawer() {
     $("#xp", B).addEventListener("change", (e) => { const v = e.target.value.replace(/[^0-7]/g, "").padStart(4, "0").slice(-4); ac.xpdr.code = v; renderDrawer(); });
     B.querySelectorAll("[data-xp]").forEach((b) => b.addEventListener("click", () => { ac.xpdr.code = b.dataset.xp; renderDrawer(); }));
     B.querySelectorAll("[data-xm]").forEach((b) => b.addEventListener("click", () => { ac.xpdr.mode = b.dataset.xm; renderDrawer(); }));
+    $("#xpId", B).addEventListener("click", () => { if (ac.xpdr.mode === "STBY") return say("The transponder is in standby: turn it ON or ALT first.", "tip"); ac.xpdr.identUntil = sim.t + 18; say("IDENT: your target blooms on the controller's radar for 18 seconds.", "info", 2500); renderDrawer(); });
+    $("#rVol", B).addEventListener("input", (e) => { settings.radioVol = +e.target.value; saveSettings(); mp.setVolume(settings.radioVol / 100); });
+    $("#rAtis", B).addEventListener("change", (e) => { settings.atisAudio = e.target.checked; saveSettings(); broadcast.key = "x"; updateBroadcast(); });
     B.querySelectorAll("[data-call]").forEach((b) => b.addEventListener("click", () => radioCall(b.dataset.call === "announce" ? "announce" : b.dataset.call === "mayday" ? "mayday" : b.dataset.call)));
     $("#ptt", B).addEventListener("click", pttClick);
     $("#c2", B).addEventListener("change", (e) => { r.com2 = +e.target.value; renderDrawer(); }); $("#c2s", B).addEventListener("change", (e) => { r.com2s = +e.target.value; });
@@ -720,9 +753,14 @@ function drawScope() {
   g.fillStyle = "rgba(5, 10, 16, .35)"; g.fillRect(0, 0, r.width, r.height);
   for (const [id, rm] of mp.remote) {
     const p = mp.players.get(id), x = r.width / 2 + (rm.g.position.x - f.x) * k, y = r.height / 2 + (rm.g.position.z - f.z) * k; if (!p) continue;
-    g.fillStyle = "#7fe3ff"; g.strokeStyle = "#7fe3ff"; g.beginPath(); g.arc(x, y, 4, 0, 7); g.fill();
+    // standby: only a primary radar return; ON: a code; ALT: Mode C altitude; IDENT blooms; 7700 and 7600 flag the emergency
+    if (rm.mode === "STBY") { g.fillStyle = "rgba(127, 227, 255, .55)"; g.fillRect(x - 2, y - 2, 4, 4); continue; }
+    const em = rm.xpdr === "7700" ? "EMRG" : rm.xpdr === "7600" ? "RDOF" : "", col = em ? "#ff5a4d" : "#7fe3ff";
+    g.fillStyle = col; g.strokeStyle = col; g.beginPath(); g.arc(x, y, 4, 0, 7); g.fill();
+    if (rm.ident && (performance.now() / 300 | 0) % 2) { g.beginPath(); g.arc(x, y, 11, 0, 7); g.stroke(); }
     g.beginPath(); g.moveTo(x + 4, y - 4); g.lineTo(x + 14, y - 14); g.stroke();
-    g.font = "600 11px IBM Plex Mono, monospace"; g.fillText(p.callsign, x + 16, y - 16); g.fillText(`${String(Math.round(rm.alt / 100)).padStart(3, "0")} ${rm.gs}`, x + 16, y - 3);
+    g.font = "600 11px IBM Plex Mono, monospace"; g.fillText(`${p.callsign}${em ? " " + em : ""}${rm.ident ? " ID" : ""}`, x + 16, y - 16);
+    g.fillText(`${rm.mode === "ALT" ? String(Math.round(rm.alt / 100)).padStart(3, "0") : "XXX"} ${rm.gs} ${rm.xpdr}`, x + 16, y - 3);
   }
 }
 const mpHere = !!document.querySelector('meta[name="zarhart-server"]'); // served by a Zarhart server: its address is the default
@@ -800,6 +838,7 @@ function hudUpdate() {
   // haptics: a buzz with the stall horn (phones vibrate, gamepads rumble)
   if (d.stallWarn && !sim.paused && performance.now() - (hudUpdate.buzzT || 0) > 450) { hudUpdate.buzzT = performance.now(); buzz(70, 0.35); }
   coach(0.12);
+  updateBroadcast();
   { const rs = $("#radioStrip"), r = sim.radio, f1 = freqInfo(r.com1), f2 = freqInfo(r.com2), fi = freqInfo(micFreq()), sug = suggestCall(fi);
     const c = sug && settings.radioPractice !== false && !(mp.connected && mp.role === "atc") ? buildCall(sug, callContext(fi)) : null; // controllers give instructions, not pilot calls
     rs.innerHTML = `<span class="${r.mic === 1 ? "mic" : ""}">COM1 ${r.com1.toFixed(3)} <i>${esc(f1?.name || "")}</i></span><span class="${r.mic === 2 ? "mic" : ""}">COM2 ${r.com2.toFixed(3)} <i>${esc(f2?.name || "")}</i></span><b class="txl">TX</b>${[r.com1, r.com2].map((f) => { const l = mp.connected ? mp.transmitting(f) : []; return l.length > 1 ? `<b class="rxl blk">BLOCKED</b>` : l.length ? `<b class="rxl">RX ${esc(l[0].from || "")}</b>` : ""; }).join("")}${c ? `<em>${settings.showWords === false ? "Say: " + esc(c.parts.map((p) => p.label.replace(/ \(.*\)$/, "")).join(" · ")) : "Say: " + esc(c.text)}</em>` : ""}`;
