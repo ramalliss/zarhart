@@ -5,6 +5,7 @@ import {
   WORLD_HALF, WATER, LAKE, RIVER, HIGHWAY, RAILROAD, TOWNS, OBSTACLES, DAM, LAUNCH, POWER_PLANT,
   AIRPORTS, NAVAIDS, heightAt, inLake, fbm, simplex, rectDist, distPolyline,
 } from "./world-data.js";
+import { preset, asphaltTexture, reliefTexture, rockTexture, rippleTexture, facadeTexture } from "./gfx.js";
 
 const DEG = Math.PI / 180;
 const W = WORLD_HALF * 2;
@@ -12,13 +13,91 @@ function rng(seed) { let a = seed >>> 0; return () => { a = (a + 0x6d2b79f5) | 0
 export const forestAt = (x, z) => fbm(x / 2600 + 100, z / 2600 - 50, 3) + 0.18 * simplex(x / 520, z / 520);
 const hash2 = (a, b) => { let h = (Math.imul(a | 0, 374761393) + Math.imul(b | 0, 668265263)) | 0; h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
 
-/** snow on the ground (0–1) and wet pavement (0–1), shared by the terrain, runway and taxiway shaders */
-const WX = { uSnow: { value: 0 }, uWet: { value: 0 } };
+/**
+ * Shared by the terrain, pavement, water and building shaders: snow on the ground (0–1), wet pavement (0–1), rain (0–1),
+ * time (s), the wind over the water (m/s, x and z), and night (0–1) with the exposure compensation for lit windows.
+ */
+const WX = { uSnow: { value: 0 }, uWet: { value: 0 }, uRain: { value: 0 }, uTime: { value: 0 }, uWind: { value: new THREE.Vector2() }, uNight: { value: 0 }, uLightGain: { value: 1 } };
 function weatherize(mat) {
   mat.onBeforeCompile = (sh) => {
     sh.uniforms.uSnow = WX.uSnow; sh.uniforms.uWet = WX.uWet;
     sh.fragmentShader = sh.fragmentShader.replace("#include <common>", "#include <common>\nuniform float uSnow; uniform float uWet;")
       .replace("#include <map_fragment>", "#include <map_fragment>\ndiffuseColor.rgb = mix(diffuseColor.rgb * (1.0 - 0.38 * uWet), vec3(0.86, 0.88, 0.91), 0.62 * uSnow);");
+  };
+  return mat;
+}
+const WPOS_VERTEX = (s) => s.replace("#include <common>", "#include <common>\nvarying vec3 vWPos;").replace("#include <begin_vertex>", "#include <begin_vertex>\nvWPos = (modelMatrix * vec4(transformed, 1.0)).xyz;");
+/** bump a view-space normal by a height field's screen-space slope (the same maths as three's bump map) */
+const BUMP_GLSL = `vec3 zBump(vec3 surfPos, vec3 n, float h, float faceDir) {
+  vec3 sx = dFdx(surfPos), sy = dFdy(surfPos); vec3 r1 = cross(sy, n), r2 = cross(n, sx);
+  float det = dot(sx, r1) * faceDir; vec3 grad = sign(det) * (dFdx(h) * r1 + dFdy(h) * r2);
+  return normalize(abs(det) * n - grad);
+}`;
+/**
+ * High and above: PBR asphalt with world-space detail at two scales (grain, stains, sealed patches and cracks).
+ * uWet darkens it and lowers the roughness, and fills puddles (mirror-smooth, rippling in rain); uSnow still whitens it.
+ * Bright pixels of the base texture (painted markings) stay smoother and less worn.
+ */
+function pavement(params) {
+  const mat = new THREE.MeshStandardMaterial({ roughness: 0.9, metalness: 0, ...params });
+  mat.extensions = { derivatives: true };
+  mat.onBeforeCompile = (sh) => {
+    Object.assign(sh.uniforms, { uSnow: WX.uSnow, uWet: WX.uWet, uRain: WX.uRain, uTime: WX.uTime, tAsph: { value: asphaltTexture() }, tRipple: { value: rippleTexture() } });
+    sh.vertexShader = WPOS_VERTEX(sh.vertexShader);
+    sh.fragmentShader = sh.fragmentShader.replace("#include <common>", `#include <common>
+varying vec3 vWPos;
+uniform float uSnow, uWet, uRain, uTime; uniform sampler2D tAsph, tRipple;
+${BUMP_GLSL}`)
+      .replace("#include <map_fragment>", `#include <map_fragment>
+vec4 pvFine = texture2D(tAsph, vWPos.xz / 3.0), pvCoarse = texture2D(tAsph, vWPos.xz / 70.0);
+float pvPaint = smoothstep(0.2, 0.45, max(diffuseColor.r, diffuseColor.g));
+float pvDist = length(vWPos - cameraPosition);
+float pvCrack = smoothstep(0.4, 0.2, pvCoarse.b), pvPatch = smoothstep(0.6, 0.75, pvCoarse.b);
+diffuseColor.rgb *= 1.0 + mix(0.6, 0.2, pvPaint) * (pvFine.r - 0.5);
+diffuseColor.rgb *= (1.0 - 0.24 * pvCoarse.g * (1.0 - 0.6 * pvPaint)) * (1.0 - 0.1 * pvPatch) * (1.0 - 0.35 * pvCrack * (1.0 - pvPaint));
+float pvLevel = uWet * 0.55, pvPuddle = 1.0 - smoothstep(pvLevel - 0.05, pvLevel, pvCoarse.a);
+diffuseColor.rgb = mix(diffuseColor.rgb * (1.0 - 0.38 * uWet) * (1.0 - 0.45 * pvPuddle), vec3(0.86, 0.88, 0.91), 0.62 * uSnow);`)
+      .replace("#include <roughnessmap_fragment>", `#include <roughnessmap_fragment>
+roughnessFactor = mix(0.82 + 0.16 * pvFine.r, 0.5, pvPaint);
+roughnessFactor = mix(roughnessFactor, mix(0.5, 0.32, pvPaint) + 0.14 * pvFine.r, uWet * (1.0 - uSnow));
+roughnessFactor = mix(roughnessFactor, 0.035, pvPuddle * (1.0 - uSnow));
+roughnessFactor = mix(roughnessFactor, 0.8, 0.62 * uSnow);`)
+      .replace("#include <normal_fragment_maps>", `#include <normal_fragment_maps>
+{
+  float fade = 1.0 - smoothstep(25.0, 220.0, pvDist);
+  float h = ((pvFine.r - 0.5) * 0.012 + (pvCrack - pvPatch * 0.3) * -0.01) * fade * (1.0 - pvPuddle) * (1.0 - uSnow * 0.6);
+  normal = zBump(-vViewPosition, normal, h, faceDirection);
+  if (uRain > 0.0 && pvPuddle > 0.01) { // raindrops ripple the puddles
+    vec2 r = texture2D(tRipple, vWPos.xz / 1.3 + vec2(0.0, uTime * 0.9)).xy + texture2D(tRipple, vWPos.xz / 0.9 - vec2(uTime * 0.7, 0.0)).xy - 1.0;
+    normal = normalize(normal + (viewMatrix * vec4(r.x, 0.0, r.y, 0.0)).xyz * 0.32 * uRain * pvPuddle * fade);
+  }
+}`);
+  };
+  return mat;
+}
+/**
+ * High and above: lake and river water. Two ripple normal maps scroll past each other with the wind (more chop in a stronger
+ * wind); the low roughness gives Fresnel sky reflections from the environment map and a glittering sun path.
+ */
+function waterMaterial(params) {
+  const mat = new THREE.MeshStandardMaterial({ color: 0x0d2a36, roughness: 0.05, metalness: 0, ...params });
+  mat.onBeforeCompile = (sh) => {
+    Object.assign(sh.uniforms, { uTime: WX.uTime, uWind: WX.uWind, tRipple: { value: rippleTexture() } });
+    sh.vertexShader = WPOS_VERTEX(sh.vertexShader);
+    sh.fragmentShader = sh.fragmentShader.replace("#include <common>", "#include <common>\nvarying vec3 vWPos;\nuniform float uTime; uniform vec2 uWind; uniform sampler2D tRipple;")
+      .replace("#include <roughnessmap_fragment>", `#include <roughnessmap_fragment>
+float wDist = length(vWPos - cameraPosition);
+roughnessFactor = 0.045 + 0.16 * smoothstep(300.0, 9000.0, wDist); // waves too small to see still spread the sun's reflection`)
+      .replace("#include <normal_fragment_maps>", `#include <normal_fragment_maps>
+{
+  float spd = length(uWind); vec2 dir = spd > 0.2 ? uWind / spd : vec2(0.6, 0.8);
+  float chop = 0.1 + 0.6 * clamp(spd / 14.0, 0.0, 1.0);
+  vec2 p = vWPos.xz;
+  vec2 n1 = texture2D(tRipple, p / 26.0 + dir * uTime * (0.012 + 0.0016 * spd)).xy * 2.0 - 1.0;
+  vec2 n2 = texture2D(tRipple, mat2(0.8, -0.6, 0.6, 0.8) * p / 7.5 + dir.yx * vec2(-1.0, 1.0) * uTime * 0.03).xy * 2.0 - 1.0;
+  vec2 s = (n1 * 0.65 + n2 * 0.5) * chop * (1.0 - 0.6 * smoothstep(800.0, 12000.0, wDist));
+  normal = normalize((viewMatrix * vec4(normalize(vec3(s.x, 1.0, s.y)), 0.0)).xyz);
+}`);
   };
   return mat;
 }
@@ -124,8 +203,66 @@ export function buildGroundCanvas(size = 2048) {
 }
 
 /* ===================== terrain mesh ===================== */
-function buildTerrain(groundCanvas, quality) {
-  const N = quality === "low" ? 256 : 400;
+/**
+ * Ambient occlusion baked into vertex colours: for each grid point, how high the surrounding terrain rises in 8 directions
+ * (a horizon scan of the height grid), so valleys, gullies and the feet of slopes darken the way bounced skylight does.
+ */
+function terrainAO(pos, N, cell) {
+  const ao = new Float32Array((N + 1) * (N + 1) * 3), H = (i, j) => pos[(j * (N + 1) + i) * 3 + 1];
+  const dirs = []; for (let k = 0; k < 8; k++) { const a = (k / 8) * Math.PI * 2; dirs.push([Math.cos(a), Math.sin(a)]); }
+  const steps = [1, 2, 3, 5, 8, 12, 18];
+  for (let j = 0; j <= N; j++) for (let i = 0; i <= N; i++) {
+    const h0 = H(i, j); let occ = 0;
+    for (const [dx, dz] of dirs) {
+      let best = 0;
+      for (const s of steps) {
+        const ii = Math.round(i + dx * s), jj = Math.round(j + dz * s); if (ii < 0 || jj < 0 || ii > N || jj > N) break;
+        const t = (H(ii, jj) - h0) / (s * cell); if (t > best) best = t;
+      }
+      occ += best / Math.sqrt(1 + best * best); // sine of the horizon angle
+    }
+    const a = Math.max(0.5, 1 - 0.85 * (occ / 8)), k = (j * (N + 1) + i) * 3;
+    ao[k] = ao[k + 1] = ao[k + 2] = a;
+  }
+  return ao;
+}
+/** High and above: the terrain shader's detail (textures instead of per-pixel noise), rock on steep ground, alpine snow, detail normals */
+function terrainDetail(sh) {
+  Object.assign(sh.uniforms, { uSnow: WX.uSnow, uWet: WX.uWet, tRelief: { value: reliefTexture() }, tRock: { value: rockTexture() } });
+  sh.vertexShader = sh.vertexShader.replace("#include <common>", "#include <common>\nvarying vec3 vWPos; varying vec3 vWNorm;")
+    .replace("#include <begin_vertex>", "#include <begin_vertex>\nvWPos = (modelMatrix * vec4(transformed, 1.0)).xyz; vWNorm = (modelMatrix * vec4(objectNormal, 0.0)).xyz;");
+  sh.fragmentShader = sh.fragmentShader.replace("#include <common>", `#include <common>
+varying vec3 vWPos; varying vec3 vWNorm;
+uniform float uSnow; uniform float uWet; uniform sampler2D tRelief, tRock;`)
+    .replace("#include <map_fragment>", `#include <map_fragment>
+float tDist = length(vWPos - cameraPosition);
+vec4 rFine = texture2D(tRelief, vWPos.xz / 14.0), rMid = texture2D(tRelief, vWPos.xz / 68.0), rBig = texture2D(tRelief, vWPos.xz / 280.0);
+float dn = rFine.a * 0.35 + rMid.a * 0.4 + rBig.a * 0.25;
+diffuseColor.rgb *= 0.84 + 0.3 * dn;
+vec3 wn = normalize(vWNorm);
+// bare rock on steep slopes and high ridges: triplanar, so cliffs show their strata instead of a stretched texture
+float steep = smoothstep(0.82, 0.64, wn.y);
+float rockW = clamp(max(steep, 0.75 * smoothstep(1000.0, 1300.0, vWPos.y + 160.0 * (rMid.b - 0.5))), 0.0, 1.0);
+if (rockW > 0.01) {
+  vec3 bw = pow(abs(wn), vec3(4.0)); bw /= bw.x + bw.y + bw.z;
+  vec3 rk = texture2D(tRock, vWPos.zy / 46.0).rgb * bw.x + texture2D(tRock, vWPos.xz / 46.0).rgb * bw.y + texture2D(tRock, vWPos.xy / 46.0).rgb * bw.z;
+  diffuseColor.rgb = mix(diffuseColor.rgb, rk * (0.8 + 0.3 * rBig.a), rockW * 0.9);
+}
+// alpine snow: above a ragged snow line on ground flat enough to hold it
+float alp = smoothstep(1420.0, 1580.0, vWPos.y + 220.0 * (rBig.b - 0.5) + 60.0 * (rFine.b - 0.5)) * smoothstep(0.5, 0.78, wn.y);
+float snowW = max(clamp(uSnow * (0.72 + 0.4 * dn), 0.0, 1.0) * (1.0 - 0.55 * steep), alp);
+diffuseColor.rgb = mix(diffuseColor.rgb * (1.0 - 0.15 * uWet), vec3(0.9, 0.92, 0.95) * (0.92 + 0.1 * dn), snowW);`)
+    .replace("#include <normal_fragment_maps>", `#include <normal_fragment_maps>
+if (tDist < 6000.0) { // detail normals from the same relief samples as the blotches (fine fades out first)
+  float f1 = 1.0 - smoothstep(60.0, 700.0, tDist), f2 = 1.0 - smoothstep(700.0, 6000.0, tDist);
+  vec2 d = (rFine.rg - 0.5) * 1.1 * f1 + (rMid.rg - 0.5) * 0.8 * f2;
+  vec3 w = normalize((vec4(normal, 0.0) * viewMatrix).xyz);
+  w = normalize(w + vec3(d.x, 0.0, d.y) * (1.0 - 0.5 * snowW));
+  normal = normalize((viewMatrix * vec4(w, 0.0)).xyz);
+}`);
+}
+function buildTerrain(groundCanvas, Q) {
+  const N = Q.terrainN;
   const pos = new Float32Array((N + 1) * (N + 1) * 3), uv = new Float32Array((N + 1) * (N + 1) * 2);
   for (let j = 0; j <= N; j++) for (let i = 0; i <= N; i++) {
     const k = j * (N + 1) + i;
@@ -143,10 +280,12 @@ function buildTerrain(groundCanvas, quality) {
   geo.setAttribute("uv", new THREE.BufferAttribute(uv, 2));
   geo.setIndex(new THREE.BufferAttribute(idx, 1));
   geo.computeVertexNormals();
+  if (Q.pbr) geo.setAttribute("color", new THREE.BufferAttribute(terrainAO(pos, N, W / N), 3));
   const tex = new THREE.CanvasTexture(groundCanvas);
   tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8; tex.generateMipmaps = true; tex.minFilter = THREE.LinearMipmapLinearFilter;
-  const mat = new THREE.MeshLambertMaterial({ map: tex });
-  mat.onBeforeCompile = (sh) => {
+  const mat = new THREE.MeshLambertMaterial({ map: tex, vertexColors: Q.pbr });
+  if (Q.pbr) mat.onBeforeCompile = terrainDetail;
+  else mat.onBeforeCompile = (sh) => {
     sh.uniforms.uSnow = WX.uSnow; sh.uniforms.uWet = WX.uWet;
     sh.vertexShader = sh.vertexShader.replace("#include <common>", "#include <common>\nvarying vec3 vWPos;")
       .replace("#include <begin_vertex>", "#include <begin_vertex>\nvWPos = (modelMatrix * vec4(transformed, 1.0)).xyz;");
@@ -161,7 +300,7 @@ diffuseColor.rgb *= 0.84 + 0.3 * dn;
 diffuseColor.rgb = mix(diffuseColor.rgb * (1.0 - 0.15 * uWet), vec3(0.9, 0.92, 0.95) * (0.92 + 0.1 * dn), clamp(uSnow * (0.72 + 0.4 * dn), 0.0, 1.0));`);
   };
   const mesh = new THREE.Mesh(geo, mat);
-  mesh.receiveShadow = false;
+  mesh.receiveShadow = Q.shadows > 0;
   // a big skirt beyond the edge so the horizon never shows a hole
   const skirt = new THREE.Mesh(new THREE.RingGeometry(WORLD_HALF * 1.38, WORLD_HALF * 9, 64, 1), new THREE.MeshLambertMaterial({ color: 0x5f7148 }));
   skirt.rotation.x = -Math.PI / 2; skirt.position.y = 110;
@@ -172,7 +311,7 @@ diffuseColor.rgb = mix(diffuseColor.rgb * (1.0 - 0.15 * uWet), vec3(0.9, 0.92, 0
 }
 
 /* ===================== water, roads ===================== */
-function buildWater() {
+function buildWater(Q) {
   const g = new THREE.Group();
   const pts = [];
   for (let k = 0; k < 160; k++) {
@@ -182,10 +321,10 @@ function buildWater() {
     pts.push(new THREE.Vector2(LAKE.x + u * c - v * s, -(LAKE.z + u * s + v * c)));
   }
   const shape = new THREE.Shape(pts);
-  const water = new THREE.Mesh(new THREE.ShapeGeometry(shape, 1), new THREE.MeshStandardMaterial({ color: 0x24506a, roughness: 0.12, metalness: 0.0, transparent: true, opacity: 0.95 }));
+  const water = new THREE.Mesh(new THREE.ShapeGeometry(shape, 1), Q.pbr ? waterMaterial({ transparent: true, opacity: 0.97 }) : new THREE.MeshStandardMaterial({ color: 0x24506a, roughness: 0.12, metalness: 0.0, transparent: true, opacity: 0.95 }));
   water.rotation.x = -Math.PI / 2; water.position.y = WATER;
   g.add(water);
-  g.add(ribbon(RIVER.pts, 48, 0x2b5670, 0.9, 60, { phong: true }));
+  g.add(ribbon(RIVER.pts, 48, 0x2b5670, 0.9, 60, { phong: true, water: Q.pbr }));
   g.add(ribbon(HIGHWAY.pts, 16, 0x55565a, 0.45, 120));
   g.add(ribbon(RAILROAD.pts, 5, 0x3a2f28, 0.35, 120));
   // dam
@@ -209,14 +348,42 @@ function ribbon(pts, width, color, lift, step, opt = {}) {
   });
   const geo = new THREE.BufferGeometry();
   geo.setAttribute("position", new THREE.Float32BufferAttribute(verts, 3)); geo.setIndex(idx); geo.computeVertexNormals();
-  const mat = opt.phong ? new THREE.MeshStandardMaterial({ color, roughness: 0.18, metalness: 0.0, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -2 })
+  const mat = opt.water ? waterMaterial({ color: 0x10303c, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -2 })
+    : opt.phong ? new THREE.MeshStandardMaterial({ color, roughness: 0.18, metalness: 0.0, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -2 })
     : new THREE.MeshLambertMaterial({ color, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -2 });
   return new THREE.Mesh(geo, mat);
 }
 
 /* ===================== towns, trees ===================== */
 function nearAirport(x, z, pad = 350) { for (const ap of AIRPORTS) for (const r of ap.flat) if (rectDist(x, z, r, pad) < 0) return true; return false; }
-function buildTowns() {
+/**
+ * High and above: building walls get windows from the facade texture (4 bays of 3 m, floors of 3.2 m), glassy and reflective
+ * by day; at night a random share of them glow warm. Roofs stay plain. The box is a unit cube scaled per instance.
+ */
+function facadeMaterial() {
+  const mat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.85, metalness: 0 });
+  mat.onBeforeCompile = (sh) => {
+    Object.assign(sh.uniforms, { tFacade: { value: facadeTexture() }, uNight: WX.uNight, uLightGain: WX.uLightGain, uSnow: WX.uSnow });
+    sh.vertexShader = sh.vertexShader.replace("#include <common>", "#include <common>\nvarying vec3 vFac; varying float vSeed; varying float vH;")
+      .replace("#include <begin_vertex>", `#include <begin_vertex>
+vec3 bSc = vec3(length(instanceMatrix[0].xyz), length(instanceMatrix[1].xyz), length(instanceMatrix[2].xyz));
+vFac = vec3(abs(objectNormal.x) > 0.5 ? position.z * bSc.z : position.x * bSc.x, position.y * bSc.y, step(0.5, objectNormal.y));
+vH = bSc.y; vSeed = fract(sin(dot(instanceMatrix[3].xz, vec2(12.9898, 78.233))) * 43758.5453);`);
+    sh.fragmentShader = sh.fragmentShader.replace("#include <common>", "#include <common>\nvarying vec3 vFac; varying float vSeed; varying float vH;\nuniform sampler2D tFacade; uniform float uNight, uLightGain, uSnow;")
+      .replace("#include <color_fragment>", `#include <color_fragment>
+vec4 fc = texture2D(tFacade, vec2(vFac.x / 12.0 + vSeed, vFac.y / 12.8));
+float wall = 1.0 - vFac.z;
+float glass = fc.r * wall * step(vFac.y, vH - 0.7);
+diffuseColor.rgb *= mix(0.62 + 0.2 * fc.g, 0.8 + 0.35 * fc.g - 0.25 * fc.b, wall);
+diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.035, 0.045, 0.055), glass);
+diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.86, 0.88, 0.91), uSnow * vFac.z * 0.8);
+float lit = glass * step(fract(fc.a * 7.13 + vSeed * 3.7), 0.38) * uNight;
+totalEmissiveRadiance += lit * mix(vec3(1.0, 0.62, 0.3), vec3(1.0, 0.86, 0.66), fract(fc.a * 13.7)) * uLightGain * 0.5;`)
+      .replace("#include <roughnessmap_fragment>", "#include <roughnessmap_fragment>\nroughnessFactor = mix(roughnessFactor, 0.06, glass);");
+  };
+  return mat;
+}
+function buildTowns(Q = { pbr: false }) {
   const R = rng(32);
   const box = new THREE.BoxGeometry(1, 1, 1); box.translate(0, 0.5, 0);
   const all = [];
@@ -233,7 +400,7 @@ function buildTowns() {
       all.push({ x, z, w, l, h, rot, c: core ? 0.62 + R() * 0.25 : 0.5 + R() * 0.4, roof: R() });
     }
   }
-  const mesh = new THREE.InstancedMesh(box, new THREE.MeshLambertMaterial({ color: 0xffffff }), all.length);
+  const mesh = new THREE.InstancedMesh(box, Q.pbr ? facadeMaterial() : new THREE.MeshLambertMaterial({ color: 0xffffff }), all.length);
   const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), col = new THREE.Color();
   all.forEach((b, i) => {
     q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), -b.rot);
@@ -242,11 +409,82 @@ function buildTowns() {
     if (b.roof < 0.3) col.setRGB(0.55 * b.c + 0.25, 0.32 * b.c + 0.1, 0.26 * b.c + 0.08); else col.setRGB(b.c, b.c * 0.98, b.c * 0.94);
     mesh.setColorAt(i, col);
   });
-  return mesh;
+  if (!Q.pbr) return { mesh, lights: null };
+  mesh.castShadow = mesh.receiveShadow = true;
+  // night: warm porch and street lights through the towns
+  const p = [], c = [];
+  for (const b of all) {
+    if (R() < 0.55) { const a = R() * Math.PI * 2, d = Math.max(b.w, b.l) * 0.55 + 2; p.push(b.x + Math.cos(a) * d, heightAt(b.x, b.z) + 3 + R() * 3, b.z + Math.sin(a) * d); const w = 0.75 + 0.25 * R(); c.push(1, 0.62 * w + 0.1, 0.32 * w); }
+  }
+  for (const t of TOWNS) for (let k = -t.r; k <= t.r; k += 85) for (let m = -t.r; m <= t.r; m += 34) for (const [x, z] of [[t.x + k, t.z + m], [t.x + m, t.z + k]]) {
+    if (Math.hypot(x - t.x, z - t.z) > t.r || inLake(x, z) || nearAirport(x, z, 150)) continue;
+    p.push(x, heightAt(x, z) + 7, z); c.push(1, 0.78, 0.5);
+  }
+  const geo = new THREE.BufferGeometry(); geo.setAttribute("position", new THREE.Float32BufferAttribute(p, 3)); geo.setAttribute("color", new THREE.Float32BufferAttribute(c, 3));
+  return { mesh, lights: geo };
 }
-function buildTrees(quality) {
+/**
+ * Tree models for High and above, 1 unit tall: a vertex-coloured trunk and a crown whose normals point out from the crown's
+ * centre, so a low-poly crown shades like a soft round mass. aTrunk marks the trunk (it ignores the instance's leaf colour).
+ */
+/** join corners that share a position, so a shape built face by face (the icosahedron) is drawn with shared vertices */
+function weld(g) {
+  if (g.index) return g;
+  const p = g.attributes.position, seen = new Map(), pos = [], idx = [];
+  for (let i = 0; i < p.count; i++) {
+    const key = `${p.getX(i).toFixed(4)},${p.getY(i).toFixed(4)},${p.getZ(i).toFixed(4)}`;
+    let k = seen.get(key); if (k === undefined) { k = pos.length / 3; seen.set(key, k); pos.push(p.getX(i), p.getY(i), p.getZ(i)); }
+    idx.push(k);
+  }
+  const out = new THREE.BufferGeometry();
+  out.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3)); out.setAttribute("normal", new THREE.Float32BufferAttribute(new Float32Array(pos.length), 3)); out.setIndex(idx);
+  return out;
+}
+function treeGeometry(kind) {
+  const parts = [];
+  const part = (g, trunk, cy = 0.6, ry = 0.45) => {
+    g = weld(g); const p = g.attributes.position, n = g.attributes.normal, cnt = p.count;
+    const col = new Float32Array(cnt * 3), tr = new Float32Array(cnt);
+    for (let i = 0; i < cnt; i++) {
+      const x = p.getX(i), y = p.getY(i), z = p.getZ(i);
+      if (trunk) { col[i * 3] = 0.34; col[i * 3 + 1] = 0.25; col[i * 3 + 2] = 0.18; tr[i] = 1; continue; }
+      const v = new THREE.Vector3(x, (y - cy) * 0.6 / ry, z).normalize(); n.setXYZ(i, v.x, v.y + 0.25, v.z);
+      const shade = 0.62 + 0.38 * Math.min(1, Math.max(0, (y - (cy - ry)) / (2 * ry))); // darker low in the crown
+      col[i * 3] = col[i * 3 + 1] = col[i * 3 + 2] = shade;
+    }
+    g.setAttribute("color", new THREE.BufferAttribute(col, 3)); g.setAttribute("aTrunk", new THREE.BufferAttribute(tr, 1)); g.deleteAttribute("uv");
+    parts.push(g);
+  };
+  if (kind === "conifer") {
+    part(new THREE.CylinderGeometry(0.035, 0.05, 0.3, 5, 1, true).translate(0, 0.15, 0), true);
+    part(new THREE.ConeGeometry(0.36, 0.62, 6, 1, true).translate(0, 0.45, 0), false, 0.55, 0.45); // no base: nobody sees under a tree
+    part(new THREE.ConeGeometry(0.24, 0.5, 6, 1, true).rotateY(0.5).translate(0, 0.75, 0), false, 0.55, 0.45); // its base hides inside the lower tier
+  } else {
+    part(new THREE.CylinderGeometry(0.04, 0.06, 0.42, 5, 1, true).translate(0, 0.21, 0), true);
+    const crown = new THREE.IcosahedronGeometry(0.42, 0); crown.scale(1, 0.78, 1).translate(0, 0.66, 0);
+    part(crown, false, 0.66, 0.33);
+  }
+  const geo = new THREE.BufferGeometry(), index = []; let base = 0;
+  for (const g of parts) { for (const i of g.index.array) index.push(i + base); base += g.attributes.position.count; }
+  geo.setIndex(index);
+  for (const name of ["position", "normal", "color", "aTrunk"]) {
+    const size = parts[0].attributes[name].itemSize, arr = new Float32Array(parts.reduce((s, g) => s + g.attributes[name].array.length, 0)); let o = 0;
+    for (const g of parts) { arr.set(g.attributes[name].array, o); o += g.attributes[name].array.length; }
+    geo.setAttribute(name, new THREE.BufferAttribute(arr, size));
+  }
+  return geo;
+}
+function treeMaterial() {
+  const mat = new THREE.MeshLambertMaterial({ color: 0xffffff, vertexColors: true });
+  mat.onBeforeCompile = (sh) => {
+    sh.vertexShader = sh.vertexShader.replace("#include <common>", "#include <common>\nattribute float aTrunk;")
+      .replace("#include <color_vertex>", "vColor = color * mix(instanceColor, vec3(1.0), aTrunk);");
+  };
+  return mat;
+}
+function buildTrees(quality, Q = preset(quality)) {
   const R = rng(1937);
-  const target = quality === "low" ? 4000 : 14000;
+  const target = Q.pbr ? Q.trees : quality === "low" ? 4000 : 14000;
   const geo = new THREE.ConeGeometry(1, 1, 6, 1); geo.translate(0, 0.5, 0);
   const pts = [];
   let tries = 0;
@@ -259,6 +497,31 @@ function buildTrees(quality) {
     let inTown = false; for (const t of TOWNS) if (Math.hypot(x - t.x, z - t.z) < t.r * 1.05) inTown = true; if (inTown) continue;
     pts.push([x, h, z]);
   }
+  if (Q.pbr) { // conifers on high ground, broadleaf trees in the valleys, mixed in between
+    const CELL = 26000 / 3, cells = new Map(); // 6 × 6 squares
+    for (const p of pts) {
+      const kind = R() < 0.25 + 0.6 * Math.min(1, Math.max(0, (p[1] - 250) / 450)) ? "conifer" : "broad";
+      const ci = Math.floor((p[0] + 26000) / CELL), cj = Math.floor((p[2] + 26000) / CELL), key = `${kind}:${ci}:${cj}`;
+      if (!cells.has(key)) cells.set(key, { kind, list: [], box: { x0: ci * CELL - 26000, x1: (ci + 1) * CELL - 26000, z0: cj * CELL - 26000, z1: (cj + 1) * CELL - 26000 } });
+      cells.get(key).list.push(p);
+    }
+    const mats = { conifer: treeMaterial(), broad: treeMaterial() }, geos = { conifer: treeGeometry("conifer"), broad: treeGeometry("broad") };
+    const g = new THREE.Group(); g.userData.mats = Object.values(mats); g.userData.range = Q.treeRange;
+    for (const { kind, list, box } of cells.values()) {
+      // each square gets its own copy of the shape: three.js caches vertex setup per geometry, so squares sharing one would re-bind it every draw
+      const mesh = new THREE.InstancedMesh(geos[kind].clone(), mats[kind], list.length); mesh.userData.box = box;
+      const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), col = new THREE.Color(), up = new THREE.Vector3(0, 1, 0);
+      list.forEach(([x, h, z], i) => {
+        const conifer = kind === "conifer", s = conifer ? 11 + R() * 14 : 8 + R() * 9, r = s * (conifer ? 0.85 + R() * 0.3 : 1.05 + R() * 0.4);
+        q.setFromAxisAngle(up, R() * Math.PI * 2);
+        m4.compose(new THREE.Vector3(x, h - 0.4, z), q, new THREE.Vector3(r, s, r)); mesh.setMatrixAt(i, m4);
+        if (conifer) col.setRGB(0.1 + R() * 0.05, 0.19 + R() * 0.08, 0.11 + R() * 0.04); else col.setRGB(0.17 + R() * 0.1, 0.27 + R() * 0.12, 0.1 + R() * 0.05);
+        mesh.setColorAt(i, col);
+      });
+      mesh.computeBoundingSphere(); g.add(mesh);
+    }
+    return g;
+  }
   const mesh = new THREE.InstancedMesh(geo, new THREE.MeshLambertMaterial({ color: 0xffffff }), pts.length);
   const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), col = new THREE.Color();
   pts.forEach(([x, h, z], i) => {
@@ -270,8 +533,8 @@ function buildTrees(quality) {
 }
 
 /* ===================== airports ===================== */
-function runwayCanvas(r, ap) {
-  const Wpx = 128, Hpx = Math.min(4096, Math.round(r.len * 2.4));
+function runwayCanvas(r, ap, scale = 1, maxPx = 4096) {
+  const Wpx = 128 * scale, Hpx = Math.min(4096 * scale, maxPx, Math.round(r.len * 2.4 * scale));
   const c = canvas(Wpx, Hpx), g = c.getContext("2d");
   const sx = Wpx / r.wid, sy = Hpx / r.len;
   if (r.surface === "grass") {
@@ -281,7 +544,7 @@ function runwayCanvas(r, ap) {
   }
   g.fillStyle = "#3b3e43"; g.fillRect(0, 0, Wpx, Hpx);
   const R = rng(r.len); for (let i = 0; i < 9000; i++) { g.fillStyle = `rgba(${R() > 0.5 ? 255 : 0},${R() > 0.5 ? 255 : 0},${R() > 0.5 ? 255 : 0},0.035)`; g.fillRect(R() * Wpx, R() * Hpx, 2, 2 + R() * 6); }
-  for (let i = 0; i < 40; i++) { g.fillStyle = "rgba(10,10,10,0.18)"; g.fillRect(Wpx * 0.35 + R() * Wpx * 0.3, R() * Hpx, 4 + R() * 8, 30 + R() * 90); } // tyre marks
+  for (let i = 0; i < 40; i++) { g.fillStyle = "rgba(10,10,10,0.18)"; g.fillRect(Wpx * 0.35 + R() * Wpx * 0.3, R() * Hpx, (4 + R() * 8) * scale, (30 + R() * 90) * scale); } // tyre marks
   g.fillStyle = "#e9e9e4";
   g.fillRect(1 * sx, 0, 0.9 * sx, Hpx); g.fillRect(Wpx - 1.9 * sx, 0, 0.9 * sx, Hpx); // side stripes
   // how far each threshold sits in from its end of the pavement: a blast pad (yellow chevrons, no use at all) or a
@@ -343,24 +606,29 @@ function planeGroup(len, wid, hdg) {
   const geo = new THREE.PlaneGeometry(wid, len); geo.rotateX(-Math.PI / 2); geo.rotateY(-hdg * DEG); return geo;
 }
 
-function buildAirports(lightsTex, renderer) {
+function buildAirports(lightsTex, renderer, Q = { pbr: false, runwayScale: 1 }, lightMats = []) {
   const root = new THREE.Group();
   const lights = { kzar: [], kame: [], taxi: [], vasi: [], beacons: [], gun: null, pcl: null };
   const maxAniso = renderer.capabilities.getMaxAnisotropy();
-  const taxiMat = weatherize(new THREE.MeshLambertMaterial({ color: 0x45484c, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 }));
-  const apronMat = weatherize(new THREE.MeshLambertMaterial({ color: 0x6d6f70, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 }));
-  const yellowMat = weatherize(new THREE.MeshBasicMaterial({ color: 0xd8ac1c, polygonOffset: true, polygonOffsetFactor: -6, polygonOffsetUnits: -6 }));
+  const off = (n) => ({ polygonOffset: true, polygonOffsetFactor: -n, polygonOffsetUnits: -n });
+  // High and above: PBR pavement that gets wet, puddles and shadows; buildings cast and receive shadows
+  const paved = (params, n) => { if (!Q.pbr) return weatherize(new THREE.MeshLambertMaterial({ ...params, ...off(n) })); return pavement({ ...params, ...off(n) }); };
+  const solid = (m) => { if (Q.pbr) m.castShadow = m.receiveShadow = true; return m; };
+  const taxiMat = paved({ color: 0x45484c }, 3);
+  const apronMat = paved({ color: 0x6d6f70 }, 3);
+  const yellowMat = Q.pbr ? pavement({ color: 0xd8ac1c, ...off(6) }) : weatherize(new THREE.MeshBasicMaterial({ color: 0xd8ac1c, ...off(6) }));
   const hsTex = holdShortTexture();
-  const ptsMat = (size) => new THREE.PointsMaterial({ size, sizeAttenuation: false, map: lightsTex, vertexColors: true, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
+  const ptsMat = (size) => { const m = new THREE.PointsMaterial({ size, sizeAttenuation: false, map: lightsTex, vertexColors: true, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }); lightMats.push(m); return m; };
   for (const ap of AIRPORTS) {
     const y = ap.elev;
     const edgePts = [], edgeCol = [];
     const pushL = (x, z, c) => { edgePts.push(x, y + 0.6, z); edgeCol.push(c.r, c.g, c.b); };
     const white = new THREE.Color(1, 0.96, 0.85), green = new THREE.Color(0.2, 1, 0.35), red = new THREE.Color(1, 0.15, 0.1), blue = new THREE.Color(0.25, 0.4, 1);
     for (const r of ap.runways) {
-      const tex = new THREE.CanvasTexture(runwayCanvas(r, ap)); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = maxAniso;
-      const mesh = new THREE.Mesh(planeGroup(r.len, r.wid, r.hdg), weatherize(new THREE.MeshLambertMaterial({ map: tex, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 })));
-      mesh.position.set(r.cx, y + 0.02, r.cz); root.add(mesh);
+      const tex = new THREE.CanvasTexture(runwayCanvas(r, ap, Q.runwayScale, renderer.capabilities.maxTextureSize)); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = maxAniso;
+      const grass = r.surface === "grass";
+      const mesh = new THREE.Mesh(planeGroup(r.len, r.wid, r.hdg), Q.pbr && !grass ? pavement({ map: tex, ...off(4) }) : weatherize(new THREE.MeshLambertMaterial({ map: tex, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 })));
+      mesh.position.set(r.cx, y + 0.02, r.cz); mesh.receiveShadow = Q.pbr; root.add(mesh);
       if (r.lights) {
         const [dx, dz] = r.dir; const px = -dz, pz = dx;
         for (let s = 0; s <= r.len; s += 60) for (const side of [-1, 1]) pushL(r.ends[0].x + dx * s + px * side * (r.wid / 2 + 1), r.ends[0].z + dz * s + pz * side * (r.wid / 2 + 1), white);
@@ -387,14 +655,14 @@ function buildAirports(lightsTex, renderer) {
       }
     }
     for (const t of ap.taxiways) {
-      const m = new THREE.Mesh(planeGroup(t.len, t.wid, t.hdg), t.surface === "grass" ? new THREE.MeshLambertMaterial({ color: 0x6b8a4c }) : taxiMat); m.position.set(t.cx, y + 0.015, t.cz); root.add(m);
+      const m = new THREE.Mesh(planeGroup(t.len, t.wid, t.hdg), t.surface === "grass" ? new THREE.MeshLambertMaterial({ color: 0x6b8a4c }) : taxiMat); m.position.set(t.cx, y + 0.015, t.cz); m.receiveShadow = Q.pbr; root.add(m);
       if (t.surface !== "grass") {
-        const cl = new THREE.Mesh(planeGroup(t.len, 0.35, t.hdg), yellowMat); cl.position.set(t.cx, y + 0.03, t.cz); root.add(cl);
+        const cl = new THREE.Mesh(planeGroup(t.len, 0.35, t.hdg), yellowMat); cl.position.set(t.cx, y + 0.03, t.cz); cl.receiveShadow = Q.pbr; root.add(cl);
         const s = Math.sin(t.hdg * DEG), c = -Math.cos(t.hdg * DEG); const px = -c, pz = s;
         for (let d = -t.len / 2; d <= t.len / 2; d += 30) for (const side of [-1, 1]) { edgePts.push(t.cx + s * d + px * side * (t.wid / 2 + 0.8), y + 0.4, t.cz + c * d + pz * side * (t.wid / 2 + 0.8)); edgeCol.push(blue.r, blue.g, blue.b); }
       }
     }
-    for (const a of ap.aprons) { const m = new THREE.Mesh(planeGroup(a.len, a.wid, a.hdg), a.surface === "grass" ? new THREE.MeshLambertMaterial({ color: 0x6b8a4c }) : apronMat); m.position.set(a.cx, y + 0.01, a.cz); root.add(m); }
+    for (const a of ap.aprons) { const m = new THREE.Mesh(planeGroup(a.len, a.wid, a.hdg), a.surface === "grass" ? new THREE.MeshLambertMaterial({ color: 0x6b8a4c }) : apronMat); m.position.set(a.cx, y + 0.01, a.cz); m.receiveShadow = Q.pbr; root.add(m); }
     // hold-short markings and mandatory signs
     for (const h of ap.holdShort) {
       // which way is the runway? the nearest runway centre is on the dashed side
@@ -403,7 +671,8 @@ function buildAirports(lightsTex, renderer) {
       // project to the runway line instead of the centre
       const dx = best.dir[0], dz = best.dir[1]; const t = (h.x - best.cx) * dx + (h.z - best.cz) * dz; toR.set(best.cx + dx * t - h.x, best.cz + dz * t - h.z).normalize();
       const geo = new THREE.PlaneGeometry(16, 10); geo.rotateX(-Math.PI / 2);
-      const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ map: hsTex, transparent: true, polygonOffset: true, polygonOffsetFactor: -8, polygonOffsetUnits: -8 }));
+      const m = new THREE.Mesh(geo, Q.pbr ? pavement({ map: hsTex, transparent: true, ...off(8) }) : new THREE.MeshBasicMaterial({ map: hsTex, transparent: true, polygonOffset: true, polygonOffsetFactor: -8, polygonOffsetUnits: -8 }));
+      m.receiveShadow = Q.pbr;
       // texture top (-z local) = solid lines = away from runway
       m.rotation.y = Math.atan2(toR.x, toR.y);
       m.position.set(h.x, y + 0.04, h.z); root.add(m);
@@ -422,14 +691,14 @@ function buildAirports(lightsTex, renderer) {
     if (ap.id === "KAME") lights.pcl = pts; else (ap.id === "KZAR" ? lights.kzar : lights.taxi).push(pts);
     // buildings
     for (const [hx, hz, w, l] of ap.hangars || []) {
-      const body = new THREE.Mesh(new THREE.BoxGeometry(w, 7, l), new THREE.MeshLambertMaterial({ color: 0xb9bcc0 })); body.position.set(hx, y + 3.5, hz); root.add(body);
-      const roof = new THREE.Mesh(new THREE.CylinderGeometry(w / 2, w / 2, l, 18, 1, false, -Math.PI / 2, Math.PI), new THREE.MeshLambertMaterial({ color: 0x8e9499 }));
+      const body = solid(new THREE.Mesh(new THREE.BoxGeometry(w, 7, l), Q.pbr ? new THREE.MeshStandardMaterial({ color: 0xb9bcc0, roughness: 0.55, metalness: 0.35 }) : new THREE.MeshLambertMaterial({ color: 0xb9bcc0 }))); body.position.set(hx, y + 3.5, hz); root.add(body);
+      const roof = solid(new THREE.Mesh(new THREE.CylinderGeometry(w / 2, w / 2, l, 18, 1, false, -Math.PI / 2, Math.PI), Q.pbr ? new THREE.MeshStandardMaterial({ color: 0x8e9499, roughness: 0.42, metalness: 0.6 }) : new THREE.MeshLambertMaterial({ color: 0x8e9499 })));
       roof.rotation.x = Math.PI / 2; roof.scale.set(1, 1, 0.35); roof.position.set(hx, y + 7, hz); root.add(roof);
     }
     if (ap.tower) {
-      const t = ap.tower; const shaft = new THREE.Mesh(new THREE.CylinderGeometry(2.6, 3.2, 24, 12), new THREE.MeshLambertMaterial({ color: 0xd6d3cc })); shaft.position.set(t.x, y + 12, t.z); root.add(shaft);
-      const cab = new THREE.Mesh(new THREE.CylinderGeometry(5.5, 4.5, 4.2, 8), new THREE.MeshPhongMaterial({ color: 0x2f5560, emissive: 0x0c2a22, shininess: 100, specular: 0xaaccdd })); cab.position.set(t.x, y + 26.2, t.z); root.add(cab);
-      const roof = new THREE.Mesh(new THREE.CylinderGeometry(6.2, 6.2, 0.8, 8), new THREE.MeshLambertMaterial({ color: 0x444444 })); roof.position.set(t.x, y + 28.7, t.z); root.add(roof);
+      const t = ap.tower; const shaft = solid(new THREE.Mesh(new THREE.CylinderGeometry(2.6, 3.2, 24, 12), new THREE.MeshLambertMaterial({ color: 0xd6d3cc }))); shaft.position.set(t.x, y + 12, t.z); root.add(shaft);
+      const cab = solid(new THREE.Mesh(new THREE.CylinderGeometry(5.5, 4.5, 4.2, 8), Q.pbr ? new THREE.MeshStandardMaterial({ color: 0x1d3640, emissive: 0x0c2a22, roughness: 0.06, metalness: 0.2 }) : new THREE.MeshPhongMaterial({ color: 0x2f5560, emissive: 0x0c2a22, shininess: 100, specular: 0xaaccdd }))); cab.position.set(t.x, y + 26.2, t.z); root.add(cab);
+      const roof = solid(new THREE.Mesh(new THREE.CylinderGeometry(6.2, 6.2, 0.8, 8), new THREE.MeshLambertMaterial({ color: 0x444444 }))); roof.position.set(t.x, y + 28.7, t.z); root.add(roof);
       const gg = new THREE.BufferGeometry(); gg.setAttribute("position", new THREE.Float32BufferAttribute([t.x + 3, y + 26.5, t.z + 4], 3)); gg.setAttribute("color", new THREE.Float32BufferAttribute([0, 1, 0], 3));
       lights.gun = new THREE.Points(gg, ptsMat(16)); lights.gun.visible = false; root.add(lights.gun);
     }
@@ -461,9 +730,9 @@ function buildAirports(lightsTex, renderer) {
 
 /* ===================== landmarks ===================== */
 function bandTexture(colors, n = 7) { const c = canvas(4, 64), g = c.getContext("2d"); for (let i = 0; i < n; i++) { g.fillStyle = colors[i % colors.length]; g.fillRect(0, (i * 64) / n, 4, 64 / n + 1); } const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t; }
-function buildLandmarks(lightsTex) {
+function buildLandmarks(lightsTex, lightMats = []) {
   const g = new THREE.Group(); const blinkers = [];
-  const ptsMat = (size) => new THREE.PointsMaterial({ size, sizeAttenuation: false, map: lightsTex, vertexColors: true, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
+  const ptsMat = (size) => { const m = new THREE.PointsMaterial({ size, sizeAttenuation: false, map: lightsTex, vertexColors: true, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }); lightMats.push(m); return m; };
   const banded = new THREE.MeshLambertMaterial({ map: bandTexture(["#d23a2a", "#f1efe9"]) });
   for (const o of OBSTACLES) {
     const base = heightAt(o.x, o.z);
@@ -525,12 +794,56 @@ void main(){
   gl_FragColor = vec4(col, t.a * opacity);
   #include <fog_fragment>
 }`;
+/**
+ * High and above: each puff is turned to a random angle and shaded as a soft ball lit from the sun's direction, with a silver
+ * lining on thin edges when the sun is behind it. Its colours are scene-referred, so it goes through tone mapping like the rest.
+ */
+const cloudVS2 = `
+#include <common>
+#include <fog_pars_vertex>
+#include <logdepthbuf_pars_vertex>
+varying vec2 vUv; varying vec2 vOff; varying float vShade; varying vec3 vCenter;
+void main(){
+  vUv = uv;
+  vec3 center = (modelMatrix * instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
+  float scale = length(instanceMatrix[0].xyz);
+  float ang = fract(sin(dot(center.xz, vec2(12.9898, 78.233))) * 43758.5453) * 6.2831853;
+  vec2 p = mat2(cos(ang), sin(ang), -sin(ang), cos(ang)) * position.xy;
+  vec4 mvPosition = viewMatrix * vec4(center, 1.0);
+  vCenter = mvPosition.xyz;
+  mvPosition.xy += p * scale;
+  vOff = p * 2.0; vShade = clamp(p.y + 0.5, 0.0, 1.0);
+  gl_Position = projectionMatrix * mvPosition;
+  #include <logdepthbuf_vertex>
+  #include <fog_vertex>
+}`;
+const cloudFS2 = `
+#include <common>
+#include <fog_pars_fragment>
+#include <logdepthbuf_pars_fragment>
+uniform sampler2D map; uniform vec3 litColor; uniform vec3 shadeColor; uniform float opacity; uniform vec3 uSunView; uniform float uGain;
+varying vec2 vUv; varying vec2 vOff; varying float vShade; varying vec3 vCenter;
+void main(){
+  #include <logdepthbuf_fragment>
+  vec4 t = texture2D(map, vUv);
+  float r2 = min(dot(vOff, vOff) * 0.5, 1.0); // reaches 1 only in the quad's corners, so there's no visible rim
+  vec3 n = normalize(vec3(vOff * 0.6, sqrt(1.0 - r2) + 0.35));
+  float lit = clamp(0.3 + (dot(n, uSunView) * 0.5 + 0.5) * 0.55 + vShade * 0.25 + t.a * 0.1 - 0.12, 0.0, 1.0);
+  vec3 col = mix(shadeColor, litColor, lit);
+  float behind = pow(max(dot(normalize(vCenter), uSunView), 0.0), 5.0);
+  col += litColor * behind * smoothstep(0.45, 1.25, length(vOff)) * 1.3; // only the puff's outer rim, not every inner wisp
+  gl_FragColor = vec4(col * uGain, t.a * opacity);
+  #include <tonemapping_fragment>
+  #include <colorspace_fragment>
+  #include <fog_fragment>
+}`;
 export class Clouds {
-  constructor(scene) {
-    this.scene = scene; this.mesh = null; this.layer = null; this.clusters = [];
+  constructor(scene, Q = { pbr: false }) {
+    this.scene = scene; this.mesh = null; this.layer = null; this.clusters = []; this.Q = Q;
+    this.sunDir = new THREE.Vector3(0, 1, 0);
     this.material = new THREE.ShaderMaterial({
-      uniforms: THREE.UniformsUtils.merge([THREE.UniformsLib.fog, { map: { value: puffTexture() }, litColor: { value: new THREE.Color(1, 1, 1) }, shadeColor: { value: new THREE.Color(0.62, 0.66, 0.72) }, opacity: { value: 0.95 } }]),
-      vertexShader: cloudVS, fragmentShader: cloudFS, transparent: true, depthWrite: false, fog: true,
+      uniforms: THREE.UniformsUtils.merge([THREE.UniformsLib.fog, { map: { value: puffTexture() }, litColor: { value: new THREE.Color(1, 1, 1) }, shadeColor: { value: new THREE.Color(0.62, 0.66, 0.72) }, opacity: { value: 0.95 }, uSunView: { value: new THREE.Vector3(0, 1, 0) }, uGain: { value: 1 } }]),
+      vertexShader: Q.pbr ? cloudVS2 : cloudVS, fragmentShader: Q.pbr ? cloudFS2 : cloudFS, transparent: true, depthWrite: false, fog: true,
     });
     this.material.uniforms.map.value = puffTexture();
   }
@@ -571,9 +884,19 @@ export class Clouds {
     const m4 = new THREE.Matrix4();
     puffs.forEach(([x, y, z, s], i) => { m4.makeScale(s, s, s); m4.setPosition(x, y, z); this.mesh.setMatrixAt(i, m4); });
     this.mesh.frustumCulled = false; this.mesh.renderOrder = 2;
+    if (this.Q.pbr) this.mesh.onBeforeRender = (r, s, cam) => this.material.uniforms.uSunView.value.copy(this.sunDir).transformDirection(cam.matrixWorldInverse);
     this.scene.add(this.mesh);
   }
-  setLight(sunColor, shade) { this.material.uniforms.litColor.value.copy(sunColor); this.material.uniforms.shadeColor.value.copy(shade); }
+  /** sun colour and shade colour (display-referred, as on Low); High and above also take the sun direction, exposure and gloom */
+  setLight(sunColor, shade, sunDir, exposure = 1, gloom = 0) {
+    const u = this.material.uniforms;
+    u.litColor.value.copy(sunColor); u.shadeColor.value.copy(shade);
+    if (!this.Q.pbr) return;
+    // to scene-referred: undo the display gamma, then lift so that after exposure and ACES they land where they used to
+    u.litColor.value.convertSRGBToLinear(); u.shadeColor.value.convertSRGBToLinear();
+    u.uGain.value = (1.45 - 0.55 * gloom) / Math.max(0.1, exposure);
+    if (sunDir) this.sunDir.copy(sunDir);
+  }
   /** How deep in cloud the point is (0..1), and the nearest cloud geometry for VFR minimums. */
   probe(x, y, z) {
     let inside = 0, below = Infinity, above = Infinity, horiz = Infinity;
@@ -657,29 +980,91 @@ export function sunFromHour(hour) {
   return { elev: e, az };
 }
 
+/**
+ * High and above: town lights. Each point shrinks with distance, and once it would be smaller than a pixel it fades instead,
+ * so a far town glows faintly instead of thousands of full-size points piling up into a white band on the horizon.
+ */
+function townLightMaterial(tex, pixelRatio) {
+  return new THREE.ShaderMaterial({
+    uniforms: THREE.UniformsUtils.merge([THREE.UniformsLib.fog, { map: { value: tex }, uGain: { value: 1 }, uPR: { value: pixelRatio } }]),
+    vertexShader: `#include <common>
+#include <fog_pars_vertex>
+#include <logdepthbuf_pars_vertex>
+uniform float uGain, uPR; attribute vec3 color; varying vec3 vCol; varying float vA;
+void main(){
+  vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+  float px = 3.0 * 450.0 / max(-mvPosition.z, 1.0);
+  gl_PointSize = clamp(px, 1.0, 3.0) * uPR;
+  vA = px < 1.0 ? px * px : 1.0;
+  vCol = color * uGain;
+  gl_Position = projectionMatrix * mvPosition;
+  #include <logdepthbuf_vertex>
+  #include <fog_vertex>
+}`,
+    fragmentShader: `#include <common>
+#include <fog_pars_fragment>
+#include <logdepthbuf_pars_fragment>
+uniform sampler2D map; varying vec3 vCol; varying float vA;
+void main(){
+  #include <logdepthbuf_fragment>
+  gl_FragColor = vec4(vCol, texture2D(map, gl_PointCoord).a * vA);
+  #include <tonemapping_fragment>
+  #include <colorspace_fragment>
+  #include <fog_fragment>
+}`,
+    transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: true,
+  });
+}
+/** High and above: a star field on a sphere that travels with the eye, dimmer toward the horizon haze */
+function buildStars(tex) {
+  const R = rng(1932), n = 2600, p = [], c = [];
+  for (let i = 0; i < n; i++) {
+    const y = 0.02 + R() * 0.98, a = R() * Math.PI * 2, r = Math.sqrt(1 - y * y), m = Math.pow(R(), 5); // most stars faint, a few bright
+    const b = (0.12 + 0.88 * m) * Math.min(1, y * 5), tint = R();
+    p.push(Math.cos(a) * r * 60000, y * 60000, Math.sin(a) * r * 60000);
+    c.push(b * (tint < 0.2 ? 0.8 : 1), b * (tint < 0.2 ? 0.88 : tint > 0.85 ? 0.9 : 1), b * (tint > 0.85 ? 0.75 : 1));
+  }
+  const geo = new THREE.BufferGeometry(); geo.setAttribute("position", new THREE.Float32BufferAttribute(p, 3)); geo.setAttribute("color", new THREE.Float32BufferAttribute(c, 3));
+  const pts = new THREE.Points(geo, new THREE.PointsMaterial({ size: 2.2, sizeAttenuation: false, map: tex, vertexColors: true, transparent: true, depthWrite: false, fog: false, blending: THREE.AdditiveBlending }));
+  pts.frustumCulled = false; pts.visible = false; pts.renderOrder = -1;
+  return pts;
+}
+
 export class World {
   constructor(renderer, scene, opts = {}) {
-    this.renderer = renderer; this.scene = scene; this.quality = opts.quality || "high";
+    this.renderer = renderer; this.scene = scene; this.quality = opts.quality || "high"; this.Q = preset(this.quality);
     this.lightsTex = glowTexture();
+    this.lightMats = []; // every light point's material: High and above brighten them against the exposure at night
+    this.sunDir = new THREE.Vector3(0, 1, 0); this.sunWarm = new THREE.Color(1, 1, 1); this.elev = 45; this.day = 1; this.gloom = 0;
   }
   async build(progress = () => {}) {
+    const Q = this.Q;
     const step = async (msg, fn) => { progress(msg); await new Promise((r) => setTimeout(r, 16)); return fn(); };
-    this.groundCanvas = await step("Painting the valley", () => buildGroundCanvas(this.quality === "low" ? 1024 : 2048));
-    const terrain = await step("Raising the terrain", () => buildTerrain(this.groundCanvas, this.quality));
+    this.groundCanvas = await step("Painting the valley", () => buildGroundCanvas(Q.groundPx));
+    const terrain = await step("Raising the terrain", () => buildTerrain(this.groundCanvas, Q));
     this.scene.add(terrain.group); this.terrain = terrain;
-    await step("Filling Lake Itasca", () => this.scene.add(buildWater()));
-    await step("Building towns", () => this.scene.add(buildTowns()));
-    this.trees = await step("Planting forests", () => buildTrees(this.quality)); this.scene.add(this.trees);
-    const ap = await step("Painting runways", () => buildAirports(this.lightsTex, this.renderer));
+    await step("Filling Lake Itasca", () => this.scene.add(buildWater(Q)));
+    const towns = await step("Building towns", () => buildTowns(Q)); this.scene.add(towns.mesh);
+    if (towns.lights) { this.townLights = new THREE.Points(towns.lights, townLightMaterial(this.lightsTex, this.renderer.getPixelRatio())); this.townLights.visible = false; this.scene.add(this.townLights); }
+    this.trees = await step("Planting forests", () => buildTrees(this.quality, Q)); this.scene.add(this.trees);
+    const ap = await step("Painting runways", () => buildAirports(this.lightsTex, this.renderer, Q, this.lightMats));
     this.scene.add(ap.root); this.ap = ap;
-    const lm = await step("Placing landmarks", () => buildLandmarks(this.lightsTex));
+    const lm = await step("Placing landmarks", () => buildLandmarks(this.lightsTex, this.lightMats));
     this.scene.add(lm.group); this.blinkers = lm.blinkers;
+    if (Q.pbr) lm.group.traverse((o) => { if (o.isMesh) o.castShadow = o.receiveShadow = true; });
     progress("Lighting the sky");
     this.sky = new Sky(); this.sky.scale.setScalar(100000); this.scene.add(this.sky);
     this.sun = new THREE.DirectionalLight(0xffffff, 2.4); this.scene.add(this.sun); this.scene.add(this.sun.target);
+    if (Q.shadows) {
+      // a ±70 m box that follows the airplane (setShadowFocus), deep along the light so the shadow lands at any height
+      const s = this.sun; s.castShadow = true; s.shadow.mapSize.set(Q.shadows, Q.shadows);
+      const c = s.shadow.camera; c.left = c.bottom = -70; c.right = c.top = 70; c.near = 1; c.far = 8000; c.updateProjectionMatrix();
+      s.shadow.bias = -0.00002; s.shadow.normalBias = 0.035;
+    }
     this.hemi = new THREE.HemisphereLight(0xbfd6ff, 0x4d5a3a, 1.0); this.scene.add(this.hemi);
     this.scene.fog = new THREE.Fog(0xb9c7d6, 2000, 40000);
-    this.clouds = new Clouds(this.scene);
+    if (Q.pbr) { this.stars = buildStars(this.lightsTex); this.scene.add(this.stars); }
+    this.clouds = new Clouds(this.scene, Q);
     this.precip = new Precip(this.scene, this.quality);
     this.labels = buildAirportLabels(); this.scene.add(this.labels); this.labelsOn = true;
     // a storm's rain shaft: the visible sign of a possible microburst underneath
@@ -692,12 +1077,15 @@ export class World {
     this.shaft.visible = !!mb; if (!mb) return;
     const h = Math.max(200, baseY - groundY); this.shaft.scale.set(mb.r * 1.1, h, mb.r * 1.1); this.shaft.position.set(mb.x, groundY + h / 2, mb.z);
   }
-  /** env: { hour, visSM, inCloud, gloom (0–1, heavy cloud and precipitation), snow (0–1), wet (0–1) } */
+  /**
+   * env: { hour, visSM, inCloud, gloom (0–1, heavy cloud and precipitation), snow (0–1), wet (0–1) }
+   * and for High and above: t (s), rain (0–1), windDir (deg, from), windKt
+   */
   setEnvironment(env) {
     const gloom = env.gloom || 0;
     WX.uSnow.value = env.snow || 0; WX.uWet.value = env.wet || 0;
     if (this.terrain?.rim) for (const m of this.terrain.rim) m.color.setHex(0x5f7148).lerp(new THREE.Color(0xdde2e8), env.snow || 0);
-    if (this.trees) this.trees.material.color.setScalar(1 + 1.8 * (env.snow || 0));
+    if (this.trees) for (const m of this.trees.userData.mats || [this.trees.material]) m.color.setScalar(1 + 1.8 * (env.snow || 0));
     const { elev, az } = sunFromHour(env.hour);
     const e = elev * DEG, a = az * DEG;
     const dir = new THREE.Vector3(Math.sin(a) * Math.cos(e), Math.sin(e), -Math.cos(a) * Math.cos(e));
@@ -707,7 +1095,8 @@ export class World {
     u.turbidity.value = 4 + 6 * dusk; u.rayleigh.value = 1.2 + 1.8 * dusk; u.mieCoefficient.value = 0.004; u.mieDirectionalG.value = 0.82;
     const day = Math.max(0, Math.min(1, (elev + 4) / 16));
     this.night = elev < -4; this.dusk = elev < 6;
-    this.sun.position.copy(dir).multiplyScalar(5000);
+    this.sunDir.copy(dir); this.elev = elev; this.day = day; this.gloom = gloom; this.inCloud = env.inCloud || 0;
+    if (this.Q.shadows) this.placeSun(); else this.sun.position.copy(dir).multiplyScalar(5000);
     const warm = new THREE.Color().setRGB(1, 0.62 + 0.38 * Math.min(1, elev / 25), 0.42 + 0.58 * Math.min(1, elev / 25));
     this.sun.color.copy(warm); this.sun.intensity = (2.6 * Math.max(0, Math.sin(e)) + 0.02) * (1 - 0.7 * gloom);
     this.hemi.intensity = (0.12 + 1.0 * day) * (1 - 0.3 * gloom); this.hemi.color.setRGB(0.55 + 0.2 * day, 0.62 + 0.25 * day, 0.85);
@@ -720,16 +1109,73 @@ export class World {
     else { this.scene.fog.color.copy(fc); this.scene.fog.near = Math.min(800, visM * 0.05); this.scene.fog.far = visM * 1.25; }
     this.renderer.setClearColor(this.scene.fog.color);
     this.sky.visible = env.inCloud < 0.5 && gloom < 0.5; // under a low overcast in rain there's no blue sky at the horizon, just grey
-    this.updateEnvMap(env.hour);
-    if (this.clouds) this.clouds.setLight(new THREE.Color().copy(warm).multiplyScalar(0.25 + 0.75 * day).lerp(new THREE.Color(1, 1, 1), 0.4 * day), new THREE.Color(0.55, 0.6, 0.68).multiplyScalar(0.2 + 0.8 * day));
+    this.updateEnvMap(env.hour, env.snow || 0, gloom);
+    if (this.clouds) this.clouds.setLight(new THREE.Color().copy(warm).multiplyScalar(0.25 + 0.75 * day).lerp(new THREE.Color(1, 1, 1), 0.4 * day), new THREE.Color(0.55, 0.6, 0.68).multiplyScalar(0.2 + 0.8 * day), dir, this.renderer.toneMappingExposure, gloom);
+    this.sunWarm.copy(warm);
+    if (!this.Q.pbr) return;
+    // night lighting: lit windows and light points stay bright against the low night exposure; stars come out after dusk
+    const exp = this.renderer.toneMappingExposure, nightK = Math.max(0, Math.min(1, (2 - elev) / 8));
+    // light bounced up from the sunlit ground (or snow): the undersides of wings and fuselage aren't black
+    const sunUp = Math.max(0, Math.sin(e)) * (1 - 0.7 * gloom);
+    this.hemi.groundColor.setRGB(0.47, 0.49, 0.44).lerp(this._snowGround ||= new THREE.Color(0.7, 0.73, 0.78), env.snow || 0).multiplyScalar(0.15 + 0.85 * sunUp);
+    WX.uNight.value = nightK; WX.uLightGain.value = 1 / exp; WX.uRain.value = env.rain || 0; WX.uTime.value = env.t || 0;
+    const to = ((env.windDir ?? 270) + 180) * DEG, ws = (env.windKt || 0) * 0.5144; WX.uWind.value.set(Math.sin(to) * ws, -Math.cos(to) * ws);
+    const k = Math.max(1, 1.5 / exp); for (const m of this.lightMats) m.color.setScalar(k);
+    if (this.townLights) { this.townLights.visible = this.dusk; this.townLights.material.uniforms.uGain.value = 1.1 / exp; }
+    if (this.stars) {
+      const sk = Math.max(0, Math.min(1, (-elev - 5) / 7)) * (1 - Math.min(1, gloom * 2)) * (1 - this.inCloud) * Math.min(1, env.visSM / 5);
+      this.stars.visible = sk > 0.02; this.stars.material.color.setScalar(sk * 0.9 / exp); this.stars.material.opacity = Math.min(1, sk * 1.5);
+    }
   }
-  /** Image-based lighting for the airplane's paint: a PMREM of the current sky, refreshed when the time of day changes. */
-  updateEnvMap(hour) {
-    if (this.envHour != null && Math.abs(hour - this.envHour) < 0.25) return;
-    this.envHour = hour;
+  /** High and above: aim the sun's shadow box at the focus (the airplane), snapped to whole shadow-map texels so edges don't crawl */
+  setShadowFocus(p) { (this.focus ||= new THREE.Vector3()).set(p.x, p.y, p.z); this.placeSun(); }
+  placeSun() {
+    const f = this.focus || new THREE.Vector3(), d = this.sunDir, s = this.sun;
+    const fw = this._fw ||= new THREE.Vector3(), r = this._r ||= new THREE.Vector3(), up = this._up ||= new THREE.Vector3();
+    fw.copy(d).negate(); r.crossVectors(fw, s.shadow.camera.up).normalize(); up.crossVectors(r, fw);
+    const texel = 140 / this.Q.shadows, ra = f.dot(r), ua = f.dot(up);
+    s.target.position.copy(f).addScaledVector(r, Math.round(ra / texel) * texel - ra).addScaledVector(up, Math.round(ua / texel) * texel - ua);
+    s.position.copy(s.target.position).addScaledVector(d, 4000);
+    s.target.updateMatrixWorld();
+  }
+  /** is the sun hidden (0) or in view (1) from the eye: terrain in the way, and how much cloud the ray to it passes through */
+  sunVisibility(eye) {
+    if (this.elev < -1.5 || this.inCloud > 0.5) return 0;
+    const d = this.sunDir;
+    for (let t = 30; t < 45000; t *= 1.3) { const y = eye.y + d.y * t; if (y > 2300) break; if (heightAt(eye.x + d.x * t, eye.z + d.z * t) > y) return 0; }
+    let len = 0;
+    const C = this.clouds; if (!C) return 1;
+    if (C.ovc && eye.y < C.ovc.top && d.y > 0) return 0;
+    for (const c of C.clusters) {
+      if (d.y <= 0 && eye.y < c.base) continue;
+      const ox = eye.x - c.x, oz = eye.z - c.z, R = c.r * 0.85, A = d.x * d.x + d.z * d.z, B = 2 * (d.x * ox + d.z * oz), Cc = ox * ox + oz * oz - R * R;
+      let t0, t1;
+      if (A < 1e-6) { if (Cc > 0) continue; t0 = 0; t1 = Infinity; } else { const D = B * B - 4 * A * Cc; if (D <= 0) continue; const q = Math.sqrt(D); t0 = (-B - q) / (2 * A); t1 = (-B + q) / (2 * A); }
+      let s0 = -Infinity, s1 = Infinity;
+      if (Math.abs(d.y) > 1e-5) { const a = (c.base - eye.y) / d.y, b = (c.top - eye.y) / d.y; s0 = Math.min(a, b); s1 = Math.max(a, b); } else if (eye.y < c.base || eye.y > c.top) continue;
+      const lo = Math.max(0, t0, s0), hi = Math.min(t1, s1);
+      if (hi > lo) len += Math.min(hi - lo, 3000);
+    }
+    return Math.exp(-len / 300);
+  }
+  /**
+   * Image-based lighting for the airplane's paint (and on High and above the water, wet pavement and glass): a PMREM of the
+   * current sky, refreshed when the time of day changes. High and above add the ground below the horizon, so the undersides
+   * of the wings reflect the ground and not more sky.
+   */
+  updateEnvMap(hour, snow = 0, gloom = 0) {
+    const key = this.Q.pbr ? `${Math.round(snow * 4)}:${Math.round(gloom * 4)}` : "";
+    if (this.envHour != null && Math.abs(hour - this.envHour) < 0.25 && key === this.envKey) return;
+    this.envHour = hour; this.envKey = key;
     this.pmrem ||= new THREE.PMREMGenerator(this.renderer);
     const envScene = new THREE.Scene(); const vis = this.sky.visible; this.sky.visible = true;
     envScene.add(this.sky);
+    if (this.Q.pbr) {
+      if (!this.envGround) { const g = new THREE.CircleGeometry(150000, 48); g.rotateX(-Math.PI / 2); this.envGround = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ color: 0x334028 })); this.envGround.position.y = -60; }
+      const lightK = Math.max(0.02, Math.min(1, (sunFromHour(hour).elev + 4) / 16)) * (1 - 0.5 * gloom);
+      this.envGround.material.color.setRGB(0.13, 0.145, 0.11).lerp(new THREE.Color(0.55, 0.57, 0.6), snow).multiplyScalar(lightK);
+      envScene.add(this.envGround);
+    }
     const rt = this.pmrem.fromScene(envScene, 0, 0.1, 200000);
     this.scene.add(this.sky); this.sky.visible = vis;
     if (this.envRT) this.envRT.dispose();
@@ -737,6 +1183,10 @@ export class World {
   }
   /** per-frame animation: lights, beacons, VASI, windsocks, airport labels */
   update(t, eye, state) {
+    if (this.stars) this.stars.position.copy(eye);
+    // forest squares farther than a tree can be seen aren't drawn at all
+    const range = this.trees?.userData.range;
+    if (range) for (const m of this.trees.children) { const b = m.userData.box, dx = Math.max(b.x0 - eye.x, 0, eye.x - b.x1), dz = Math.max(b.z0 - eye.z, 0, eye.z - b.z1); m.visible = dx * dx + dz * dz < range * range; }
     if (this.labels) for (const sp of this.labels.children) {
       const ap = sp.userData.ap, d = Math.hypot(eye.x - ap.x, eye.z - ap.z), o = Math.min(1, (d - 1500) / 1500) * Math.min(1, (46000 - d) / 8000);
       sp.visible = this.labelsOn && o > 0.02; sp.material.opacity = Math.max(0, o);

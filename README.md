@@ -73,7 +73,8 @@ learn/                   study notes: one sourced page per written-test topic, w
 sitemap.xml              for Google Search Console (robots.txt only applies on a custom domain)
 assets/img/shots/        product shots rendered in the simulator
 assets/js/sim/           fdm.js (flight model), world-data.js, world3d.js, plane3d.js, panel.js, map.js,
-                         nav.js, weather.js, input.js, audio.js, checklists.js, lessons.js, main.js
+                         nav.js, weather.js, input.js, audio.js, checklists.js, lessons.js, main.js,
+                         gfx.js (Graphics presets Low/High/Ultra, textures made in code, sun glare, Ultra's bloom)
 assets/js/prep/prep.js   prep app
 assets/data/questions.json  question bank
 tools/                   dev server and tests
