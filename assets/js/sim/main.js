@@ -4,7 +4,7 @@ import { Aircraft, C172, TYPES, KT, FT, weightBalance, RWY_COND, hydroplaneKt } 
 import { AIRPORTS, NAVAIDS, groundAt, airspaceAt, vfrMinimums, nearestAirport, heightAt, rectDist } from "./world-data.js";
 import { World } from "./world3d.js";
 import { buildAirplane, buildCockpit, cockpitExterior, animateAirplane, buildShadow, configurePlanes, setGhost } from "./plane3d.js";
-import { preset, tuneShaders, SunGlare, Post, cockpitSunMask } from "./gfx.js";
+import { preset, tuneShaders, SunGlare, Post, cockpitSunMask, AutoRes } from "./gfx.js";
 import { Weather, PRESETS } from "./weather.js";
 import { vor, gps, WAYPOINTS, wrap180 } from "./nav.js";
 import { Input, BUTTONS, AXES } from "./input.js";
@@ -41,6 +41,7 @@ const view = $("#view");
 const Q = preset(settings.quality); // Graphics: low, high or ultra (gfx.js)
 const renderer = new THREE.WebGLRenderer({ canvas: view, antialias: true, logarithmicDepthBuffer: true, powerPreference: "high-performance" });
 renderer.setPixelRatio(Math.min(devicePixelRatio || 1, Q.pixelRatio));
+const autoRes = new AutoRes(renderer.getPixelRatio()); // draws fewer pixels when the frame rate drops (Settings)
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 if (Q.shadows) { // the sun's shadow map, redrawn once a frame (both phone-VR eyes share it)
   renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap; renderer.shadowMap.autoUpdate = false;
@@ -638,6 +639,7 @@ function renderDrawer() {
     $("#iceNow", B).addEventListener("click", () => { ac.eng.carbIce = Math.max(ac.eng.carbIce, 0.45); say("Carburetor ice is forming.", "warn"); });
   } else if (n === "settings") {
     B.innerHTML = `<div class="form"><label>Graphics <select id="sQ"><option value="ultra">Ultra (HDR bloom, needs a strong graphics card)</option><option value="high">High</option><option value="low">Low (faster)</option></select></label>
+      <label class="chk"><input type="checkbox" id="sAutoRes" ${settings.autoRes !== false ? "checked" : ""}> Automatic resolution: draw fewer pixels when the frame rate drops (now ${autoRes.percent}%)</label>
       <label class="chk"><input type="checkbox" id="sInv" ${settings.invert ? "checked" : ""}> Invert pitch (↑ = nose up)</label>
       <label class="chk"><input type="checkbox" id="sMouse" ${settings.mouseYoke ? "checked" : ""}> Mouse yoke (Y)</label>
       <label>Flight assist <select id="sAssist"><option value="assisted">Assisted: arrows change pitch and bank, let go to hold (easiest)</option><option value="rudder">Auto-rudder only: real stick, rudder handled for you</option><option value="off">Off: fully manual (practise P-factor and coordination)</option></select></label>
@@ -695,6 +697,7 @@ function renderDrawer() {
     $("#sAssist", B).addEventListener("change", (e) => { setAssist(e.target.value); });
     $("#sRadioPr", B).addEventListener("change", (e) => { settings.radioPractice = e.target.checked; saveSettings(); });
     $("#sTraffic", B).addEventListener("change", (e) => { settings.traffic = e.target.checked; saveSettings(); populateTraffic(); });
+    $("#sAutoRes", B).addEventListener("change", (e) => { settings.autoRes = e.target.checked; saveSettings(); if (!e.target.checked) { renderer.setPixelRatio(autoRes.reset()); layout(); } });
     $("#sLabels", B).addEventListener("change", (e) => { settings.labels = world.labelsOn = e.target.checked; saveSettings(); });
     $("#sSound", B).addEventListener("change", (e) => { settings.sound = audio.enabled = e.target.checked; saveSettings(); });
     $("#sVoice", B).addEventListener("change", (e) => { settings.voice = e.target.checked; saveSettings(); });
@@ -1056,7 +1059,7 @@ function stepSim(dt, pilot) {
   lessons.update(dt);
 }
 function tick(now) {
-  const dt = Math.max(0, Math.min(0.05, (now - last) / 1000)); last = Math.max(last, now);
+  const frameMs = now - last, dt = Math.max(0, Math.min(0.05, frameMs / 1000)); last = Math.max(last, now);
   if (vr.active) vr.poll();
   { const held = input.held(" ") || !!input._holds?.mic || ptt.pad; if (held !== ptt.down) { if (held) pttDown(); else pttUp(); } }
   input.poll(); // assigning a joystick control works while paused too
@@ -1090,6 +1093,14 @@ function tick(now) {
     else if (post && !renderer.xr.isPresenting) post.render(gradeFor(world));
     else { renderer.render(scene, camera); if (glare && !vr.active) glare.render(renderer); }
     if (vr.active) vr.update(dt);
+    if (settings.autoRes !== false && !renderer.xr.isPresenting && !document.hidden) {
+      const ratio = autoRes.sample(frameMs, !sim.paused);
+      if (ratio) { renderer.setPixelRatio(ratio); layout(); }
+      if (autoRes.slow > 20 && settings.quality !== "low" && !store.get("lowTip", false)) {
+        store.set("lowTip", true);
+        say("This device is having trouble keeping up, even at a lower resolution. For a smoother flight, choose Graphics: Low in Settings.", "tip", 10000);
+      }
+    }
     panelT += dt; if (!vr.active && !panelOff() && panelT > 1 / 40) {
       panelT = 0;
       panel.draw(panelState());
@@ -1133,7 +1144,7 @@ async function boot() {
   renderer.setAnimationLoop(tick);
 }
 window.__zarhart = {
-  sim, ac, weather, world, lessons, camera, panel, settings, keys: input.keys, frame: (ms) => tick(ms), radioCall, traffic, transmit, mp, pttClick, renderer, scene, plane, cockpit, camState, layout, panelState, updateCamera, vr,
+  sim, ac, weather, world, lessons, camera, panel, settings, autoRes, keys: input.keys, frame: (ms) => tick(ms), radioCall, traffic, transmit, mp, pttClick, renderer, scene, plane, cockpit, camState, layout, panelState, updateCamera, vr,
   /** headless stepping for tests: advance `secs` of sim time at 30 Hz without rendering; pilot(ac, d, sim, dt) flies */
   step(secs, pilot) { for (let i = 0, n = Math.round(secs * 30); i < n; i++) { if (ac.crashed || lessons.done) break; stepSim(1 / 30, pilot); } return ac.derived; },
 };

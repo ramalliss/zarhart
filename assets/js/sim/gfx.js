@@ -245,3 +245,39 @@ export class Post {
     if (o) { o.visible = ov; if (ov) { const ac = r.autoClear; r.autoClear = false; r.clearDepth(); r.render(o, this.camera); r.autoClear = ac; } } // the last pass left its depth behind
   }
 }
+
+/**
+ * Automatic resolution, like the dynamic resolution of console games: it watches how long frames really take and draws
+ * fewer pixels when the device can't keep up (under about 43 fps), then sharpens again once frames are quick. After a
+ * step down it won't climb back past the resolution that was too slow until things have stayed smooth for a while, so it
+ * settles instead of see-sawing. It never goes above the preset's pixel ratio, or below half of it (2/3 on ordinary screens).
+ */
+export class AutoRes {
+  constructor(max) {
+    this.max = max; this.min = Math.max(0.67, max * 0.5); // half the pixels on sharp screens, never blurrier than 2/3 on ordinary ones this.ratio = max; this.ceiling = max;
+    this.sum = 0; this.n = 0; this.wait = 3; this.smooth = 0; this.slow = 0;
+  }
+  /** frameMs: the real time since the last frame; flying: the sim is running. Returns a new pixel ratio, or null to keep it. */
+  sample(frameMs, flying) {
+    if (!(frameMs > 0) || frameMs > 150) return null; // a hitch, a hidden tab or a pause in the debugger, not the steady load
+    this.wait -= frameMs / 1000; this.sum += frameMs; this.n++;
+    if (this.wait > 0 || this.n < 40) return null;
+    const avg = this.sum / this.n, secs = this.sum / 1000; this.sum = 0; this.n = 0; this.wait = 1.5;
+    // still too slow at the lowest resolution while flying: worth suggesting the Low preset
+    this.slow = flying && avg > 30 && this.ratio <= this.min + 1e-3 ? this.slow + secs : 0;
+    let next = this.ratio;
+    if (avg > 23) { // too slow: step down, and remember that this resolution was too much
+      next = Math.max(this.min, this.ratio * (avg > 33 ? 0.8 : 0.9));
+      this.ceiling = Math.max(this.min, Math.min(this.ceiling, this.ratio * 0.97)); this.smooth = 0;
+    } else if (avg < 17.5) { // quick frames: sharpen up to that limit, and raise the limit after 10 s of smooth flying
+      this.smooth += secs;
+      if (this.smooth > 10) { this.ceiling = Math.min(this.max, this.ceiling * 1.08); this.smooth = 0; }
+      next = Math.max(this.ratio, Math.min(this.ceiling, this.max, this.ratio * 1.06));
+    }
+    if (next === this.ratio || (Math.abs(next - this.ratio) < 0.02 && next > this.min && next < this.max)) return null;
+    this.ratio = next; this.wait = 3; // give the new size a moment before judging it
+    return next;
+  }
+  get percent() { return Math.round((this.ratio / this.max) * 100); }
+  reset() { this.ratio = this.ceiling = this.max; this.sum = this.n = this.smooth = this.slow = 0; this.wait = 3; return this.max; }
+}
