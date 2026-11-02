@@ -48,7 +48,7 @@ export class Weather {
   }
   /** what the flight model reads */
   get state() {
-    return { qnhInHg: this.qnhInHg, tempC: this.tempC, dewC: this.dewC, isaDev: this.tempC - (15 - 1.98 * this.home.elevFt / 1000), rwy: this.rwy, precip: this.precip };
+    return { qnhInHg: this.qnhInHg, tempC: this.tempC, dewC: this.dewC, isaDev: this.tempC - (15 - 1.98 * this.home.elevFt / 1000), stationM: this.home.elevFt * FT, rwy: this.rwy, precip: this.precip };
   }
   cloudLayersMsl() { return this.clouds.map((c) => ({ cover: c.cover, baseMsl: (this.home.elevFt + c.baseFt) * FT })); }
   /** air velocity (m/s, direction the air moves toward) */

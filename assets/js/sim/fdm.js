@@ -65,10 +65,15 @@ const smooth = (t) => { t = clamp(t, 0, 1); return t * t * (3 - 2 * t); };
 
 /* ---------------- atmosphere ---------------- */
 /** Actual atmosphere at geometric altitude h (m) for sea-level pressure qnh (Pa) and ISA deviation dT (°C). */
-export function atmosphere(h, qnh = 101325, dT = 0) {
-  const T0 = 288.15 + dT;
-  const T = T0 - 0.0065 * h;
-  const P = qnh * Math.pow(Math.max(0.05, 1 - 0.0065 * h / T0), 5.25588);
+/**
+ * The air at height h (m MSL) for an altimeter setting qnh (Pa) reported at a station hRef m high, on a day dT warmer than
+ * standard. The setting is defined so an altimeter set to it reads the station's elevation at the station, so the pressure
+ * there follows the standard atmosphere; above and below it the real temperature decides. (hRef 0: the sea-level model.)
+ */
+export function atmosphere(h, qnh = 101325, dT = 0, hRef = 0) {
+  const Pref = qnh * Math.pow(1 - 0.0065 * hRef / 288.15, 5.25588), Tref = 288.15 - 0.0065 * hRef + dT;
+  const T = Tref - 0.0065 * (h - hRef);
+  const P = Pref * Math.pow(Math.max(0.05, T / Tref), 5.25588);
   const rho = P / (287.053 * T);
   return { T, P, rho, sigma: rho / 1.225 };
 }
@@ -225,7 +230,7 @@ export class Aircraft {
     this.q = qFromHPB(spawn.hdg, airborne ? (spawn.pitch ?? 0) : 0, 0);
     const fwd = qrot(this.q, v3(0, 0, -1));
     this.pos.y = airborne ? (spawn.altFt ?? 3000) * FT : g.h + 1.22 + 0.075;
-    const atm = atmosphere(this.pos.y, this.qnh(), this.isaDev());
+    const atm = atmosphere(this.pos.y, this.qnh(), this.isaDev(), this.stationM());
     const tas = kias * KT / Math.sqrt(atm.sigma);
     const w = this.env.wind(this.pos.x, this.pos.y, this.pos.z, 0);
     this.vel = airborne ? vadd(vscale(fwd, tas), v3(w.x, 0, w.z)) : v3(0, 0, 0);
@@ -265,6 +270,8 @@ export class Aircraft {
 
   qnh() { return this.env.weather.qnhInHg * INHG; }
   isaDev() { const w = this.env.weather; return w.isaDev ?? (w.tempC - 15); }
+  /** the elevation (m) of the field whose altimeter setting is in use */
+  stationM() { return this.env.weather.stationM ?? 0; }
   setFuel(gal) { const per = clamp(gal / 2, 0, this.ac.fuelUsable); this.eng.fuelL = per; this.eng.fuelR = per; this.load.fuelGal = per * 2; }
   massKg() { return weightBalance({ ...this.load, fuelGal: this.eng.fuelL + this.eng.fuelR }, this.ac).lb * LB + 45 * (this.ice || 0); }
 
@@ -272,7 +279,7 @@ export class Aircraft {
   emit(type, msg) { this.events.push({ type, msg, t: this.t }); }
 
   /** best-power mixture setting (0–1) at a density: it drops as density altitude rises */
-  bestMixture(atm = atmosphere(this.pos.y, this.qnh(), this.isaDev())) { return clamp(1 - 0.035 * (densityAlt(atm.rho) / FT / 1000), 0.35, 1); }
+  bestMixture(atm = atmosphere(this.pos.y, this.qnh(), this.isaDev(), this.stationM())) { return clamp(1 - 0.035 * (densityAlt(atm.rho) / FT / 1000), 0.35, 1); }
 
   enginePower(atm, ias) {
     const e = this.eng, ac = this.ac;
@@ -307,7 +314,7 @@ export class Aircraft {
     const scaleI = m / 1043;
     const Ixx = 1285 * scaleI, Iyy = 1825 * scaleI, Izz = 2667 * scaleI;
     const weather = this.env.weather;
-    const atm = atmosphere(this.pos.y, this.qnh(), this.isaDev());
+    const atm = atmosphere(this.pos.y, this.qnh(), this.isaDev(), this.stationM());
 
     // flaps move at ~3.3 deg/s
     const fd = this.flapsSet - this.flaps;
@@ -600,7 +607,7 @@ export class Aircraft {
 
   /** Instrument readings and derived values (updated once per frame). */
   updateDerived(dt) {
-    const a = this._aero || { alpha: 0, beta: 0, V: 0, ias: 0, stallFrac: 0, aStall: 15.5 * DEG, atm: atmosphere(this.pos.y, this.qnh(), this.isaDev()) };
+    const a = this._aero || { alpha: 0, beta: 0, V: 0, ias: 0, stallFrac: 0, aStall: 15.5 * DEG, atm: atmosphere(this.pos.y, this.qnh(), this.isaDev(), this.stationM()) };
     const inst = this.inst, f = this.failures;
     const hpb = hpbFromQ(this.q);
     const atm = a.atm;
