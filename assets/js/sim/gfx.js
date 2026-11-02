@@ -254,7 +254,8 @@ export class Post {
  */
 export class AutoRes {
   constructor(max) {
-    this.max = max; this.min = Math.max(0.67, max * 0.5); // half the pixels on sharp screens, never blurrier than 2/3 on ordinary ones this.ratio = max; this.ceiling = max;
+    this.max = max; this.min = Math.max(0.67, max * 0.5); // half the pixels on sharp screens, never blurrier than 2/3 on ordinary ones
+    this.ratio = max; this.ceiling = max;
     this.sum = 0; this.n = 0; this.wait = 3; this.smooth = 0; this.slow = 0;
   }
   /** frameMs: the real time since the last frame; flying: the sim is running. Returns a new pixel ratio, or null to keep it. */
