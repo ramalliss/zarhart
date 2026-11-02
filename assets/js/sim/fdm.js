@@ -253,7 +253,7 @@ export class Aircraft {
     // instruments state
     this.inst = {
       kollsman: this.env.weather.qnhInHg, hiDrift: 0, aiOffset: 0, vsiFpm: 0, altPrev: null,
-      compass: spawn.hdg, compassVel: 0, gyroSpin: running ? 1 : 0, aiErr: { p: 0, b: 0 },
+      compass: (((spawn.hdg - this.magVar()) % 360) + 360) % 360, compassVel: 0, gyroSpin: running ? 1 : 0, aiErr: { p: 0, b: 0 },
       pitotTrapped: null, staticTrapped: null, tc: 0, ball: 0, obs: 90, obs2: 0, hdgBug: spawn.hdg,
     };
     this.onGround = !airborne;
@@ -272,6 +272,8 @@ export class Aircraft {
   isaDev() { const w = this.env.weather; return w.isaDev ?? (w.tempC - 15); }
   /** the elevation (m) of the field whose altimeter setting is in use */
   stationM() { return this.env.weather.stationM ?? 0; }
+  /** magnetic variation (degrees, east positive) */
+  magVar() { return this.env.weather.magVar ?? 0; }
   setFuel(gal) { const per = clamp(gal / 2, 0, this.ac.fuelUsable); this.eng.fuelL = per; this.eng.fuelR = per; this.load.fuelGal = per * 2; }
   massKg() { return weightBalance({ ...this.load, fuelGal: this.eng.fuelL + this.eng.fuelR }, this.ac).lb * LB + 45 * (this.ice || 0); }
 
@@ -635,10 +637,12 @@ export class Aircraft {
     }
     const aiPitch = hpb.pitch * (0.2 + 0.8 * spin) + inst.aiErr.p;
     const aiBank = hpb.bank * (0.2 + 0.8 * spin) + inst.aiErr.b;
-    let hi = (hpb.hdg + inst.hiDrift) % 360; if (hi < 0) hi += 360;
-    // magnetic compass (variation 0° here): northerly turning + acceleration errors, plus swing
+    // the heading indicator (set to the compass) and the compass read magnetic: true heading less east variation
+    const mag = (((hpb.hdg - this.magVar()) % 360) + 360) % 360;
+    let hi = (mag + inst.hiDrift) % 360; if (hi < 0) hi += 360;
+    // magnetic compass: northerly turning + acceleration errors, plus swing
     const fs = this._fs || v3(0, 0, -G0);
-    const target = hpb.hdg - 28 * Math.sin(hpb.bank * DEG) * Math.cos(hpb.hdg * DEG) - 6 * (fs.x / G0) * Math.sin(hpb.hdg * DEG);
+    const target = mag - 28 * Math.sin(hpb.bank * DEG) * Math.cos(mag * DEG) - 6 * (fs.x / G0) * Math.sin(mag * DEG);
     if (dt > 0) {
       let d = ((target - inst.compass + 540) % 360) - 180;
       inst.compassVel += (d * 3.2 - inst.compassVel * 2.2) * dt;

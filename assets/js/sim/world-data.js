@@ -34,6 +34,8 @@ const DEG = Math.PI / 180;
 export const WORLD_HALF = 30000;
 export const WATER = 128;
 export const VARIATION = 0; // the agonic line runs through the valley: true = magnetic here
+/** magnetic variation in use (degrees, east positive): 0 in Zarhart Valley, the nearest VOR's in Real World mode */
+export let MAGVAR = 0;
 /** Real World mode's data (realworld.js) when the page was opened with ?world=real, else null; REAL_ERROR if it failed to load */
 export let REAL = null, REAL_ERROR = null;
 
@@ -350,16 +352,20 @@ export function airspaceAt(x, altFt, z) {
   const agl = altFt - heightAt(x, z) / FT;
   const hits = [];
   for (const a of AIRSPACE) {
-    const d = Math.hypot(x - a.x, z - a.z);
-    if (d > a.r) continue;
+    if (a.poly) { // Real World mode: the FAA's shapes, some with holes cut out
+      const b = a.bbox; if (x < b[0] || x > b[1] || z < b[2] || z > b[3] || !inPoly(x, z, a.poly) || a.holes?.some((h) => inPoly(x, z, h))) continue;
+    } else if (Math.hypot(x - a.x, z - a.z) > a.r) continue;
     if (a.cls === "E700") { if (agl >= 700) hits.push(a); continue; }
-    if (altFt >= (a.floorFt ?? 0) && altFt <= (a.ceilFt ?? 99999)) hits.push(a);
+    const above = a.floorAgl ? agl >= a.floorFt : altFt >= (a.floorFt ?? 0), below = a.ceilFt == null || (a.ceilAgl ? agl <= a.ceilFt : altFt <= a.ceilFt);
+    if (above && below) hits.push(a);
   }
-  const special = hits.filter((a) => a.cls === "P" || a.cls === "R" || a.cls === "MOA");
+  const special = hits.filter((a) => ["P", "R", "MOA", "W", "ALERT"].includes(a.cls));
   let base = "G";
   if (altFt >= 18000) base = "A";
+  else if (hits.some((a) => a.cls === "B")) base = "B";
+  else if (hits.some((a) => a.cls === "C")) base = "C";
   else if (hits.some((a) => a.cls === "D")) base = "D";
-  else if (hits.some((a) => a.cls === "E700") || agl >= 1200 || altFt >= 14500) base = "E";
+  else if (hits.some((a) => a.cls === "E" || a.cls === "E700") || agl >= 1200 || altFt >= 14500) base = "E";
   return { cls: base, agl, special, hits };
 }
 
@@ -402,6 +408,6 @@ if (params?.get("world") === "real") {
     NAVAIDS.splice(0, NAVAIDS.length, ...real.navaids);
     AIRSPACE.splice(0, AIRSPACE.length, ...real.airspace);
     TOWNS.length = 0; OBSTACLES.length = 0; RIVER.pts = []; HIGHWAY.pts = []; RAILROAD.pts = [];
-    REAL = real;
+    REAL = real; MAGVAR = real.variation || 0;
   } catch (err) { console.error(err); REAL_ERROR = err.message || String(err); }
 }

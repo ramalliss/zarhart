@@ -1,5 +1,6 @@
-// VOR / DME / GPS calculations. Variation is 0° in the Zarhart Valley, so true = magnetic.
-import { NAVAIDS, AIRPORTS, heightAt } from "./world-data.js";
+// VOR / DME / GPS calculations. Variation is 0° in the Zarhart Valley, so true = magnetic; in Real World mode radials
+// follow each VOR's own variation and GPS courses the local one.
+import { NAVAIDS, AIRPORTS, heightAt, MAGVAR } from "./world-data.js";
 import { FT } from "./fdm.js";
 
 const NM = 1852;
@@ -19,7 +20,7 @@ export function vor(pos, freq, obs) {
   const agl = Math.max(0, pos.y - heightAt(n.x, n.z)) / FT;
   const range = Math.min(40, 1.23 * Math.sqrt(Math.max(agl, 1)) + 3);
   if (groundNm > range) return { ok: false, ident: n.id };
-  const radial = bearing(n.x, n.z, pos.x, pos.z);
+  const radial = wrap360(bearing(n.x, n.z, pos.x, pos.z) - (n.var ?? MAGVAR));
   const diff = wrap180(radial - obs);
   let toFrom, cdi;
   if (groundNm < 0.15) { toFrom = "OFF"; cdi = 0; }
@@ -33,10 +34,10 @@ export function vor(pos, freq, obs) {
 export function gps(pos, wp, from) {
   if (!wp) return null;
   const dist = Math.hypot(wp.x - pos.x, wp.z - pos.z) / NM;
-  const brg = bearing(pos.x, pos.z, wp.x, wp.z);
+  const brg = wrap360(bearing(pos.x, pos.z, wp.x, wp.z) - MAGVAR);
   let dtk = brg, xtk = 0;
   if (from) {
-    dtk = bearing(from.x, from.z, wp.x, wp.z);
+    dtk = wrap360(bearing(from.x, from.z, wp.x, wp.z) - MAGVAR);
     const lx = wp.x - from.x, lz = wp.z - from.z, l = Math.hypot(lx, lz) || 1;
     xtk = -(((pos.x - from.x) * lz - (pos.z - from.z) * lx) / l) / NM; // + = right of course
   }

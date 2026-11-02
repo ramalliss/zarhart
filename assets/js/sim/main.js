@@ -1,7 +1,8 @@
 // Zarhart simulator bootstrap: scene, loop, cameras, HUD, drawers, radio/ATC, lessons.
 import * as THREE from "three";
 import { Aircraft, C172, TYPES, KT, FT, weightBalance, RWY_COND, hydroplaneKt } from "./fdm.js";
-import { AIRPORTS, NAVAIDS, groundAt, airspaceAt, vfrMinimums, nearestAirport, heightAt, rectDist, REAL, REAL_ERROR } from "./world-data.js";
+import { AIRPORTS, NAVAIDS, groundAt, airspaceAt, vfrMinimums, nearestAirport, heightAt, rectDist, REAL, REAL_ERROR, MAGVAR } from "./world-data.js";
+import { taxiRoute } from "./realworld.js";
 import { World } from "./world3d.js";
 import { buildAirplane, buildCockpit, cockpitExterior, animateAirplane, buildShadow, configurePlanes, setGhost } from "./plane3d.js";
 import { preset, tuneShaders, SunGlare, Post, cockpitSunMask, AutoRes } from "./gfx.js";
@@ -113,6 +114,7 @@ function populateTraffic() {
   if (REAL) { // pattern traffic at the home field and the two nearest paved fields (no taxiway data yet, so no departures from the ramp)
     const paved = AIRPORTS.slice(1).filter((ap) => ap.runways[0].surface === "asphalt" && ap.runways[0].len > 600).slice(0, 2);
     traffic.add(KZAR, "pattern", { name: "Skyhawk", tail: "4AB", start: 6 });
+    realDepartureTraffic();
     paved.forEach((ap, i) => traffic.add(ap, "pattern", i ? { name: "Warrior", tail: "5SR", type: "pa28", stripe: 0xff9a1f, start: 8 } : { name: "Skyhawk", tail: "2KL", stripe: 0x5be38a, start: 3 }));
     return;
   }
@@ -129,7 +131,7 @@ function spawn(spec) {
   ac.reset(spec);
   ac.frost = (spec.frost ?? (weather.frost && spec.onGround !== false)) ? 1 : 0;
   if (spec.coldDark) ac.inst.kollsman = 29.92; else ac.inst.kollsman = weather.qnhInHg;
-  ac.inst.obs = ac.inst.obs || 0; ac.inst.hdgBug = Math.round(spec.hdg);
+  ac.inst.obs = ac.inst.obs || 0; ac.inst.hdgBug = Math.round((((spec.hdg - MAGVAR) % 360) + 360) % 360); // the bug is set on the magnetic heading
   ac.failures = { engine: false, vacuum: false, pitot: false, static: false, alternator: false };
   ac.extMoment.x = ac.extMoment.y = ac.extMoment.z = 0;
   if (spec.onGround === false) { ac.elec.lights.landing = true; ac.elec.lights.strobe = true; ac.elec.lights.beacon = true; }
@@ -332,7 +334,7 @@ function radioCall(kind, spoken) {
   // tower / ground at KZAR
   const { dnm, dir } = posReport(KZAR);
   if (kind === "taxi") { radioLog("You", spoken || `${HOME} Ground, ${CALLSIGN}, at the ramp with information ${weatherLetter()}, ready to taxi.`, false); setTimeout(() => radioLog(`${HOME} Ground`, `${SHORT}, runway ${rw}, taxi via ${taxiVia(KZAR, rw)}. Hold short of runway ${rw}.`), 1800); sim.flags.taxiClr = true; return; }
-  if (kind === "depart") { radioLog("You", spoken || `${HOME} Tower, ${CALLSIGN}, holding short runway ${rw}, ready for departure.`, false); setTimeout(() => { radioLog(`${HOME} Tower`, `${SHORT}, wind ${String(Math.round(weather.windDir / 10) * 10).padStart(3, "0")} at ${Math.round(weather.windKt)}, runway ${rw}, cleared for takeoff.`); sim.flags.departCall = true; sim.flags.dContact = true; }, 1800); return; }
+  if (kind === "depart") { radioLog("You", spoken || `${HOME} Tower, ${CALLSIGN}, holding short runway ${rw}, ready for departure.`, false); setTimeout(() => { radioLog(`${HOME} Tower`, `${SHORT}, wind ${String(Math.round(weather.windMag() / 10) * 10 || 360).padStart(3, "0")} at ${Math.round(weather.windKt)}, runway ${rw}, cleared for takeoff.`); sim.flags.departCall = true; sim.flags.dContact = true; }, 1800); return; }
   if (kind === "inbound") { radioLog("You", spoken || `${HOME} Tower, ${CALLSIGN}, ${Math.round(dnm)} miles ${dir}, ${Math.round(d.altInd / 100) * 100}, inbound for landing with ${weatherLetter()}.`, false); setTimeout(() => { const side = REAL || rw === "27" || rw === "36" ? "left" : "right"; radioLog(`${HOME} Tower`, `${SHORT}, Zarhart Tower, enter ${side} downwind runway ${rw}, report midfield.${traffic.advisory(KZAR)}`); sim.flags.inboundCall = true; sim.flags.dContact = true; }, 1800); return; }
   if (kind === "land") { radioLog("You", spoken || `${HOME} Tower, ${SHORT}, midfield ${rw === "27" ? "left" : ""} downwind, full stop.`, false); setTimeout(() => radioLog(`${HOME} Tower`, `${SHORT}, runway ${rw}, cleared to land.${traffic.advisory(KZAR)}`), 1600); sim.flags.dContact = true; return; }
 }
@@ -428,8 +430,11 @@ function monitors(dt) {
   const key = as.cls + as.special.map((s) => s.id).join();
   if (key !== lastAirspace) {
     if (lastAirspace != null) {
-      if (as.cls === "D" && !f.dContact && !f.departCall && !d.onGround) say(`You entered the ${HOME} Class D without two-way radio contact. Call the tower first (14 CFR 91.129).`, "warn", 9000);
-      for (const s of as.special) say(s.cls === "P" ? `Prohibited area ${s.id}: flight is not allowed here. Turn away now.` : s.cls === "R" ? `Restricted area ${s.id} is active: you need permission to enter.` : `Entering ${s.name}: military training. Use extreme caution.`, s.cls === "MOA" ? "info" : "warn", 9000);
+      const named = (c) => as.hits.find((h) => h.cls === c)?.name || `${HOME} Class ${c}`;
+      if (as.cls === "D" && !f.dContact && !f.departCall && !d.onGround) say(`You entered the ${named("D")} without two-way radio contact. Call the tower first (14 CFR 91.129).`, "warn", 9000);
+      if (as.cls === "C" && !d.onGround) say(`You entered the ${named("C")}. Class C needs two-way radio contact with approach before you enter (14 CFR 91.130).`, "warn", 9000);
+      if (as.cls === "B" && !d.onGround) say(`You entered the ${named("B")}. Class B needs a clearance ("cleared into the Class Bravo") before you enter (14 CFR 91.131). Turn away or descend below the shelf.`, "warn", 10000);
+      for (const s of as.special) say(s.cls === "P" ? `Prohibited area ${s.name || s.id}: flight is not allowed here. Turn away now.` : s.cls === "R" ? `Restricted area ${s.name || s.id} is active: you need permission to enter.` : `Entering ${s.name}: military training. Use extreme caution.`, s.cls === "MOA" ? "info" : "warn", 9000);
     }
     lastAirspace = key;
   }
@@ -524,12 +529,12 @@ function renderDrawer() {
       <h3 class="dsub">Free flight</h3>
       <div class="form"><label>Start <select id="ffStart">${REAL ? realStarts().map(([v, l]) => `<option value="${v}">${esc(l)}</option>`).join("") : ""}${REAL ? "" : `<option value="kzarRamp">Zarhart ramp: cold & dark (use the checklists)</option><option value="kzar27">Zarhart runway 27, engine running</option><option value="kzar09">Zarhart runway 09</option><option value="kame36">Earhart Municipal runway 36</option><option value="z19">Electra Field grass 04</option><option value="z40">Electra Pass runway 36 (mountains)</option><option value="ksrh">Southridge Regional runway 31</option><option value="z23">Itasca West runway 34</option><option value="air">Airborne over the valley, 3,500 ft</option>`}</select></label>
       <label>Airplane <select id="ffType">${Object.entries(TYPE_LABELS).map(([k, l]) => `<option value="${k}" ${settings.acType === k ? "selected" : ""}>${esc(l)}</option>`).join("")}</select></label>
-      <label>Weather <select id="ffWx">${Object.entries(PRESETS).map(([k, p]) => `<option value="${k}">${esc(p.label)}</option>`).join("")}</select></label>
-      <label>Time <select id="ffTime"><option value="9">Morning</option><option value="13" selected>Midday</option><option value="19.1">Golden hour</option><option value="20.0">Dusk</option><option value="22">Night</option></select></label>
+      <label>Weather <select id="ffWx">${REAL?.live ? `<option value="live">${esc(REAL.live.params.label)}</option>` : ""}${Object.entries(PRESETS).map(([k, p]) => `<option value="${k}">${esc(p.label)}</option>`).join("")}</select></label>
+      <label>Time <select id="ffTime">${REAL ? `<option value="now" selected>Now (local time there)</option>` : ""}<option value="9">Morning</option><option value="13" selected>Midday</option><option value="19.1">Golden hour</option><option value="20.0">Dusk</option><option value="22">Night</option></select></label>
       <button class="sbtn primary" id="ffGo">Start free flight</button></div>`;
     B.querySelectorAll("[data-lesson]").forEach((b) => b.addEventListener("click", () => { startFlying(); lessons.start(b.dataset.lesson); closeDrawer(); }));
-    $("#ffWx", B).value = "scattered";
-    $("#ffGo", B).addEventListener("click", () => { settings.acType = $("#ffType", B).value; saveSettings(); startFlying(); freeFlight($("#ffStart", B).value, $("#ffWx", B).value, +$("#ffTime", B).value); closeDrawer(); });
+    $("#ffWx", B).value = REAL?.live ? "live" : "scattered";
+    $("#ffGo", B).addEventListener("click", () => { settings.acType = $("#ffType", B).value; saveSettings(); startFlying(); freeFlight($("#ffStart", B).value, $("#ffWx", B).value, $("#ffTime", B).value); closeDrawer(); });
   } else if (n === "aircraft") {
     const e = ac.eng, el = ac.elec, L = el.lights;
     const sw = (k, label, on) => `<button class="switch ${on ? "on" : ""}" data-sw="${k}" aria-pressed="${on}"><span class="led"></span>${label}</button>`;
@@ -629,9 +634,9 @@ function renderDrawer() {
     B.querySelectorAll("[data-ci]").forEach((c) => c.addEventListener("change", () => { sim.manualChecks[`${cl.id}:${c.dataset.ci}`] = c.checked; }));
   } else if (n === "weather") {
     const ap = KZAR; const act = weather.activeRunway(ap); const comp = weather.components(act.end.hdg);
-    B.innerHTML = `<p class="metar mono">${esc(weather.metar(ap, weather.hour))}</p>
+    B.innerHTML = `${REAL?.live ? `<p class="dnote">Real weather now (National Weather Service), ${esc(REAL.live.station)}, ${REAL.live.ageMin} min old:</p><p class="metar mono">${esc(REAL.live.raw)}</p><p class="dnote">The sim is flying:</p>` : ""}<p class="metar mono">${esc(weather.metar(ap, weather.hour))}</p>
       <div class="kv"><span>Density altitude at ${KZAR.id}</span><b>${Math.round(ac.derived.onGround && Math.hypot(ac.pos.x, ac.pos.z) < 2000 ? ac.derived.densAlt : densAltAtField()).toLocaleString()} ft</b><span>Active runway</span><b>${weather.windKt < 3 ? `${act.end.id}: wind calm${KZAR.calmRwy ? " (the calm-wind runway)" : ""}` : `${act.end.id}: ${comp.head >= 0 ? comp.head + " kt headwind" : -comp.head + " kt tailwind"}, ${Math.abs(comp.cross)} kt crosswind from the ${comp.cross > 0 ? "right" : "left"}`}</b><span>Runway surface</span><b>${esc(RWY_COND[weather.rwy].label)}${RWY_COND[weather.rwy].hydroplane ? ` · hydroplaning above about ${Math.round(hydroplaneKt(ac.ac.tirePsi || 29))} kt` : weather.rwy !== "dry" ? " · braking action " + (weather.rwy === "wet" ? "medium" : weather.rwy === "ice" ? "nil" : "poor") : ""}</b></div>
-      <div class="form"><label>Preset <select id="wxP"><option value="">Custom</option>${Object.entries(PRESETS).map(([k, p]) => `<option value="${k}">${esc(p.label)}</option>`).join("")}</select></label>
+      <div class="form"><label>Preset <select id="wxP"><option value="">Custom</option>${REAL?.live ? `<option value="live">Live weather (${esc(REAL.live.station)})</option>` : ""}${Object.entries(PRESETS).map(([k, p]) => `<option value="${k}">${esc(p.label)}</option>`).join("")}</select></label>
       <label>Wind from (°) <input type="number" id="wxDir" min="0" max="360" step="10" value="${weather.windDir}"></label><label>Wind (kt) <input type="number" id="wxKt" min="0" max="35" value="${weather.windKt}"></label><label>Gusts (kt) <input type="number" id="wxG" min="0" max="45" value="${weather.gustKt}"></label>
       <label>Visibility (SM) <input type="number" id="wxVis" min="0.25" max="10" step="0.25" value="${weather.visSM}"></label>
       <label>Precipitation <select id="wxPr">${Object.entries(PRECIP_OPTS).map(([k, o]) => `<option value="${k}" ${weather.precip === o.precip && (o.precip === "none" || Math.abs(weather.precipRate - o.rate) < 0.2) ? "selected" : ""}>${esc(o.label)}</option>`).join("")}</select></label>
@@ -641,7 +646,7 @@ function renderDrawer() {
       <label>Time of day <input type="range" id="wxH" min="5" max="23.5" step="0.1" value="${weather.hour}"><output id="wxHo">${fmtHour(weather.hour)}</output></label>
       <button class="sbtn primary" id="wxApply">Apply weather</button></div>
       <p class="dnote">After changing the altimeter setting, set your own altimeter too (Kollsman knob on the panel). Hot, high and humid raises density altitude ${examLink("t2")}${examLink("e31")}.</p>`;
-    $("#wxP", B).addEventListener("change", (e) => { if (e.target.value) { sim.setWeather(PRESETS[e.target.value]); renderDrawer(); } });
+    $("#wxP", B).addEventListener("change", (e) => { const v = e.target.value; if (v) { sim.setWeather(v === "live" ? REAL.live.params : PRESETS[v]); renderDrawer(); } });
     $("#wxH", B).addEventListener("input", (e) => { weather.hour = +e.target.value; $("#wxHo", B).textContent = fmtHour(weather.hour); });
     $("#wxApply", B).addEventListener("click", () => { const cov = $("#wxCov", B).value; sim.setWeather({ windDir: +$("#wxDir", B).value % 360, windKt: +$("#wxKt", B).value, gustKt: +$("#wxG", B).value, turb: 0.15 + (+$("#wxKt", B).value) / 60, visSM: +$("#wxVis", B).value, ...precipFromForm(B), clouds: cov === "CLR" ? [] : [{ cover: cov, baseFt: +$("#wxBase", B).value }], tempC: +$("#wxT", B).value, dewC: Math.min(+$("#wxT", B).value, +$("#wxD", B).value), qnhInHg: +$("#wxQ", B).value }); renderDrawer(); say("Weather updated.", "info", 1500); });
   } else if (n === "fail") {
@@ -844,7 +849,7 @@ function hudUpdate() {
   const v = sim.vfr; if (v) {
     const cls = v.special.length ? v.special.map((s) => s.id).join(" · ") : `Class ${v.cls}`;
     $("#vfr").className = `vfr ${v.ok ? "ok" : "bad"}`;
-    const na = nearestAirport(ac.pos.x, ac.pos.z), nb = Math.round((Math.atan2(na.airport.x - ac.pos.x, -(na.airport.z - ac.pos.z)) * 180 / Math.PI + 360) % 360) || 360;
+    const na = nearestAirport(ac.pos.x, ac.pos.z), nb = Math.round((Math.atan2(na.airport.x - ac.pos.x, -(na.airport.z - ac.pos.z)) * 180 / Math.PI - MAGVAR + 720) % 360) || 360;
     $("#vfr").innerHTML = `<b>${esc(cls)}</b><span>${esc(v.ok ? v.mins.text : v.why)}</span><span class="near">${esc(na.airport.id)} ${esc(na.airport.name)} · ${(na.dist / 1852).toFixed(1)} NM · ${String(nb).padStart(3, "0")}°</span>`;
     $("#vfr").title = `VFR minimums here: ${v.mins.text} (14 CFR 91.155)`;
   }
@@ -915,7 +920,7 @@ function precipFromForm(B) {
 function startFlying() { $("#start").hidden = true; sim.paused = false; audio.start(); }
 function freeFlight(where, wx, hour) {
   lessons.stop(); renderObjectives();
-  sim.setWeather(PRESETS[wx]); sim.setTime(hour);
+  sim.setWeather(wx === "live" && REAL?.live ? REAL.live.params : PRESETS[wx] || PRESETS.scattered); sim.setTime(hour === "now" ? localNow() : +hour);
   if (REAL) return realStart(where);
   const sp = { kzarRamp: { ...KZAR.spawn.ramp, onGround: true, engineRunning: false, coldDark: true }, kzar27: { ...KZAR.spawn.rwy27, onGround: true }, kzar09: { ...KZAR.spawn.rwy09, onGround: true }, kame36: { ...KAME.spawn.rwy36, onGround: true }, z19: { ...Z19.spawn.rwy04, onGround: true }, z40: { ...Z40.spawn.rwy36, onGround: true }, ksrh: { ...KSRH.spawn.rwy31, onGround: true }, z23: { ...Z23.spawn.rwy34, onGround: true }, air: { x: -2000, z: 6000, hdg: 60, onGround: false, altFt: 3500, kias: 100 } }[where];
   spawn(sp); if (where === "air") ac.ctl.throttle = 0.66;
@@ -927,7 +932,7 @@ function freeFlight(where, wx, hour) {
 let startLessonId = "pattern";
 $("#startLesson").addEventListener("click", () => { startFlying(); lessons.start(startLessonId); });
 $("#startPick").addEventListener("click", () => { startFlying(); sim.paused = true; openDrawer("lessons"); $("#paused").hidden = false; });
-$("#startFree").addEventListener("click", () => { startFlying(); freeFlight(REAL ? "0:start" : "kzar27", "scattered", 13); });
+$("#startFree").addEventListener("click", () => { startFlying(); freeFlight(REAL ? "0:start" : "kzar27", REAL?.live ? "live" : "scattered", REAL ? "now" : 13); });
 /* ---------------- Real World mode ---------------- */
 /** start choices for a real place: every runway end of the nearest airports, and on final to the home field */
 function realStarts() {
@@ -954,7 +959,7 @@ function realWorldUi() {
   if (REAL) {
     $("#startLesson").hidden = $("#startPick").hidden = true;
     $("#startFree").textContent = `Fly from ${KZAR.id}`; $("#startFree").classList.add("primary");
-    pick.innerHTML = `<p class="dnote"><b>${esc(KZAR.id)} ${esc(KZAR.name)}</b>, ${esc(KZAR.city || "")} ${esc(KZAR.state || "")} · ${KZAR.elevFt.toLocaleString()} ft · ${AIRPORTS.length} airports in this 60 km square. Real terrain, aerial photos, runways and frequencies; airspace is approximate and there are no taxiways yet. Lessons fly in Zarhart Valley. <a href="./">Back to Zarhart Valley</a></p>`;
+    pick.innerHTML = `<p class="dnote"><b>${esc(KZAR.id)} ${esc(KZAR.name)}</b>, ${esc(KZAR.city || "")} ${esc(KZAR.state || "")} · ${KZAR.elevFt.toLocaleString()} ft · ${AIRPORTS.length} airports in this 60 km square. Real terrain, aerial photos, runways, taxiways, frequencies and airspace, with the weather and time of day there right now. Lessons fly in Zarhart Valley. <a href="./">Back to Zarhart Valley</a></p>`;
     const at = document.createElement("div"); at.className = "attrib"; at.textContent = REAL_ATTRIBUTION; document.body.appendChild(at);
     return;
   }
@@ -973,14 +978,38 @@ function realWorldUi() {
   $("#realApt").addEventListener("keydown", (ev) => { ev.stopPropagation(); if (ev.key === "Enter") go(); });
 }
 const REAL_ATTRIBUTION = "Terrain: Terrain Tiles on AWS (USGS 3DEP, SRTM) · Imagery: USGS The National Map · Airports: OurAirports · Taxiways: © OpenStreetMap contributors";
-/** what Ground says to get from here to a runway: the nearest named taxiway, then the one at that runway's hold-short line */
+/** a Cherokee taxiing out from a parking spot along the real taxiways, once the home field has them */
+function realDepartureTraffic() {
+  if (!KZAR.detail || !KZAR.holdShort.length || settings.traffic === false || lessons.lesson || mp.connected || traffic.agents.some((a) => a.kind === "depart")) return;
+  const spots = (KZAR.parking || []).filter((p) => Math.hypot(p.x - KZAR.spawn.ramp.x, p.z - KZAR.spawn.ramp.z) > 40);
+  if (spots.length) traffic.add(KZAR, "depart", { name: "Cherokee", tail: "7ED", type: "pa28", stripe: 0xd23a2a, ramp: spots[(Math.random() * spots.length) | 0] });
+}
+/** what Ground says to get from here to a runway: the taxiways along the shortest way to its hold-short line */
 function taxiVia(ap, rw) {
   if (!REAL) return "Alpha";
+  const end = ap.runways.flatMap((r) => r.ends).find((e) => e.id === rw), id = rw.replace(/^0/, "");
+  const holdFor = end && ap.holdShort.filter((h) => h.sign.split("-").includes(id)).sort((p, q) => Math.hypot(p.x - end.x, p.z - end.z) - Math.hypot(q.x - end.x, q.z - end.z))[0];
+  const route = holdFor && taxiRoute(ap, { x: ac.pos.x, z: ac.pos.z }, holdFor);
+  if (route?.via.length) return route.via.slice(0, 4).join(", ");
   const named = ap.taxiways.filter((t) => t.name && !t.lane), dist = (t, x, z) => Math.hypot(t.cx - x, t.cz - z);
   const first = named.sort((p, q) => dist(p, ac.pos.x, ac.pos.z) - dist(q, ac.pos.x, ac.pos.z))[0]?.name;
-  const end = ap.runways.flatMap((r) => r.ends).find((e) => e.id === rw), id = rw.replace(/^0/, "");
   const hold = end && ap.holdShort.filter((h) => h.twy && h.sign.split("-").includes(id)).sort((p, q) => Math.hypot(p.x - end.x, p.z - end.z) - Math.hypot(q.x - end.x, q.z - end.z))[0];
   return [first, hold?.twy].filter((v, i, a) => v && a.indexOf(v) === i).join(", ") || "the parallel taxiway";
+}
+/** the local solar time at the home field, in hours */
+function localNow() { const d = new Date(); return (((d.getUTCHours() + d.getUTCMinutes() / 60 + KZAR.lon / 15) % 24) + 24) % 24; }
+/** Real World mode starts with the field's real weather (National Weather Service) at the real time of day there */
+async function startLiveWeather(prog) {
+  weather.utcOffset = -KZAR.lon / 15; // ATIS and METAR times in real Zulu
+  prog.textContent = "Getting the real weather…";
+  const { loadLiveWeather } = await import("./realworld.js");
+  REAL.live = await Promise.race([loadLiveWeather(KZAR), new Promise((r) => setTimeout(() => r(null), 7000))]);
+  // the radios: the field's ATIS (or AWOS) on standby, and the two nearest VORs on NAV1
+  const r = sim.radio, vors = [...NAVAIDS].sort((p, q) => Math.hypot(p.x, p.z) - Math.hypot(q.x, q.z));
+  r.com1s = KZAR.freqs.atis || KZAR.freqs.awos || r.com1s; if (vors[0]) r.nav1 = vors[0].freq; if (vors[1]) r.nav1s = vors[1].freq;
+  sim.setWeather(REAL.live ? REAL.live.params : PRESETS.scattered); sim.setTime(localNow());
+  if (REAL.live) $("#realPick")?.insertAdjacentHTML("beforeend", `<p class="metar mono">${esc(REAL.live.raw)}</p>`);
+  if (!REAL.live) say("Couldn't get the real weather just now, so it's a nice scattered day. Weather presets are in the Weather menu.", "info", 6000);
 }
 /** OpenStreetMap's taxiways and ramps, when they arrive after the world was built */
 function realDetailLater() {
@@ -988,6 +1017,7 @@ function realDetailLater() {
     if (!detail) return;
     const { applyAirportDetail } = await import("./realworld.js");
     let n = 0; for (const ap of AIRPORTS) if (applyAirportDetail(ap, detail[ap.id], false)) { world.addAirportDetail(ap); n++; }
+    realDepartureTraffic();
     if (n) say(`Taxiways and ramps are in for ${n} airport${n > 1 ? "s" : ""} (OpenStreetMap).`, "info", 4000);
   }).catch((err) => console.warn("OpenStreetMap detail:", err));
 }
@@ -1208,7 +1238,8 @@ async function boot() {
     prog.textContent = "Drawing the sectional chart…"; await new Promise((r) => setTimeout(r, 16));
     sectionalBase = buildSectionalBase(settings.quality === "low" ? 480 : 640);
     addParked(); world.labelsOn = settings.labels !== false;
-    sim.setWeather(PRESETS.scattered); sim.setTime(13);
+    if (REAL) await startLiveWeather(prog);
+    else { sim.setWeather(PRESETS.scattered); sim.setTime(13); }
     spawn({ ...(KZAR.spawn.rwy27 || KZAR.spawn.start), onGround: true });
     if (REAL) { sim.radio.com1 = KZAR.freqs.twr || KZAR.freqs.ctaf || 122.9; sim.radio.com2 = KZAR.freqs.gnd || KZAR.freqs.awos || KZAR.freqs.atis || 121.5; realDetailLater(); }
     sim.ready = true; sim.d = ac.derived;

@@ -5,6 +5,7 @@
 import * as THREE from "three";
 import { buildAirplane, animateAirplane } from "./plane3d.js";
 import { groundAt, rectDist } from "./world-data.js";
+import { taxiRoute } from "./realworld.js";
 
 const KT = 0.514444, FT = 0.3048, DEG = Math.PI / 180, NM = 1852, GEAR = 1.3;
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
@@ -36,9 +37,9 @@ export class Traffic {
   clear() { for (const a of this.agents) this.scene.remove(a.g); this.agents = []; this.queue = []; }
 
   /** pattern traffic at `ap`, or a departure from its ramp */
-  add(ap, kind, { name = "Skyhawk", tail = "4AB", type = "c172", stripe = 0x2f7fd0, start = 0 } = {}) {
+  add(ap, kind, { name = "Skyhawk", tail = "4AB", type = "c172", stripe = 0x2f7fd0, start = 0, ramp = null } = {}) {
     const g = buildAirplane({ reg: `N${tail}`, stripe, simple: true, type }); g.visible = false; this.scene.add(g);
-    const a = { ap, kind, name, tail, short: `${name} ${tail}`, call: spoken(name, tail), g, x: 0, y: 0, z: 0, hdg: 0, pitch: 0, bank: 0, spd: 0, path: null, i: 0, wait: 0, flaps: 0, gone: 0 };
+    const a = { ap, kind, name, tail, ramp, short: `${name} ${tail}`, call: spoken(name, tail), g, x: 0, y: 0, z: 0, hdg: 0, pitch: 0, bank: 0, spd: 0, path: null, i: 0, wait: 0, flaps: 0, gone: 0 };
     this.agents.push(a);
     if (kind === "pattern") this.route(a, start); else this.departure(a);
     return a;
@@ -63,6 +64,7 @@ export class Traffic {
   departure(a) {
     const ap = a.ap, { e, r, side } = this.rwy(ap); a.e = e; a.r = r; a.side = side;
     const hold = ap.holdShort.slice().sort((p, q) => Math.hypot(p.x - e.x, p.z - e.z) - Math.hypot(q.x - e.x, q.z - e.z))[0];
+    if (ap.real) return this.realDeparture(a, hold);
     const twy = ap.taxiways[0], ramp = ap.spawn.ramp;
     const onTwy = (x, z) => { const h = twy.hdg * DEG, dx = Math.sin(h), dz = -Math.cos(h), t = (x - twy.cx) * dx + (z - twy.cz) * dz; return { x: twy.cx + dx * t, z: twy.cz + dz * t }; };
     const G = (x, z, kt, extra = {}) => ({ x, z, h: null, spd: kt, ground: true, ...extra });
@@ -71,6 +73,23 @@ export class Traffic {
       G(rwyPoint(e, 380, 0).x, rwyPoint(e, 380, 0).z, 55, { leg: "rotate" }), { ...rwyPoint(e, r.len + 300, 0), h: ap.elev + 400 * FT, spd: 72, leg: "upwind" },
       { ...out, h: ap.elev + 2500 * FT, spd: 95, leg: "departure", say: "freq" }, { ...rwyPoint(e, r.len + 14000, 0), h: ap.elev + 3500 * FT, spd: 105, leg: "gone" }];
     a.i = 0; a.x = ramp.x; a.z = ramp.z; a.y = groundAt(ramp.x, ramp.z).h + GEAR; a.spd = 0; a.hdg = ramp.hdg; a.g.visible = true; a.wait = 7;
+    this.speak(a, "taxi");
+  }
+
+  /**
+   * Real World mode: from a parking spot along the real taxiways (the shortest way, realworld.js) to the hold-short line
+   * of the runway in use, then the same takeoff and departure as at Zarhart.
+   */
+  realDeparture(a, hold) {
+    const ap = a.ap, { e, r } = a, ramp = a.ramp || ap.spawn.ramp, route = hold && taxiRoute(ap, ramp, hold);
+    if (!route) { a.g.visible = false; a.path = null; return; } // no taxiway network to follow here
+    const G = (x, z, kt, extra = {}) => ({ x, z, h: null, spd: kt, ground: true, ...extra });
+    const entry = rwyPoint(e, 30, 0), out = rwyPoint(e, r.len + 5000, 0), first = route.pts[0];
+    a.via = route.via.join(", ");
+    a.path = [G(ramp.x, ramp.z, 0, { leg: "ramp" }), ...route.pts.map((p) => G(p.x, p.z, 12)), G(hold.x, hold.z, 5, { leg: "hold", say: "ready" }), G(entry.x, entry.z, 6, { leg: "lineup" }),
+      G(rwyPoint(e, 380, 0).x, rwyPoint(e, 380, 0).z, 55, { leg: "rotate" }), { ...rwyPoint(e, r.len + 300, 0), h: ap.elev + 400 * FT, spd: 72, leg: "upwind" },
+      { ...out, h: ap.elev + 2500 * FT, spd: 95, leg: "departure", say: "freq" }, { ...rwyPoint(e, r.len + 14000, 0), h: ap.elev + 3500 * FT, spd: 105, leg: "gone" }];
+    a.i = 0; a.x = ramp.x; a.z = ramp.z; a.y = groundAt(ramp.x, ramp.z).h + GEAR; a.spd = 0; a.hdg = (Math.atan2(first.x - ramp.x, -(first.z - ramp.z)) / DEG + 360) % 360; a.g.visible = true; a.wait = 7;
     this.speak(a, "taxi");
   }
 
@@ -88,7 +107,7 @@ export class Traffic {
     }
     const twr = `${short} Tower`;
     if (tag === "midfield") this.say(f, a.short, `${twr}, ${a.call}, midfield ${sideW} downwind, touch and go.`, [twr, onRwy ? `${a.call}, extend downwind, I'll call your base.` : `${a.call}, runway ${rw}, cleared touch and go.`]);
-    if (tag === "taxi") this.say(ap.freqs.gnd, a.short, `${short} Ground, ${a.call}, at the ramp with information ${this.o.atis()}, ready to taxi, VFR departure to the ${this.depDir(a)}.`, [`${short} Ground`, `${a.call}, runway ${rw}, taxi via Alpha.`]);
+    if (tag === "taxi") this.say(ap.freqs.gnd, a.short, `${short} Ground, ${a.call}, at the ramp with information ${this.o.atis()}, ready to taxi, VFR departure to the ${this.depDir(a)}.`, [`${short} Ground`, `${a.call}, runway ${rw}, taxi via ${a.via || "Alpha"}.`]);
     if (tag === "ready") this.say(f, a.short, `${twr}, ${a.call}, holding short runway ${rw}, ready for departure.`, [twr, `${a.call}, ${onRwy ? `hold short runway ${rw}, traffic on the runway.` : `runway ${rw}, cleared for takeoff.`}`]);
     if (tag === "freq") this.say(f, twr, `${a.call}, frequency change approved.`, [a.short, `Frequency change approved, ${a.call}.`]);
   }

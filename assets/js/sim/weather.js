@@ -1,5 +1,5 @@
 // Weather, wind field, time of day, METAR/ATIS text.
-import { simplex, heightAt, AIRPORTS } from "./world-data.js";
+import { simplex, heightAt, AIRPORTS, MAGVAR } from "./world-data.js";
 import { KT, FT, RWY_COND } from "./fdm.js";
 export { RWY_COND };
 
@@ -48,7 +48,7 @@ export class Weather {
   }
   /** what the flight model reads */
   get state() {
-    return { qnhInHg: this.qnhInHg, tempC: this.tempC, dewC: this.dewC, isaDev: this.tempC - (15 - 1.98 * this.home.elevFt / 1000), stationM: this.home.elevFt * FT, rwy: this.rwy, precip: this.precip };
+    return { qnhInHg: this.qnhInHg, tempC: this.tempC, dewC: this.dewC, isaDev: this.tempC - (15 - 1.98 * this.home.elevFt / 1000), stationM: this.home.elevFt * FT, magVar: MAGVAR, rwy: this.rwy, precip: this.precip };
   }
   cloudLayersMsl() { return this.clouds.map((c) => ({ cover: c.cover, baseMsl: (this.home.elevFt + c.baseFt) * FT })); }
   /** air velocity (m/s, direction the air moves toward) */
@@ -92,7 +92,10 @@ export class Weather {
     const a = (this.windDir - rwyHdg) * DEG;
     return { head: Math.round(this.windKt * Math.cos(a)), cross: Math.round(this.windKt * Math.sin(a)) };
   }
-  zulu(simHour) { const z = (simHour + 5 + 24) % 24; const hh = Math.floor(z), mm = Math.floor((z - hh) * 60); return `${String(hh).padStart(2, "0")}${String(mm).padStart(2, "0")}`; }
+  /** where the wind blows from, magnetic, as ATIS, AWOS and controllers give it (a METAR gives it true) */
+  windMag() { return (((this.windDir - MAGVAR) % 360) + 360) % 360; }
+  /** hh mm in Zulu for a local hour: Zarhart Valley keeps US Eastern time (UTC-5); Real World mode sets utcOffset for the field */
+  zulu(simHour) { const z = (((simHour + (this.utcOffset ?? 5)) % 24) + 24) % 24; const hh = Math.floor(z), mm = Math.floor((z - hh) * 60); return `${String(hh).padStart(2, "0")}${String(mm).padStart(2, "0")}`; }
   metar(ap = this.home, hour = this.hour) {
     const day = String(new Date().getDate()).padStart(2, "0");
     const t = (v) => (v < 0 ? "M" : "") + String(Math.abs(Math.round(v))).padStart(2, "0");
@@ -112,7 +115,7 @@ export class Weather {
   }
   /** an automated (AWOS) report: no letter, no runway, just the observation, as a non-towered field broadcasts it */
   awos(ap, hour = this.hour) {
-    const wind = this.windKt < 3 ? "Wind calm" : `Wind ${String(Math.round(this.windDir / 10) * 10).padStart(3, "0")} at ${Math.round(this.windKt)}${this.gustKt > this.windKt ? `, gusts ${Math.round(this.gustKt)}` : ""}`;
+    const wind = this.windKt < 3 ? "Wind calm" : `Wind ${String(Math.round(this.windMag() / 10) * 10 || 360).padStart(3, "0")} at ${Math.round(this.windKt)}${this.gustKt > this.windKt ? `, gusts ${Math.round(this.gustKt)}` : ""}`;
     const sky = this.clouds.length ? this.clouds.map((c) => `${{ FEW: "Few clouds", SCT: "Scattered", BKN: "Ceiling broken", OVC: "Ceiling overcast" }[c.cover]} ${c.baseFt.toLocaleString()}`).join(". ") : "Sky clear";
     const wx = this.precip !== "none" ? ` ${{ rain: "Rain", snow: "Snow", fzra: "Freezing rain" }[this.precip]}${this.precipRate >= 0.9 ? ", heavy" : this.precipRate < 0.45 ? ", light" : ""}.` : "";
     return `${ap.name} automated weather observation, ${this.zulu(hour)} Zulu. ${wind}. Visibility ${this.visSM >= 10 ? "1 0" : this.visSM}.${wx} ${sky}. Temperature ${Math.round(this.tempC)}, dew point ${Math.round(this.dewC)}. Altimeter ${this.qnhInHg.toFixed(2)}.`;
@@ -122,7 +125,7 @@ export class Weather {
     const act = this.activeRunway(ap);
     const sky = this.clouds.length ? this.clouds.map((c) => `${{ FEW: "few clouds", SCT: "scattered", BKN: "ceiling broken", OVC: "ceiling overcast" }[c.cover]} ${c.baseFt.toLocaleString()}`).join(", ") : "";
     const showSky = !(this.visSM >= 5 && (!this.clouds.some((c) => c.cover === "BKN" || c.cover === "OVC") || this.clouds.every((c) => c.baseFt >= 5000)));
-    const wind = this.windKt < 3 ? "wind calm" : `wind ${String(Math.round(this.windDir / 10) * 10).padStart(3, "0")} at ${Math.round(this.windKt)}${this.gustKt > this.windKt ? `, gusts ${Math.round(this.gustKt)}` : ""}`;
+    const wind = this.windKt < 3 ? "wind calm" : `wind ${String(Math.round(this.windMag() / 10) * 10 || 360).padStart(3, "0")} at ${Math.round(this.windKt)}${this.gustKt > this.windKt ? `, gusts ${Math.round(this.gustKt)}` : ""}`;
     const parts = [
       `${ap.name} information ${letter}, ${this.zulu(hour)} Zulu.`,
       `${wind[0].toUpperCase() + wind.slice(1)}.`,

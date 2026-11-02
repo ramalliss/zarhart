@@ -4,6 +4,8 @@
 //   aerial photos    USGS The National Map, orthoimagery (public domain)
 //   airports, VORs   OurAirports (public domain), packed per 1° square by tools/build-airports.mjs
 //   taxiways, ramps  OpenStreetMap (© OpenStreetMap contributors, ODbL), asked for live and kept in the browser for 30 days
+//   live weather     National Weather Service observations (api.weather.gov, public domain)
+//   airspace         FAA Aeronautical Information Services open data (Class B–E and special use, public domain)
 // The sim's frame is flat: x metres east and z metres south of the home airport, so north is -z, as in Zarhart Valley.
 
 const R = 6378137, DEG = Math.PI / 180, FT = 0.3048;
@@ -148,7 +150,7 @@ function toSim(a, frame) {
   spawn.start = spawn[`rwy${main.ids[0]}`]; spawn.ramp = spawn.start;
   const side = main.wid / 2 + 70, wx = main.cx - main.dir[1] * side, wz = main.cz + main.dir[0] * side; // a windsock beside the main runway
   const ap = {
-    id: a.id, local: a.local, name: a.name, city: a.city, state: a.state, real: true,
+    id: a.id, local: a.local, name: a.name, city: a.city, state: a.state, real: true, lat: a.lat, lon: a.lon,
     call: a.city && a.name.toLowerCase().startsWith(a.city.toLowerCase()) ? a.city : callName(a.name), // "Aspen-Pitkin County Airport" in Aspen: "Aspen Tower"
     x, z, towered, size: a.size,
     calmRwy: main.ids[0], pcl: !towered && main.lights,
@@ -194,12 +196,14 @@ export async function loadRealWorld(ident, { half = 30000, demZoom = 12, grid = 
     .filter((n) => Math.hypot(n.x, n.z) < half + 60000);
   // magnetic variation from the nearest VOR (east is positive)
   const near = [...navaids].sort((p, q) => Math.hypot(p.x, p.z) - Math.hypot(q.x, q.z))[0];
-  // airspace, approximately: towered fields get a Class D cylinder, big towered ones Class C. Check the sectional for the real shapes.
-  const airspace = airports.filter((a) => a.towered).map((a) => a.size === "L"
+  // airspace: the FAA's real shapes; if they can't be had, towered fields get an approximate Class D cylinder (big ones Class C)
+  const realAirspace = loadAirspace(frame, half);
+  const approx = () => airports.filter((a) => a.towered).map((a) => a.size === "L"
     ? { id: `${a.id}-C`, name: `${a.call} Class C (approximate)`, cls: "C", x: a.x, z: a.z, r: 9260, floorFt: 0, ceilFt: Math.round((a.elevFt + 4000) / 100) * 100 }
-    : { id: `${a.id}-D`, name: `${a.call} Class D (approximate)`, cls: "D", x: a.x, z: a.z, r: 7780, floorFt: 0, ceilFt: Math.round((a.elevFt + 2500) / 100) * 100 });
+    : { id: `${a.id}-D`, name: `${a.call} Class D (approximate)`, cls: "D", x: a.x, z: a.z, r: 7780, floorFt: 0, ceilFt: Math.round((a.elevFt + 2500) / 100) * 100 }).map((x) => ({ ...x, approx: true }));
   const detail = loadAirportDetail(frame, airports); // taxiways and ramps arrive whenever OpenStreetMap answers (often while the terrain loads)
   const heights = await loadHeights(frame, half, { zoom: demZoom, G: grid, progress: (d, n) => progress(`Downloading real terrain (${d}/${n})`) });
+  const airspace = (await realAirspace) || approx();
   return { frame, airports, navaids, airspace, heights, variation: near?.var ?? 0, half, detail };
 }
 
@@ -307,7 +311,7 @@ export function applyAirportDetail(ap, d, flatten) {
     const hdg = ((Math.atan2(x2 - x1, -(z2 - z1)) / DEG) + 360) % 360;
     segs.push({ ...rect((x1 + x2) / 2, (z1 + z2) / 2, hdg, len + tw.wid, tw.wid, tw.grass ? "grass" : "asphalt"), name: tw.ref, lane: tw.lane, line: len });
   }
-  ap.taxiways = segs; ap.apronPolys = d.aprons; ap.buildings = d.buildings;
+  ap.taxiways = segs; ap.apronPolys = d.aprons; ap.buildings = d.buildings; ap.taxiLines = d.taxiways; ap._graph = null;
   if (d.windsocks.length) { const r = ap.runways[0]; ap.windsock = d.windsocks.sort((p, q) => Math.hypot(p.x - r.cx, p.z - r.cz) - Math.hypot(q.x - r.cx, q.z - r.cz))[0]; }
   // hold-short lines
   const dist = { L: 76, M: 61 }[ap.size] || 38, holds = [];
@@ -329,6 +333,7 @@ export function applyAirportDetail(ap, d, flatten) {
   const onRunway = (x, z) => ap.runways.some((r) => Math.abs(across(r, x, z).s) < r.wid / 2 + 40 && Math.abs(across(r, x, z).t) < r.len / 2 + 60);
   const offRunway = d.parking.filter((p) => !onRunway(p.x, p.z)), onRamp = offRunway.filter((p) => d.aprons.some((poly) => inPoly(p.x, p.z, poly)));
   const spots = onRamp.length ? onRamp : offRunway; // a spot on a mapped ramp, if there is one
+  ap.parking = spots.map((p) => ({ x: p.x, z: p.z }));
   let ramp = spots.sort((p, q) => Math.hypot(p.x - ap.x, p.z - ap.z) - Math.hypot(q.x - ap.x, q.z - ap.z))[0];
   if (!ramp && d.aprons.length) { const big = [...d.aprons].sort((p, q) => area(q) - area(p))[0]; ramp = { x: big.reduce((v, p) => v + p[0], 0) / big.length, z: big.reduce((v, p) => v + p[1], 0) / big.length }; if (onRunway(ramp.x, ramp.z)) ramp = null; }
   if (ramp) {
@@ -345,4 +350,145 @@ export function applyAirportDetail(ap, d, flatten) {
   }
   ap.flattened = !!flatten; ap.detail = true; ap.reach = reachOf(ap);
   return true;
+}
+
+/* ---------- live weather (National Weather Service) ---------- */
+/**
+ * A METAR as the sim's weather settings: "KPAO 020147Z 28007KT 10SM SKC 15/09 A3003" →
+ * { windDir, windKt, gustKt, turb, visSM, clouds, tempC, dewC, qnhInHg, precip, precipRate }. Winds are true, as in a METAR.
+ */
+export function parseMetar(raw) {
+  const p = { windDir: 0, windKt: 0, gustKt: 0, visSM: 10, clouds: [], tempC: 15, dewC: 5, qnhInHg: 29.92 };
+  let thunder = false, whole = null;
+  const tokens = raw.trim().split(/\s+/), end = tokens.indexOf("RMK");
+  for (const w of end < 0 ? tokens : tokens.slice(0, end)) {
+    let m;
+    if ((m = /^(\d{3}|VRB)(\d{2,3})(?:G(\d{2,3}))?(KT|MPS)$/.exec(w))) { const k = m[4] === "MPS" ? 1.944 : 1; p.windDir = m[1] === "VRB" ? 0 : +m[1]; p.windKt = Math.round(+m[2] * k); p.gustKt = m[3] ? Math.round(+m[3] * k) : 0; }
+    else if (/^\d$/.test(w)) whole = +w; // "1" of "1 1/2SM"
+    else if ((m = /^[MP]?(\d+)(?:\/(\d+))?SM$/.exec(w))) { p.visSM = (m[2] ? +m[1] / +m[2] : +m[1]) + (m[2] && whole ? whole : 0); whole = null; }
+    else if ((m = /^(FEW|SCT|BKN|OVC|VV)(\d{3})/.exec(w))) { if (p.clouds.length < 3) p.clouds.push({ cover: m[1] === "VV" ? "OVC" : m[1], baseFt: Math.max(100, +m[2] * 100) }); }
+    else if ((m = /^(M?\d{2})\/(M?\d{2})?$/.exec(w))) { const c = (v) => (v.startsWith("M") ? -1 : 1) * +v.replace("M", ""); p.tempC = c(m[1]); p.dewC = m[2] ? c(m[2]) : p.tempC - 5; }
+    else if ((m = /^A(\d{4})$/.exec(w))) p.qnhInHg = +m[1] / 100;
+    else if ((m = /^Q(\d{4})$/.exec(w))) p.qnhInHg = Math.round((+m[1] / 33.8639) * 100) / 100;
+    else if ((m = /^([-+]?)(MI|PR|BC|DR|BL|SH|TS|FZ)*((DZ|RA|SN|SG|IC|PL|GR|GS|UP)+)$/.exec(w))) { // weather in progress at the field (not "VC", in the vicinity)
+      const rate = m[1] === "-" ? 0.35 : m[1] === "+" ? 0.95 : 0.65, kind = /FZ/.test(w) ? "fzra" : /SN|SG|PL|IC/.test(m[3]) ? "snow" : "rain";
+      if (!p.precip || rate > p.precipRate) { p.precip = kind; p.precipRate = rate; }
+      if (/TS/.test(w)) thunder = true;
+    } else if (/^[-+]?TS$/.test(w)) thunder = true;
+  }
+  p.turb = Math.min(0.7, 0.05 + 0.012 * p.windKt + 0.02 * Math.max(0, p.gustKt - p.windKt) + (thunder ? 0.2 : 0));
+  if (p.precip === "snow") p.snowCover = true;
+  return p;
+}
+const NWS = "https://api.weather.gov";
+async function latestObs(station) {
+  const r = await fetch(`${NWS}/stations/${station}/observations/latest`, { headers: { Accept: "application/geo+json" } });
+  if (!r.ok) return null;
+  const o = (await r.json()).properties, age = (Date.now() - Date.parse(o.timestamp)) / 60000;
+  return o.rawMessage && age < 180 ? { raw: o.rawMessage, station, ageMin: Math.round(age) } : null;
+}
+/**
+ * The real weather at an airport now: its own latest observation, or the nearest station's that has one in the last three
+ * hours. { params (the sim's weather settings), raw (the METAR), station, ageMin } or null.
+ */
+export async function loadLiveWeather(ap) {
+  try {
+    let obs = /^[A-Z]{4}$/.test(ap.id) ? await latestObs(ap.id).catch(() => null) : null;
+    if (!obs) {
+      const r = await fetch(`${NWS}/points/${ap.lat.toFixed(4)},${ap.lon.toFixed(4)}/stations`, { headers: { Accept: "application/geo+json" } });
+      if (r.ok) for (const f of ((await r.json()).features || []).slice(0, 4)) { obs = await latestObs(f.properties.stationIdentifier).catch(() => null); if (obs) break; }
+    }
+    if (!obs) return null;
+    const params = parseMetar(obs.raw);
+    return { ...obs, params: { ...params, label: `Live weather: ${obs.station} METAR, ${obs.ageMin} min old` } };
+  } catch { return null; }
+}
+
+/* ---------- airspace (FAA) ---------- */
+const FAA = "https://services6.arcgis.com/ssFJjBXIUyZDrSYZ/arcgis/rest/services";
+const title = (t) => t.toLowerCase().replace(/\b[a-z]/g, (c) => c.toUpperCase()).replace(/\bClass ([a-e])\b/gi, (m, c) => `Class ${c.toUpperCase()}`).replace(/\bMoa\b/, "MOA");
+/** feet and whether they're above the ground: (3000, FT, MSL) → [3000, false]; (700, FT, SFC) → [700, true]; FL180 → [18000, false] */
+const level = (v, uom, code) => (v == null || v === -9998 || code === "UNLTD" ? [null, false] : [uom === "FL" ? v * 100 : v, code === "SFC"]);
+/**
+ * The FAA's airspace over the square: Class B, C, D and E shapes and special use airspace (prohibited, restricted,
+ * warning, alert areas and MOAs), as polygons in the sim's frame, simplified to about 30 m. null if it can't be had.
+ */
+async function loadAirspace(frame, half) {
+  const [latN, lonW] = frame.toGeo(-half - 5000, -half - 5000), [latS, lonE] = frame.toGeo(half + 5000, half + 5000);
+  const q = (layer, fields, where) => fetch(`${FAA}/${layer}/FeatureServer/0/query?where=${encodeURIComponent(where)}&geometry=${lonW.toFixed(4)},${latS.toFixed(4)},${lonE.toFixed(4)},${latN.toFixed(4)}&geometryType=esriGeometryEnvelope&inSR=4326&spatialRel=esriSpatialRelIntersects&outFields=${fields}&returnGeometry=true&outSR=4326&maxAllowableOffset=0.0003&geometryPrecision=5&f=geojson`).then((r) => (r.ok ? r.json() : Promise.reject(new Error(r.status))));
+  try {
+    const cut = new Promise((_, rej) => setTimeout(() => rej(new Error("timeout")), 9000));
+    const [cls, sua] = await Promise.race([Promise.all([
+      q("Class_Airspace", "NAME,CLASS,LOCAL_TYPE,LOWER_VAL,LOWER_UOM,LOWER_CODE,UPPER_VAL,UPPER_UOM,UPPER_CODE", "CLASS<>'A'"),
+      q("Special_Use_Airspace", "NAME,TYPE_CODE,LOWER_VAL,LOWER_UOM,LOWER_CODE,UPPER_VAL,UPPER_UOM,UPPER_CODE", "1=1"),
+    ]), cut]);
+    const out = [], SUA = { P: "P", R: "R", MOA: "MOA", W: "W", A: "ALERT" };
+    const add = (f, kind) => {
+      const p = f.properties, cl = kind === "class" ? p.CLASS : SUA[p.TYPE_CODE]; if (!cl || !f.geometry) return;
+      const polys = f.geometry.type === "MultiPolygon" ? f.geometry.coordinates : [f.geometry.coordinates];
+      const [floorFt, floorAgl] = level(p.LOWER_VAL, p.LOWER_UOM, p.LOWER_CODE), [ceilFt, ceilAgl] = level(p.UPPER_VAL, p.UPPER_UOM, p.UPPER_CODE);
+      polys.forEach((rings, k) => {
+        const [outer, ...holes] = rings.map((ring) => ring.map(([lon, lat]) => frame.toLocal(lat, lon)));
+        if (!outer || outer.length < 4) return;
+        const xs = outer.map((v) => v[0]), zs = outer.map((v) => v[1]);
+        out.push({ id: `${p.NAME}#${out.length}`, name: title(p.NAME), cls: cl, type: p.LOCAL_TYPE || p.TYPE_CODE, poly: outer, holes, bbox: [Math.min(...xs), Math.max(...xs), Math.min(...zs), Math.max(...zs)], floorFt: floorFt ?? 0, floorAgl, ceilFt, ceilAgl, part: k });
+      });
+    };
+    for (const f of cls.features || []) add(f, "class");
+    for (const f of sua.features || []) add(f, "sua");
+    return out.length ? out : null;
+  } catch (err) { console.warn("FAA airspace:", err.message); return null; }
+}
+
+/* ---------- taxi routes ---------- */
+/** the taxiway network: OpenStreetMap's taxiway lines share their points where they meet */
+function taxiGraph(ap) {
+  if (ap._graph) return ap._graph;
+  const nodes = new Map(), node = (x, z) => { const k = `${Math.round(x * 2)},${Math.round(z * 2)}`; let n = nodes.get(k); if (!n) nodes.set(k, (n = { x, z, edges: [] })); return n; };
+  for (const tw of ap.taxiLines || []) for (let i = 0; i < tw.pts.length - 1; i++) {
+    const a = node(...tw.pts[i]), b = node(...tw.pts[i + 1]), len = Math.hypot(b.x - a.x, b.z - a.z);
+    if (len < 0.1) continue;
+    const cost = len * (tw.lane ? 1.3 : 1); // keep to the taxiways rather than wander between hangars
+    a.edges.push({ to: b, cost, ref: tw.ref, lane: tw.lane }); b.edges.push({ to: a, cost, ref: tw.ref, lane: tw.lane });
+  }
+  return (ap._graph = [...nodes.values()]);
+}
+/** a binary heap of [cost, node] for the route search */
+class Heap {
+  constructor() { this.a = []; }
+  push(v) { const a = this.a; a.push(v); let i = a.length - 1; while (i) { const p = (i - 1) >> 1; if (a[p][0] <= a[i][0]) break; [a[p], a[i]] = [a[i], a[p]]; i = p; } }
+  pop() {
+    const a = this.a, top = a[0], last = a.pop();
+    if (a.length) { a[0] = last; let i = 0; for (;;) { const l = 2 * i + 1, r = l + 1; let m = i; if (l < a.length && a[l][0] < a[m][0]) m = l; if (r < a.length && a[r][0] < a[m][0]) m = r; if (m === i) break; [a[m], a[i]] = [a[i], a[m]]; i = m; } }
+    return top;
+  }
+  get size() { return this.a.length; }
+}
+/**
+ * The shortest way along the taxiways from one point to another: { pts: [{ x, z }], via: ["B", "A"] } (the taxiways'
+ * names in order, as Ground would read them), or null when the network doesn't connect them.
+ */
+export function taxiRoute(ap, from, to) {
+  const g = taxiGraph(ap); if (g.length < 2) return null;
+  const near = (p) => { let best = null, bd = Infinity; for (const n of g) { const d = Math.hypot(n.x - p.x, n.z - p.z); if (d < bd) { bd = d; best = n; } } return best; };
+  const s = near(from), t = near(to), cost = new Map([[s, 0]]), prev = new Map(), heap = new Heap();
+  heap.push([0, s]);
+  while (heap.size) {
+    const [c, n] = heap.pop(); if (n === t) break; if (c > cost.get(n)) continue;
+    for (const e of n.edges) { const nc = c + e.cost; if (nc < (cost.get(e.to) ?? Infinity)) { cost.set(e.to, nc); prev.set(e.to, { n, ref: e.ref, lane: e.lane }); heap.push([nc, e.to]); } }
+  }
+  if (!prev.has(t) && s !== t) return null;
+  const pts = [], refs = [];
+  for (let n = t; n; n = prev.get(n)?.n) { pts.push({ x: n.x, z: n.z }); const p = prev.get(n); if (p?.ref) refs.push({ ref: p.ref, lane: p.lane }); }
+  pts.reverse(); refs.reverse();
+  // fewer points: drop the ones where the route runs straight on
+  const out = [pts[0]];
+  for (let i = 1; i < pts.length - 1; i++) {
+    const a = out[out.length - 1], b = pts[i], c = pts[i + 1], h1 = Math.atan2(b.x - a.x, b.z - a.z), h2 = Math.atan2(c.x - b.x, c.z - b.z);
+    if (Math.abs(((h2 - h1 + 3 * Math.PI) % (2 * Math.PI)) - Math.PI) > 0.12 || Math.hypot(b.x - a.x, b.z - a.z) > 150) out.push(b);
+  }
+  if (pts.length > 1) out.push(pts[pts.length - 1]);
+  // controllers name the taxiways, not the taxilanes between hangars
+  const named = (refs.some((r) => !r.lane) ? refs.filter((r) => !r.lane) : refs).map((r) => r.ref);
+  return { pts: out, via: named.filter((r, i) => r !== named[i - 1]) };
 }

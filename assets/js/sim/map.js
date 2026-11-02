@@ -1,5 +1,5 @@
 // Sectional-style map renderer (used by the MFD and the full-screen VFR map).
-import { WORLD_HALF, AIRPORTS, NAVAIDS, AIRSPACE, TOWNS, RIVER, HIGHWAY, RAILROAD, OBSTACLES, LAUNCH, heightAt, inLake } from "./world-data.js";
+import { WORLD_HALF, AIRPORTS, NAVAIDS, AIRSPACE, TOWNS, RIVER, HIGHWAY, RAILROAD, OBSTACLES, LAUNCH, heightAt, inLake, REAL } from "./world-data.js";
 import { FT } from "./fdm.js";
 
 const NM = 1852, DEG = Math.PI / 180;
@@ -60,6 +60,7 @@ export function drawMap(g, x, y, w, h, o) {
   const font = (px, wt = 600) => `${wt} ${px}px "Barlow", "Arial Narrow", sans-serif`;
   // airspace
   for (const a of AIRSPACE) {
+    if (a.poly) { drawRealAirspace(g, a, S, x, y, w, h, font); continue; }
     const [ax, ay] = S(a.x, a.z), r = a.r * s;
     if (ax + r < x || ax - r > x + w || ay + r < y || ay - r > y + h) continue;
     g.lineWidth = 2;
@@ -83,7 +84,7 @@ export function drawMap(g, x, y, w, h, o) {
   // obstacles
   for (const ob of OBSTACLES) { if (o.rangeNm > 25) break; const [a, b] = S(ob.x, ob.z); g.strokeStyle = INK; g.lineWidth = 1.5; g.beginPath(); g.moveTo(a - 5, b + 6); g.lineTo(a, b - 8); g.lineTo(a + 5, b + 6); g.stroke(); g.beginPath(); g.arc(a, b + 4, 1.6, 0, 7); g.fillStyle = INK; g.fill(); if (big) { const msl = Math.round((heightAt(ob.x, ob.z) / FT + ob.hAgl / FT) / 10) * 10; g.font = font(11, 700); g.fillText(`${msl}`, a + 7, b - 2); g.font = font(10, 500); g.fillText(`(${Math.round(ob.hAgl / FT)})`, a + 7, b + 9); } }
   // launch complex
-  { const [a, b] = S(LAUNCH.x, LAUNCH.z); g.fillStyle = INK; g.beginPath(); g.moveTo(a, b - 9); g.lineTo(a + 4, b + 6); g.lineTo(a - 4, b + 6); g.closePath(); g.fill(); if (o.rangeNm <= 20) { g.font = font(11, 600); g.fillText("LAUNCH COMPLEX", a + 8, b + 4); } }
+  if (!REAL) { const [a, b] = S(LAUNCH.x, LAUNCH.z); g.fillStyle = INK; g.beginPath(); g.moveTo(a, b - 9); g.lineTo(a + 4, b + 6); g.lineTo(a - 4, b + 6); g.closePath(); g.fill(); if (o.rangeNm <= 20) { g.font = font(11, 600); g.fillText("LAUNCH COMPLEX", a + 8, b + 4); } }
   // VORs
   for (const n of NAVAIDS) {
     const [a, b] = S(n.x, n.z); const rr = Math.max(26, Math.min(70, 4 * NM * s));
@@ -125,4 +126,29 @@ export function drawMap(g, x, y, w, h, o) {
   g.beginPath(); g.moveTo(x + 18, y + 10); g.lineTo(x + 24, y + 26); g.lineTo(x + 12, y + 26); g.closePath(); g.fill(); g.fillText("N", x + 13.5, y + 39);
   g.restore();
   return (px, py) => ({ x: o.cx + (px - mx) / s, z: o.cz + (py - my) / s });
+}
+
+/**
+ * Real World mode's FAA airspace, drawn the way a sectional does: Class B solid blue, C solid magenta, D dashed blue,
+ * surface Class E dashed magenta, Class E from 700 ft a soft magenta edge, and special use airspace with a hatched edge.
+ * B and C carry ceiling/floor in hundreds of feet; D its ceiling in brackets.
+ */
+function drawRealAirspace(g, a, S, x, y, w, h, font) {
+  const pts = a.poly.map(([px, pz]) => S(px, pz));
+  let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+  for (const [px, py] of pts) { if (px < x0) x0 = px; if (px > x1) x1 = px; if (py < y0) y0 = py; if (py > y1) y1 = py; }
+  if (x1 < x || x0 > x + w || y1 < y || y0 > y + h) return;
+  const path = () => { g.beginPath(); pts.forEach(([px, py], i) => (i ? g.lineTo(px, py) : g.moveTo(px, py))); g.closePath(); };
+  const sua = ["P", "R", "MOA", "W", "ALERT"].includes(a.cls), e700 = a.cls === "E" && a.floorAgl && a.floorFt > 0;
+  const col = a.cls === "B" || a.cls === "D" || a.cls === "P" || a.cls === "R" || a.cls === "W" ? BLUE : MAG;
+  g.save(); g.strokeStyle = col;
+  if (e700) { g.globalAlpha = 0.45; g.lineWidth = 6; path(); g.stroke(); }
+  else if (sua) { g.lineWidth = 1.5; path(); g.stroke(); g.setLineDash([2, 4]); g.lineWidth = 6; g.globalAlpha = 0.6; path(); g.stroke(); }
+  else { g.lineWidth = a.cls === "B" ? 3 : 2; if (a.cls === "D" || a.cls === "E") g.setLineDash([9, 6]); path(); g.stroke(); }
+  g.restore();
+  // a label at the top of the shape
+  const top = pts.reduce((m, p) => (p[1] < m[1] ? p : m), pts[0]), hund = (v) => (v == null ? "" : String(Math.round(v / 100)));
+  const txt = a.cls === "B" || a.cls === "C" ? `${hund(a.ceilFt)}/${a.floorFt ? hund(a.floorFt) : "SFC"}` : a.cls === "D" ? `[${hund(a.ceilFt)}]` : sua ? `${a.name.replace(/ MOA$/, "")}${a.cls === "MOA" ? " MOA" : ""}` : "";
+  if (!txt || x1 - x0 < 40) return;
+  g.font = font(12, 700); g.fillStyle = col; g.textAlign = "center"; g.fillText(txt, Math.max(x + 20, Math.min(x + w - 20, top[0])), Math.max(y + 14, top[1] + 15)); g.textAlign = "left";
 }
