@@ -1,0 +1,1 @@
+{"airports":[{"id":"PATG","local":"TOG","name":"Togiak Airport","city":"Togiak Village","state":"AK","lat":59.0528,"lon":-160.397,"elev":21,"size":"S","freqs":{"awos":119.3,"ctaf":122.5},"rwys":[["03","21",59.0489,-160.405,59.0569,-160.38901,4400,75,"dirt",1,0,0],["10","28",59.0561,-160.39301,59.055,-160.38699,982,59,"dirt",0,0,0]]}],"navaids":[]}

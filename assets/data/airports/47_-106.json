@@ -1,0 +1,1 @@
+{"airports":[{"id":"K4U6","local":"4U6","name":"Circle Town County Airport","city":"Circle","state":"MT","lat":47.4186,"lon":-105.562,"elev":2426,"size":"S","freqs":{"ctaf":122.8},"rwys":[["03","21",47.4135,-105.556,47.4181,-105.549,2280,195,"grass",0,0,0],["12","30",47.4208,-105.556,47.4125,-105.545,4100,75,"asphalt",1,0,0]]}],"navaids":[]}

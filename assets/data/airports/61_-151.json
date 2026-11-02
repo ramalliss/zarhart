@@ -1,0 +1,1 @@
+{"airports":[{"id":"PAUO","local":"UUO","name":"Willow Airport","city":"Willow","state":"AK","lat":61.7542,"lon":-150.052,"elev":221,"size":"S","freqs":{},"rwys":[["13","31",61.7598,-150.05701,61.7491,-150.04601,4400,75,"dirt",0,0,0]]}],"navaids":[{"id":"ANC","name":"Anchorage","type":"VOR-DME","freq":114.3,"lat":61.1508,"lon":-150.207,"elev":287,"var":20.108}]}

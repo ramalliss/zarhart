@@ -1,0 +1,1 @@
+{"airports":[{"id":"11S","local":"11S","name":"Sekiu Airport","city":"Sekiu","state":"WA","lat":48.2661,"lon":-124.314,"elev":355,"size":"S","freqs":{},"rwys":[["08","26",48.2669,-124.32,48.2654,-124.308,2997,50,"asphalt",1,900,0]]}],"navaids":[{"id":"TOU","name":"Tatoosh","type":"VORTAC","freq":112.2,"lat":48.2999,"lon":-124.627,"elev":1650,"var":18.191}]}

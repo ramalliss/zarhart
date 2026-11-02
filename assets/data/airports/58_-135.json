@@ -1,0 +1,1 @@
+{"airports":[{"id":"PAJN","local":"JNU","name":"Juneau International Airport","city":"Juneau","state":"AK","lat":58.35494,"lon":-134.57442,"elev":21,"size":"M","freqs":{"atis":135.2,"awos":114,"ctaf":118.7,"gnd":121.9,"twr":118.7,"unicom":122.95},"rwys":[["08","26",58.3579,-134.59801,58.352,-134.55499,8857,150,"asphalt",1,0,0]]}],"navaids":[]}

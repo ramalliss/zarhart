@@ -1,0 +1,1 @@
+{"airports":[{"id":"PAWN","local":"WTK","name":"Noatak Airport","city":"Noatak","state":"AK","lat":67.56124,"lon":-162.98046,"elev":88,"size":"S","freqs":{"awos":135.75,"unicom":122.8,"ctaf":122.8},"rwys":[["01","19",67.556,-162.98599,67.5661,-162.97501,3992,60,"dirt",0,0,0]]}],"navaids":[]}

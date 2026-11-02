@@ -1,0 +1,1 @@
+{"airports":[{"id":"KVTN","local":"VTN","name":"Miller Field","city":"Valentine","state":"NE","lat":42.85621,"lon":-100.54919,"elev":2596,"size":"M","freqs":{"awos":118.075,"unicom":122.8,"ctaf":122.8},"rwys":[["03","21",42.8569,-100.551,42.8631,-100.545,3701,60,"asphalt",1,0,0],["14","32",42.8618,-100.552,42.8512,-100.542,4705,75,"asphalt",1,0,0]]}],"navaids":[]}

@@ -1,4 +1,5 @@
-// Zarhart Valley: a fictional, deterministic VFR practice area (about 60 × 60 km).
+// Zarhart Valley: a fictional, deterministic VFR practice area (about 60 × 60 km). In Real World mode
+// (sim/?world=real&apt=KPAO) the same exports hold a real place instead: see the end of this file and realworld.js.
 // World frame: x = east, z = south (north is -z), metres. Heights are metres MSL.
 // Pure JS (no three.js) so the flight model and the tests can share it.
 
@@ -33,6 +34,8 @@ const DEG = Math.PI / 180;
 export const WORLD_HALF = 30000;
 export const WATER = 128;
 export const VARIATION = 0; // the agonic line runs through the valley: true = magnetic here
+/** Real World mode's data (realworld.js) when the page was opened with ?world=real, else null; REAL_ERROR if it failed to load */
+export let REAL = null, REAL_ERROR = null;
 
 /* ---------- landmarks ---------- */
 export const LAKE = { name: "Lake Itasca", x: -4200, z: -6900, rx: 3100, rz: 1650, rot: 18 * DEG };
@@ -209,7 +212,7 @@ function lakeD(x, z) {
   const wob = 1 + 0.12 * simplex(x / 900, z / 900);
   return Math.hypot(u / LAKE.rx, v / LAKE.rz) / wob;
 }
-export function inLake(x, z) { return lakeD(x, z) < 1; }
+export function inLake(x, z) { return !REAL && lakeD(x, z) < 1; }
 
 /** Signed distance (m) from a point to an oriented rectangle (negative inside). */
 export function rectDist(px, pz, r, grow = 0) {
@@ -270,14 +273,28 @@ for (const ap of AIRPORTS) {
 }
 { const kzar = AIRPORTS[0]; AIRSPACE[0].ceilFt = Math.round((kzar.elevFt + 2500) / 100) * 100; }
 
+/** a real place's terrain: bilinear between the height grid's posts */
+function realHeight(x, z) {
+  const H = REAL.heights, G = H.G, fx = (x + H.half) / H.step, fz = (z + H.half) / H.step;
+  const i = clamp(Math.floor(fx), 0, G - 2), j = clamp(Math.floor(fz), 0, G - 2), tx = clamp(fx - i, 0, 1), tz = clamp(fz - j, 0, 1), g = H.grid;
+  return (g[j * G + i] * (1 - tx) + g[j * G + i + 1] * tx) * (1 - tz) + (g[(j + 1) * G + i] * (1 - tx) + g[(j + 1) * G + i + 1] * tx) * tz;
+}
+function realWater(x, z) {
+  const H = REAL.heights, i = Math.round((x + H.half) / H.step), j = Math.round((z + H.half) / H.step);
+  return i >= 0 && j >= 0 && i < H.G && j < H.G && H.water[j * H.G + i] === 1;
+}
 export function heightAt(x, z) {
-  let h = rawHeight(x, z);
-  // river valley
-  const rd = distPolyline(x, z, RIVER.pts);
-  if (rd < 260) h -= 9 * smooth(1 - rd / 260);
-  // lake basin
-  const ld = lakeD(x, z);
-  if (ld < 1.3) h = lerp(WATER - 7, Math.max(h, WATER + 2), smooth((ld - 0.92) / 0.38));
+  let h;
+  if (REAL) h = realHeight(x, z);
+  else {
+    h = rawHeight(x, z);
+    // river valley
+    const rd = distPolyline(x, z, RIVER.pts);
+    if (rd < 260) h -= 9 * smooth(1 - rd / 260);
+    // lake basin
+    const ld = lakeD(x, z);
+    if (ld < 1.3) h = lerp(WATER - 7, Math.max(h, WATER + 2), smooth((ld - 0.92) / 0.38));
+  }
   // airports: flat pads with a smooth blend
   for (const ap of AIRPORTS) {
     if (Math.abs(x - ap.x) > 2600 || Math.abs(z - ap.z) > 2600) continue;
@@ -292,10 +309,11 @@ export function heightAt(x, z) {
 export function groundAt(x, z) {
   for (const ap of AIRPORTS) {
     if (Math.abs(x - ap.x) > 1400 || Math.abs(z - ap.z) > 1400) continue;
-    for (const r of ap.runways) if (rectDist(x, z, r) <= 0) return { h: ap.elev, type: r.surface === "grass" ? "grass" : "asphalt" };
+    for (const r of ap.runways) if (rectDist(x, z, r) <= 0) return { h: ap.elev, type: r.surface === "grass" || r.surface === "dirt" ? r.surface : "asphalt" };
     for (const r of [...ap.taxiways, ...ap.aprons]) if (rectDist(x, z, r) <= 0) return { h: ap.elev, type: r.surface };
     if (Math.abs(heightAt(x, z) - ap.elev) < 0.01) return { h: ap.elev, type: "grass" };
   }
+  if (REAL) { const h = heightAt(x, z); return { h, type: realWater(x, z) ? "water" : "grass" }; }
   if (lakeD(x, z) < 0.97) return { h: WATER, type: "water" };
   const h = heightAt(x, z);
   return { h, type: h > 700 ? "dirt" : "grass" };
@@ -340,4 +358,24 @@ export function nearestAirport(x, z) {
   let best = null, bd = Infinity;
   for (const a of AIRPORTS) { const d = Math.hypot(a.x - x, a.z - z); if (d < bd) { bd = d; best = a; } }
   return { airport: best, dist: bd };
+}
+
+/* ---------- Real World mode ----------
+ * sim/?world=real&apt=KPAO swaps Zarhart Valley for 60 × 60 km of the real United States around that airport (realworld.js).
+ * Every module that imports this one waits here until the real airports, VORs and terrain heights have loaded, then sees
+ * the same exports filled with the real place. If loading fails, Zarhart Valley stays and REAL_ERROR says why.
+ */
+const params = typeof location !== "undefined" ? new URLSearchParams(location.search) : null;
+if (params?.get("world") === "real") {
+  const say = (t) => { const el = document.getElementById("loadMsg"); if (el) el.textContent = t + "…"; };
+  let low = false; try { low = JSON.parse(localStorage.getItem("zarhart:settings") || "{}").quality === "low"; } catch { /* private mode */ }
+  try {
+    const { loadRealWorld } = await import("./realworld.js");
+    const real = await loadRealWorld(params.get("apt") || "KPAO", { progress: say, demZoom: low ? 11 : 12, grid: low ? 512 : 1024 });
+    AIRPORTS.splice(0, AIRPORTS.length, ...real.airports);
+    NAVAIDS.splice(0, NAVAIDS.length, ...real.navaids);
+    AIRSPACE.splice(0, AIRSPACE.length, ...real.airspace);
+    TOWNS.length = 0; OBSTACLES.length = 0; RIVER.pts = []; HIGHWAY.pts = []; RAILROAD.pts = [];
+    REAL = real;
+  } catch (err) { console.error(err); REAL_ERROR = err.message || String(err); }
 }

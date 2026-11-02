@@ -1,7 +1,7 @@
 // Zarhart simulator bootstrap: scene, loop, cameras, HUD, drawers, radio/ATC, lessons.
 import * as THREE from "three";
 import { Aircraft, C172, TYPES, KT, FT, weightBalance, RWY_COND, hydroplaneKt } from "./fdm.js";
-import { AIRPORTS, NAVAIDS, groundAt, airspaceAt, vfrMinimums, nearestAirport, heightAt, rectDist } from "./world-data.js";
+import { AIRPORTS, NAVAIDS, groundAt, airspaceAt, vfrMinimums, nearestAirport, heightAt, rectDist, REAL, REAL_ERROR } from "./world-data.js";
 import { World } from "./world3d.js";
 import { buildAirplane, buildCockpit, cockpitExterior, animateAirplane, buildShadow, configurePlanes, setGhost } from "./plane3d.js";
 import { preset, tuneShaders, SunGlare, Post, cockpitSunMask, AutoRes } from "./gfx.js";
@@ -23,13 +23,18 @@ const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "
 const NM = 1852, DEG = Math.PI / 180;
 const CALLSIGN = "Skyhawk 19 Zulu Romeo", SHORT = "Skyhawk 9ZR";
 const store = { get(k, d) { try { const v = localStorage.getItem("zarhart:" + k); return v == null ? d : JSON.parse(v); } catch { return d; } }, set(k, v) { try { localStorage.setItem("zarhart:" + k, JSON.stringify(v)); } catch { /* ignore */ } } };
-const [KZAR, KAME, Z19, Z40, KSRH, Z23] = AIRPORTS;
-const FREQS = [
+const [KZAR, KAME, Z19, Z40, KSRH, Z23] = AIRPORTS; // in Real World mode KZAR is the real home field
+/** what the home field's controllers are called: "Zarhart", or a real airport's name ("Palo Alto") */
+const HOME = KZAR.call || "Zarhart";
+/** Real World mode: every airport's real frequencies */
+const realFreqs = () => [...AIRPORTS.flatMap((ap) => Object.entries({ atis: "ATIS", twr: "Tower", gnd: "Ground", ctaf: "CTAF", awos: "AWOS" }).filter(([k]) => ap.freqs[k]).map(([k, n]) => ({ f: ap.freqs[k], name: `${ap.call} ${n}`, ap, kind: k }))), { f: 121.5, name: "Guard (emergency)", kind: "guard" }];
+const FREQS = REAL ? realFreqs() : [
   { f: 127.85, name: "Zarhart ATIS", ap: KZAR, kind: "atis" }, { f: 118.3, name: "Zarhart Tower", ap: KZAR, kind: "twr" }, { f: 121.9, name: "Zarhart Ground", ap: KZAR, kind: "gnd" },
   { f: 122.8, name: "Earhart CTAF", ap: KAME, kind: "ctaf" }, { f: 118.525, name: "Earhart AWOS", ap: KAME, kind: "awos" }, { f: 122.9, name: "Electra CTAF", ap: Z19, kind: "ctaf" },
   { f: 122.7, name: "Electra Pass CTAF", ap: Z40, kind: "ctaf" }, { f: 123.0, name: "Southridge CTAF", ap: KSRH, kind: "ctaf" }, { f: 119.275, name: "Southridge AWOS", ap: KSRH, kind: "awos" }, { f: 122.725, name: "Itasca West CTAF", ap: Z23, kind: "ctaf" }, { f: 121.5, name: "Guard (emergency)", kind: "guard" },
 ];
-const freqInfo = (f) => FREQS.find((q) => Math.abs(q.f - f) < 0.004);
+/** the station on a frequency; when two airports share one (a common CTAF), the nearer one */
+const freqInfo = (f) => { let best = null, bd = Infinity; for (const q of FREQS) if (Math.abs(q.f - f) < 0.004) { const d = q.ap ? Math.hypot(q.ap.x - ac.pos.x, q.ap.z - ac.pos.z) : 0; if (d < bd) { bd = d; best = q; } } return best; };
 
 /* ---------------- settings ---------------- */
 const settings = Object.assign({ quality: "high", invert: false, mouseYoke: false, autoRudder: true, sound: true, voice: false, panel: "steam", sens: "normal", floating: true, touchRight: "slider", tilt: false, haptics: true, ctlMap: null, pad: true, pvrSep: 100, pvrFov: 80, acType: "c172" }, store.get("settings", {}));
@@ -105,6 +110,12 @@ const mp = new Multiplayer({
 });
 function populateTraffic() {
   traffic.clear(); if (settings.traffic === false || lessons.lesson || mp.connected) return;
+  if (REAL) { // pattern traffic at the home field and the two nearest paved fields (no taxiway data yet, so no departures from the ramp)
+    const paved = AIRPORTS.slice(1).filter((ap) => ap.runways[0].surface === "asphalt" && ap.runways[0].len > 600).slice(0, 2);
+    traffic.add(KZAR, "pattern", { name: "Skyhawk", tail: "4AB", start: 6 });
+    paved.forEach((ap, i) => traffic.add(ap, "pattern", i ? { name: "Warrior", tail: "5SR", type: "pa28", stripe: 0xff9a1f, start: 8 } : { name: "Skyhawk", tail: "2KL", stripe: 0x5be38a, start: 3 }));
+    return;
+  }
   traffic.add(KZAR, "pattern", { name: "Skyhawk", tail: "4AB", start: 6 });
   traffic.add(KZAR, "depart", { name: "Cherokee", tail: "7ED", type: "pa28", stripe: 0xd23a2a });
   traffic.add(KAME, "pattern", { name: "Skyhawk", tail: "2KL", stripe: 0x5be38a, start: 3 });
@@ -296,7 +307,7 @@ function suggestCall(fi) {
   const k = callsFor(fi); if (!k.length) return null;
   if (fi.kind !== "twr") return k[0];
   const d = ac.derived, { dnm } = posReport(KZAR);
-  if (d.onGround) return Math.hypot(ac.pos.x + 300, ac.pos.z + 250) < 400 ? null : "depart"; // at the ramp you call Ground, not Tower
+  if (d.onGround) return !REAL && Math.hypot(ac.pos.x + 300, ac.pos.z + 250) < 400 ? null : "depart"; // at the ramp you call Ground, not Tower
   return dnm < 2.5 && d.agl < 1500 ? "land" : "inbound";
 }
 function radioCall(kind, spoken) {
@@ -316,13 +327,13 @@ function radioCall(kind, spoken) {
     return;
   }
   if (fi.kind === "atis" || fi.kind === "awos") return say("That's a broadcast. Just listen.", "tip");
-  if (fi.kind === "guard") { radioLog("You", spoken || `Mayday, mayday, mayday, ${CALLSIGN}, ${ac.failures.engine || !ac.eng.running ? "engine failure" : "emergency"}, ${Math.round(d.altInd)} feet.`, false); setTimeout(() => radioLog("Zarhart Approach", `${SHORT}, roger mayday. Squawk 7700. Zarhart altimeter ${weather.qnhInHg.toFixed(2)}. Nearest airport ${nearestAirport(ac.pos.x, ac.pos.z).airport.name}.`), 2200); return; }
+  if (fi.kind === "guard") { radioLog("You", spoken || `Mayday, mayday, mayday, ${CALLSIGN}, ${ac.failures.engine || !ac.eng.running ? "engine failure" : "emergency"}, ${Math.round(d.altInd)} feet.`, false); setTimeout(() => radioLog(`${HOME} Approach`, `${SHORT}, roger mayday. Squawk 7700. ${HOME} altimeter ${weather.qnhInHg.toFixed(2)}. Nearest airport ${nearestAirport(ac.pos.x, ac.pos.z).airport.name}.`), 2200); return; }
   // tower / ground at KZAR
   const { dnm, dir } = posReport(KZAR);
-  if (kind === "taxi") { radioLog("You", spoken || `Zarhart Ground, ${CALLSIGN}, at the ramp with information ${weatherLetter()}, ready to taxi.`, false); setTimeout(() => radioLog("Zarhart Ground", `${SHORT}, runway ${rw}, taxi via Alpha. Hold short of runway ${rw}.`), 1800); sim.flags.taxiClr = true; return; }
-  if (kind === "depart") { radioLog("You", spoken || `Zarhart Tower, ${CALLSIGN}, holding short runway ${rw}, ready for departure.`, false); setTimeout(() => { radioLog("Zarhart Tower", `${SHORT}, wind ${String(Math.round(weather.windDir / 10) * 10).padStart(3, "0")} at ${Math.round(weather.windKt)}, runway ${rw}, cleared for takeoff.`); sim.flags.departCall = true; sim.flags.dContact = true; }, 1800); return; }
-  if (kind === "inbound") { radioLog("You", spoken || `Zarhart Tower, ${CALLSIGN}, ${Math.round(dnm)} miles ${dir}, ${Math.round(d.altInd / 100) * 100}, inbound for landing with ${weatherLetter()}.`, false); setTimeout(() => { const side = rw === "27" || rw === "36" ? "left" : "right"; radioLog("Zarhart Tower", `${SHORT}, Zarhart Tower, enter ${side} downwind runway ${rw}, report midfield.${traffic.advisory(KZAR)}`); sim.flags.inboundCall = true; sim.flags.dContact = true; }, 1800); return; }
-  if (kind === "land") { radioLog("You", spoken || `Zarhart Tower, ${SHORT}, midfield ${rw === "27" ? "left" : ""} downwind, full stop.`, false); setTimeout(() => radioLog("Zarhart Tower", `${SHORT}, runway ${rw}, cleared to land.${traffic.advisory(KZAR)}`), 1600); sim.flags.dContact = true; return; }
+  if (kind === "taxi") { radioLog("You", spoken || `${HOME} Ground, ${CALLSIGN}, at the ramp with information ${weatherLetter()}, ready to taxi.`, false); setTimeout(() => radioLog(`${HOME} Ground`, `${SHORT}, runway ${rw}, taxi via ${REAL ? "the parallel taxiway" : "Alpha"}. Hold short of runway ${rw}.`), 1800); sim.flags.taxiClr = true; return; }
+  if (kind === "depart") { radioLog("You", spoken || `${HOME} Tower, ${CALLSIGN}, holding short runway ${rw}, ready for departure.`, false); setTimeout(() => { radioLog(`${HOME} Tower`, `${SHORT}, wind ${String(Math.round(weather.windDir / 10) * 10).padStart(3, "0")} at ${Math.round(weather.windKt)}, runway ${rw}, cleared for takeoff.`); sim.flags.departCall = true; sim.flags.dContact = true; }, 1800); return; }
+  if (kind === "inbound") { radioLog("You", spoken || `${HOME} Tower, ${CALLSIGN}, ${Math.round(dnm)} miles ${dir}, ${Math.round(d.altInd / 100) * 100}, inbound for landing with ${weatherLetter()}.`, false); setTimeout(() => { const side = REAL || rw === "27" || rw === "36" ? "left" : "right"; radioLog(`${HOME} Tower`, `${SHORT}, Zarhart Tower, enter ${side} downwind runway ${rw}, report midfield.${traffic.advisory(KZAR)}`); sim.flags.inboundCall = true; sim.flags.dContact = true; }, 1800); return; }
+  if (kind === "land") { radioLog("You", spoken || `${HOME} Tower, ${SHORT}, midfield ${rw === "27" ? "left" : ""} downwind, full stop.`, false); setTimeout(() => radioLog(`${HOME} Tower`, `${SHORT}, runway ${rw}, cleared to land.${traffic.advisory(KZAR)}`), 1600); sim.flags.dContact = true; return; }
 }
 function weatherLetter() { return weather.atis(KZAR, weather.hour).letter; }
 const listener = new Listener();
@@ -407,7 +418,7 @@ function monitors(dt) {
   // transponder responses
   if (ac.xpdr.code !== lastXpdr) {
     lastXpdr = ac.xpdr.code;
-    if (ac.xpdr.code === "7700" && !sim.radio.failed && ac.powered) setTimeout(() => radioLog("Zarhart Approach", `${SHORT}, radar contact, squawking 7700. Say intentions. Nearest airport ${nearestAirport(ac.pos.x, ac.pos.z).airport.name}.`), 1500);
+    if (ac.xpdr.code === "7700" && !sim.radio.failed && ac.powered) setTimeout(() => radioLog(`${HOME} Approach`, `${SHORT}, radar contact, squawking 7700. Say intentions. Nearest airport ${nearestAirport(ac.pos.x, ac.pos.z).airport.name}.`), 1500);
     if (ac.xpdr.code === "7500") say("7500 is the hijack code. Use it only for that situation.", "warn", 8000);
     if (ac.xpdr.code === "7600") say("7600 = lost communications. Watch the tower for light gun signals.", "info", 7000);
   }
@@ -416,7 +427,7 @@ function monitors(dt) {
   const key = as.cls + as.special.map((s) => s.id).join();
   if (key !== lastAirspace) {
     if (lastAirspace != null) {
-      if (as.cls === "D" && !f.dContact && !f.departCall && !d.onGround) say("You entered the Zarhart Class D without two-way radio contact. Call the tower first (14 CFR 91.129).", "warn", 9000);
+      if (as.cls === "D" && !f.dContact && !f.departCall && !d.onGround) say(`You entered the ${HOME} Class D without two-way radio contact. Call the tower first (14 CFR 91.129).`, "warn", 9000);
       for (const s of as.special) say(s.cls === "P" ? `Prohibited area ${s.id}: flight is not allowed here. Turn away now.` : s.cls === "R" ? `Restricted area ${s.id} is active: you need permission to enter.` : `Entering ${s.name}: military training. Use extreme caution.`, s.cls === "MOA" ? "info" : "warn", 9000);
     }
     lastAirspace = key;
@@ -510,7 +521,7 @@ function renderDrawer() {
       <p class="dnote">Checkride maneuvers, emergencies and a night cross-country from the Private Pilot ACS. They'll be part of Zarhart Pro; fly them free while Pro is in the works.</p>
       <div class="lesson-list">${LESSONS.filter((l) => l.pro).map(lessonCard).join("")}</div>
       <h3 class="dsub">Free flight</h3>
-      <div class="form"><label>Start <select id="ffStart"><option value="kzarRamp">Zarhart ramp: cold & dark (use the checklists)</option><option value="kzar27">Zarhart runway 27, engine running</option><option value="kzar09">Zarhart runway 09</option><option value="kame36">Earhart Municipal runway 36</option><option value="z19">Electra Field grass 04</option><option value="z40">Electra Pass runway 36 (mountains)</option><option value="ksrh">Southridge Regional runway 31</option><option value="z23">Itasca West runway 34</option><option value="air">Airborne over the valley, 3,500 ft</option></select></label>
+      <div class="form"><label>Start <select id="ffStart">${REAL ? realStarts().map(([v, l]) => `<option value="${v}">${esc(l)}</option>`).join("") : ""}${REAL ? "" : `<option value="kzarRamp">Zarhart ramp: cold & dark (use the checklists)</option><option value="kzar27">Zarhart runway 27, engine running</option><option value="kzar09">Zarhart runway 09</option><option value="kame36">Earhart Municipal runway 36</option><option value="z19">Electra Field grass 04</option><option value="z40">Electra Pass runway 36 (mountains)</option><option value="ksrh">Southridge Regional runway 31</option><option value="z23">Itasca West runway 34</option><option value="air">Airborne over the valley, 3,500 ft</option>`}</select></label>
       <label>Airplane <select id="ffType">${Object.entries(TYPE_LABELS).map(([k, l]) => `<option value="${k}" ${settings.acType === k ? "selected" : ""}>${esc(l)}</option>`).join("")}</select></label>
       <label>Weather <select id="ffWx">${Object.entries(PRESETS).map(([k, p]) => `<option value="${k}">${esc(p.label)}</option>`).join("")}</select></label>
       <label>Time <select id="ffTime"><option value="9">Morning</option><option value="13" selected>Midday</option><option value="19.1">Golden hour</option><option value="20.0">Dusk</option><option value="22">Night</option></select></label>
@@ -537,7 +548,7 @@ function renderDrawer() {
     $("#acType", B).addEventListener("change", (e) => {
       settings.acType = e.target.value; saveSettings();
       if (lessons.lesson) { say("Lessons fly the Cessna 172. Your choice is used for free flight.", "info", 5000); renderDrawer(); return; }
-      spawn(sim.lastSpawn || { ...KZAR.spawn.rwy27, onGround: true }); say(`Now flying the ${ac.ac.name}.`, "good", 3000); renderDrawer();
+      spawn(sim.lastSpawn || { ...(KZAR.spawn.rwy27 || KZAR.spawn.start), onGround: true }); say(`Now flying the ${ac.ac.name}.`, "good", 3000); renderDrawer();
     });
     $("#deFrost", B)?.addEventListener("click", () => { ac.frost = 0; say("Frost removed. In real life: brush or wipe it off, use deicing fluid, or warm the airplane in a hangar, and check the tail too.", "good", 7000); renderDrawer(); });
     B.querySelectorAll("[data-sw]").forEach((b) => b.addEventListener("click", () => { const k = b.dataset.sw; if (k in el.lights) el.lights[k] = !el.lights[k]; else if (k === "carbHeat") e.carbHeat = !e.carbHeat; else if (k === "parking") ac.parkingBrake = !ac.parkingBrake; else el[k] = !el[k]; renderDrawer(); }));
@@ -573,7 +584,7 @@ function renderDrawer() {
       <p class="dnote">${listener.ok ? "Voice practice uses your browser's speech recognition. In Chrome and Edge your voice is sent to Google or Microsoft to turn it into text; Zarhart never receives it. Turn it off in Settings." : "This browser has no speech recognition, so type your calls. (Chrome, Edge and Safari can listen.)"}</p>
       <h3 class="dsub">Or let us make the call</h3>
       <div class="calls">${calls.length ? calls.map(([k, t]) => `<button class="sbtn primary" data-call="${k}">${esc(t)}</button>`).join("") : `<p class="dnote">Tune a tower, ground, CTAF or guard frequency to talk.</p>`}<button class="sbtn" id="ptt" title="Pilot-controlled lighting: 7 clicks within 5 seconds">Click the mic (Space)</button></div>
-      <h3 class="dsub">Zarhart ATIS ${esc(a.letter)} <span class="exams">${examLink("e53")}</span></h3><p class="atis">${esc(a.text)}</p>${a.skyOmitted ? `<p class="dnote">No sky condition or visibility in the ATIS means the ceiling is at least 5,000 ft and visibility at least 5 SM.</p>` : ""}
+      <h3 class="dsub">${HOME} ${KZAR.freqs.atis || !REAL ? "ATIS" : "weather"} ${esc(a.letter)} <span class="exams">${examLink("e53")}</span></h3><p class="atis">${esc(a.text)}</p>${a.skyOmitted ? `<p class="dnote">No sky condition or visibility in the ATIS means the ceiling is at least 5,000 ft and visibility at least 5 SM.</p>` : ""}
       <p class="metar mono">${esc(weather.metar(KZAR, weather.hour))}</p>
       <h3 class="dsub">Radio log</h3><ol class="rlog">${r.log.map((l) => `<li><b>${esc(l.from)}</b> ${esc(l.text)}</li>`).join("") || "<li class='dnote'>Nothing yet.</li>"}</ol>`;
     $("#c1", B).addEventListener("change", (e) => { r.com1 = +e.target.value; renderDrawer(); }); $("#c1s", B).addEventListener("change", (e) => { r.com1s = +e.target.value; });
@@ -618,7 +629,7 @@ function renderDrawer() {
   } else if (n === "weather") {
     const ap = KZAR; const act = weather.activeRunway(ap); const comp = weather.components(act.end.hdg);
     B.innerHTML = `<p class="metar mono">${esc(weather.metar(ap, weather.hour))}</p>
-      <div class="kv"><span>Density altitude at KZAR</span><b>${Math.round(ac.derived.onGround && Math.hypot(ac.pos.x, ac.pos.z) < 2000 ? ac.derived.densAlt : densAltAtField()).toLocaleString()} ft</b><span>Active runway</span><b>${weather.windKt < 3 ? `${act.end.id}: wind calm${KZAR.calmRwy ? " (the calm-wind runway)" : ""}` : `${act.end.id}: ${comp.head >= 0 ? comp.head + " kt headwind" : -comp.head + " kt tailwind"}, ${Math.abs(comp.cross)} kt crosswind from the ${comp.cross > 0 ? "right" : "left"}`}</b><span>Runway surface</span><b>${esc(RWY_COND[weather.rwy].label)}${RWY_COND[weather.rwy].hydroplane ? ` · hydroplaning above about ${Math.round(hydroplaneKt(ac.ac.tirePsi || 29))} kt` : weather.rwy !== "dry" ? " · braking action " + (weather.rwy === "wet" ? "medium" : weather.rwy === "ice" ? "nil" : "poor") : ""}</b></div>
+      <div class="kv"><span>Density altitude at ${KZAR.id}</span><b>${Math.round(ac.derived.onGround && Math.hypot(ac.pos.x, ac.pos.z) < 2000 ? ac.derived.densAlt : densAltAtField()).toLocaleString()} ft</b><span>Active runway</span><b>${weather.windKt < 3 ? `${act.end.id}: wind calm${KZAR.calmRwy ? " (the calm-wind runway)" : ""}` : `${act.end.id}: ${comp.head >= 0 ? comp.head + " kt headwind" : -comp.head + " kt tailwind"}, ${Math.abs(comp.cross)} kt crosswind from the ${comp.cross > 0 ? "right" : "left"}`}</b><span>Runway surface</span><b>${esc(RWY_COND[weather.rwy].label)}${RWY_COND[weather.rwy].hydroplane ? ` · hydroplaning above about ${Math.round(hydroplaneKt(ac.ac.tirePsi || 29))} kt` : weather.rwy !== "dry" ? " · braking action " + (weather.rwy === "wet" ? "medium" : weather.rwy === "ice" ? "nil" : "poor") : ""}</b></div>
       <div class="form"><label>Preset <select id="wxP"><option value="">Custom</option>${Object.entries(PRESETS).map(([k, p]) => `<option value="${k}">${esc(p.label)}</option>`).join("")}</select></label>
       <label>Wind from (°) <input type="number" id="wxDir" min="0" max="360" step="10" value="${weather.windDir}"></label><label>Wind (kt) <input type="number" id="wxKt" min="0" max="35" value="${weather.windKt}"></label><label>Gusts (kt) <input type="number" id="wxG" min="0" max="45" value="${weather.gustKt}"></label>
       <label>Visibility (SM) <input type="number" id="wxVis" min="0.25" max="10" step="0.25" value="${weather.visSM}"></label>
@@ -703,6 +714,7 @@ function renderDrawer() {
     $("#sVoice", B).addEventListener("change", (e) => { settings.voice = e.target.checked; saveSettings(); });
     $("#sPanel", B).addEventListener("change", (e) => { settings.panel = panel.mode = e.target.value; saveSettings(); layout(); });
   } else if (n === "online") {
+    if (REAL) { B.innerHTML = `<p class="dnote">Online flying uses Zarhart Valley for now, so everyone shares the same map. <a href="./">Back to Zarhart Valley</a></p>`; return; }
     const ON = mp.connected, roles = [["pilot", "Pilot (fly)"], ["KZAR_TWR", "Controller: Zarhart Tower 118.300"], ["KZAR_GND", "Controller: Zarhart Ground 121.900"], ["ZAR_APP", "Controller: Zarhart Approach 125.500"], ["KAME_UNI", "Earhart UNICOM 122.800"]];
     const list = [...mp.players.values()].map((p) => { const r = mp.remote.get(p.id); return `<li><b>${esc(p.role === "atc" ? mp.facilities[p.facility]?.name : p.callsign)}</b> <span>${p.role === "atc" ? `${mp.facilities[p.facility]?.freq.toFixed(3)}` : `${esc(p.type)}${r ? ` · ${Math.round(r.alt / 100) * 100} ft · ${r.gs} kt · COM1 ${(+r.com1).toFixed(3)}` : ""}`}</span></li>`; }).join("");
     B.innerHTML = ON ? `<p class="dnote">${esc(mp.statusText || "")}</p>
@@ -903,6 +915,7 @@ function startFlying() { $("#start").hidden = true; sim.paused = false; audio.st
 function freeFlight(where, wx, hour) {
   lessons.stop(); renderObjectives();
   sim.setWeather(PRESETS[wx]); sim.setTime(hour);
+  if (REAL) return realStart(where);
   const sp = { kzarRamp: { ...KZAR.spawn.ramp, onGround: true, engineRunning: false, coldDark: true }, kzar27: { ...KZAR.spawn.rwy27, onGround: true }, kzar09: { ...KZAR.spawn.rwy09, onGround: true }, kame36: { ...KAME.spawn.rwy36, onGround: true }, z19: { ...Z19.spawn.rwy04, onGround: true }, z40: { ...Z40.spawn.rwy36, onGround: true }, ksrh: { ...KSRH.spawn.rwy31, onGround: true }, z23: { ...Z23.spawn.rwy34, onGround: true }, air: { x: -2000, z: 6000, hdg: 60, onGround: false, altFt: 3500, kias: 100 } }[where];
   spawn(sp); if (where === "air") ac.ctl.throttle = 0.66;
   populateTraffic();
@@ -913,7 +926,51 @@ function freeFlight(where, wx, hour) {
 let startLessonId = "pattern";
 $("#startLesson").addEventListener("click", () => { startFlying(); lessons.start(startLessonId); });
 $("#startPick").addEventListener("click", () => { startFlying(); sim.paused = true; openDrawer("lessons"); $("#paused").hidden = false; });
-$("#startFree").addEventListener("click", () => { startFlying(); freeFlight("kzar27", "scattered", 13); });
+$("#startFree").addEventListener("click", () => { startFlying(); freeFlight(REAL ? "0:start" : "kzar27", "scattered", 13); });
+/* ---------------- Real World mode ---------------- */
+/** start choices for a real place: every runway end of the nearest airports, and on final to the home field */
+function realStarts() {
+  const out = [];
+  AIRPORTS.slice(0, 12).forEach((ap, i) => { for (const r of ap.runways) for (const e of r.ends) out.push([`${i}:rwy${e.id}`, `${ap.id} ${ap.call}: runway ${e.id}${i ? "" : " (home)"}`]); });
+  return [...out, ["air", `In the air, 3 miles from ${KZAR.id}`]];
+}
+function realStart(where) {
+  if (where === "air") { // on a long final to the home field's calm-wind runway
+    const r = KZAR.runways[0], e = r.ends[0], back = 5600;
+    spawn({ x: e.x - r.dir[0] * back, z: e.z - r.dir[1] * back, hdg: e.hdg, onGround: false, altFt: KZAR.elevFt + 1000, kias: 85 }); ac.ctl.throttle = 0.55;
+  } else {
+    const [i, key] = where.split(":"), ap = AIRPORTS[+i] || KZAR;
+    spawn({ ...(ap.spawn[key] || ap.spawn.start), onGround: true });
+  }
+  const ap = nearestAirport(ac.pos.x, ac.pos.z).airport;
+  sim.radio.com1 = ap.freqs.twr || ap.freqs.ctaf || 122.9; sim.radio.com2 = ap.freqs.gnd || ap.freqs.awos || ap.freqs.atis || 121.5;
+  populateTraffic();
+}
+function realWorldUi() {
+  const pick = $("#realPick"); if (!pick) return;
+  if (REAL) {
+    $("#startLesson").hidden = $("#startPick").hidden = true;
+    $("#startFree").textContent = `Fly from ${KZAR.id}`; $("#startFree").classList.add("primary");
+    pick.innerHTML = `<p class="dnote"><b>${esc(KZAR.id)} ${esc(KZAR.name)}</b>, ${esc(KZAR.city || "")} ${esc(KZAR.state || "")} · ${KZAR.elevFt.toLocaleString()} ft · ${AIRPORTS.length} airports in this 60 km square. Real terrain, aerial photos, runways and frequencies; airspace is approximate and there are no taxiways yet. Lessons fly in Zarhart Valley. <a href="./">Back to Zarhart Valley</a></p>`;
+    const at = document.createElement("div"); at.className = "attrib"; at.textContent = REAL_ATTRIBUTION; document.body.appendChild(at);
+    return;
+  }
+  if (REAL_ERROR) say(`Couldn't load that real airport: ${REAL_ERROR}. Flying in Zarhart Valley instead.`, "warn", 9000);
+  const go = async () => {
+    const v = $("#realApt").value.trim(), msg = $("#realMsg"); if (!v) return;
+    msg.textContent = "Looking it up…";
+    try {
+      const { findAirport } = await import("./realworld.js"); const e = await findAirport(v);
+      if (!e) { msg.textContent = `No US airport with runway data called ${v.toUpperCase()}. Try its ICAO code, like KPAO.`; return; }
+      settings.realApt = e[0]; saveSettings(); location.href = `?world=real&apt=${encodeURIComponent(e[0])}`;
+    } catch { msg.textContent = "Couldn't reach the airport list. Are you online?"; }
+  };
+  $("#realApt").value = settings.realApt || "";
+  $("#realGo").addEventListener("click", go);
+  $("#realApt").addEventListener("keydown", (ev) => { ev.stopPropagation(); if (ev.key === "Enter") go(); });
+}
+const REAL_ATTRIBUTION = "Terrain: Terrain Tiles on AWS (USGS 3DEP, SRTM) · Imagery: USGS The National Map · Airports: OurAirports";
+realWorldUi();
 $("#crashRetry").addEventListener("click", retry);
 /* ---------------- VR ---------------- */
 let viewBeforeVR = "cockpit", scopeT = 0;
@@ -1131,12 +1188,13 @@ async function boot() {
     sectionalBase = buildSectionalBase(settings.quality === "low" ? 480 : 640);
     addParked(); world.labelsOn = settings.labels !== false;
     sim.setWeather(PRESETS.scattered); sim.setTime(13);
-    spawn({ ...KZAR.spawn.rwy27, onGround: true });
+    spawn({ ...(KZAR.spawn.rwy27 || KZAR.spawn.start), onGround: true });
+    if (REAL) sim.radio.com1 = KZAR.freqs.twr || KZAR.freqs.ctaf || 122.9, sim.radio.com2 = KZAR.freqs.gnd || KZAR.freqs.awos || KZAR.freqs.atis || 121.5;
     sim.ready = true; sim.d = ac.derived;
     if (post) post.overlay = world.labels;
     $("#loading").hidden = true; $("#startChoices").hidden = false;
     const p = new URLSearchParams(location.search).get("lesson");
-    if (p && LESSONS.some((l) => l.id === p)) { startLessonId = p; $("#startLesson").textContent = `Start lesson: ${LESSONS.find((l) => l.id === p).title}`; }
+    if (p && !REAL && LESSONS.some((l) => l.id === p)) { startLessonId = p; $("#startLesson").textContent = `Start lesson: ${LESSONS.find((l) => l.id === p).title}`; }
     vr.check().then((ok) => { $("#startVR").hidden = $("#vrBtn").hidden = !(ok || TOUCH); }); // phones without WebXR get phone VR
   } catch (err) {
     console.error(err); prog.textContent = "Zarhart couldn't start: " + err.message + ". Try another browser with WebGL turned on.";
@@ -1144,7 +1202,7 @@ async function boot() {
   renderer.setAnimationLoop(tick);
 }
 window.__zarhart = {
-  sim, ac, weather, world, lessons, camera, panel, settings, autoRes, keys: input.keys, frame: (ms) => tick(ms), radioCall, traffic, transmit, mp, pttClick, renderer, scene, plane, cockpit, camState, layout, panelState, updateCamera, vr,
+  sim, ac, weather, world, lessons, camera, panel, settings, autoRes, REAL, FREQS, realStart, keys: input.keys, frame: (ms) => tick(ms), radioCall, traffic, transmit, mp, pttClick, renderer, scene, plane, cockpit, camState, layout, panelState, updateCamera, vr,
   /** headless stepping for tests: advance `secs` of sim time at 30 Hz without rendering; pilot(ac, d, sim, dt) flies */
   step(secs, pilot) { for (let i = 0, n = Math.round(secs * 30); i < n; i++) { if (ac.crashed || lessons.done) break; stepSim(1 / 30, pilot); } return ac.derived; },
 };

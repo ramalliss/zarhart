@@ -1,0 +1,1 @@
+{"airports":[{"id":"PADL","local":"DLG","name":"Dillingham Airport","city":"Dillingham","state":"AK","lat":59.0447,"lon":-158.505,"elev":81,"size":"M","freqs":{"atis":125,"awos":135.55,"ctaf":123.6},"rwys":[["01","19",59.0368,-158.513,59.0525,-158.498,6400,150,"asphalt",1,0,0]]}],"navaids":[]}

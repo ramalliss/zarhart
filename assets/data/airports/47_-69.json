@@ -1,0 +1,1 @@
+{"airports":[{"id":"KFVE","local":"FVE","name":"Northern Aroostook Regional Airport","city":"Frenchville","state":"ME","lat":47.2855,"lon":-68.3128,"elev":988,"size":"S","freqs":{"awos":135.725,"unicom":122.8,"ctaf":122.8},"rwys":[["14","32",47.2882,-68.3211,47.2828,-68.3044,4600,75,"asphalt",1,0,0]]}],"navaids":[]}

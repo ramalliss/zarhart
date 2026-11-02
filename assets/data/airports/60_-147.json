@@ -1,0 +1,1 @@
+{"airports":[{"id":"7KA","local":"7KA","name":"Tatitlek Airport","city":"Tatitlek","state":"AK","lat":60.87145,"lon":-146.6903,"elev":62,"size":"S","freqs":{},"rwys":[["13","31",60.8768,-146.696,60.868,-146.686,3701,75,"dirt",1,0,0]]}],"navaids":[{"id":"JOH","name":"Johnstone Point","type":"VOR-DME","freq":116.7,"lat":60.481,"lon":-146.599,"elev":47,"var":21.139}]}

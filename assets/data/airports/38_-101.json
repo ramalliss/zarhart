@@ -1,0 +1,1 @@
+{"airports":[{"id":"KTQK","local":"TQK","name":"Scott City Municipal Airport","city":"Scott City","state":"KS","lat":38.4743,"lon":-100.885,"elev":2963,"size":"S","freqs":{"awos":120,"unicom":122.8,"ctaf":122.8},"rwys":[["08","26",38.4767,-100.889,38.4767,-100.882,2145,60,"grass",0,0,0],["17","35",38.4812,-100.885,38.4674,-100.885,5002,75,"asphalt",1,0,0]]}],"navaids":[]}

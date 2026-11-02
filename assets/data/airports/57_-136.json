@@ -1,0 +1,1 @@
+{"airports":[{"id":"PASI","local":"SIT","name":"Sitka Rocky Gutierrez Airport","city":"Sitka","state":"AK","lat":57.0471,"lon":-135.362,"elev":21,"size":"M","freqs":{"atis":135.9,"ctaf":123.6,"unicom":122.95},"rwys":[["11","29",57.0535,-135.373,57.0408,-135.35001,7200,150,"asphalt",1,0,0]]}],"navaids":[]}

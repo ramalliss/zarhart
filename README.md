@@ -28,6 +28,16 @@ Created by **Sophia Ramalli**, a student pilot who built it while studying for t
 - **Automated traffic** in free flight taxis, departs and flies the pattern at four airports, talking to Ground, Tower or the CTAF. Tower gives you traffic advisories.
 - **Multiplayer:** `node server/zarhart-server.mjs` hosts a shared sky that serves the site too. Players join in the **Online** menu as pilots or controllers. Voice is push-to-talk and only reaches stations tuned to your frequency and in line of sight, with AM-radio static, squelch tails and blocked transmissions. See [server/README.md](server/README.md).
 
+## Real World mode
+
+On the simulator's start screen, type any US airport ID (KPAO, KASE, FDK…) under **Or fly from a real US airport**. The sim builds a 60 × 60 km square around it from free, open data, with no account or key:
+
+- **Terrain heights:** [Terrain Tiles on AWS](https://registry.opendata.aws/terrain-tiles/) (Tilezen, from USGS 3DEP, SRTM and other public sources). The flight model flies over them too.
+- **Aerial photos:** USGS The National Map orthoimagery (public domain), sharper within about 3 km of the home airport.
+- **Airports, runways, frequencies and VORs:** [OurAirports](https://ourairports.com/data/) (public domain), packed per 1° square by `tools/build-airports.mjs` into `assets/data/airports/`. Re-run it to refresh the data.
+
+Runway lengths, widths, surfaces, lights and numbers are real, and so are the tower, ground, ATIS, CTAF and AWOS frequencies (when OurAirports has them). Pattern traffic flies at the home field and two nearby fields. Not there yet: taxiways and ramps (you start on a runway), real airspace shapes (towered fields get an approximate Class D or C), live weather, and magnetic variation (headings are true). Lessons and multiplayer stay in Zarhart Valley. It needs an internet connection, and loading takes 10–30 seconds.
+
 ## Install it on a phone
 
 The site is an installable web app. On iPhone or iPad, open it in Safari and tap **Share → Add to Home Screen**; on Android or desktop Chrome and Edge, use **Install the app** on the home page (or Install in the browser menu). It opens full screen, and pages you've visited work offline (`sw.js`, network first, so online visitors always get the latest version).
@@ -74,10 +84,12 @@ sitemap.xml              for Google Search Console (robots.txt only applies on a
 assets/img/shots/        product shots rendered in the simulator
 assets/js/sim/           fdm.js (flight model), world-data.js, world3d.js, plane3d.js, panel.js, map.js,
                          nav.js, weather.js, input.js, audio.js, checklists.js, lessons.js, main.js,
-                         gfx.js (Graphics presets Low/High/Ultra, textures made in code, sun glare, Ultra's bloom)
+                         gfx.js (Graphics presets Low/High/Ultra, textures made in code, sun glare, Ultra's bloom),
+                         realworld.js (Real World mode: terrain, aerial photos and airports for a real place)
+assets/data/airports/    real US airports, runways, frequencies and VORs per 1° square (OurAirports)
 assets/js/prep/prep.js   prep app
 assets/data/questions.json  question bank
-tools/                   dev server and tests
+tools/                   dev server, tests, and build-airports.mjs (the Real World airport data)
 ```
 
 ## Disclaimer

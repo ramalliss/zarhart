@@ -1,0 +1,1 @@
+{"airports":[{"id":"OR07","local":"OR07","name":"Weddle Field","city":"Long Creek","state":"OR","lat":44.7624,"lon":-119.10188,"elev":3823,"size":"S","freqs":{},"rwys":[["13","31",44.7675,-119.106,44.7572,-119.097,4400,60,"asphalt",0,0,0]]}],"navaids":[{"id":"IMB","name":"Kimberly","type":"VORTAC","freq":115.6,"lat":44.6484,"lon":-119.712,"elev":5220,"var":16.098}]}

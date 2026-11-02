@@ -1,0 +1,1 @@
+{"airports":[{"id":"KDRM","local":"DRM","name":"Drummond Island Airport","city":"Drummond Island","state":"MI","lat":46.0093,"lon":-83.7439,"elev":668,"size":"S","freqs":{"awos":118.325,"unicom":122.8,"ctaf":122.8},"rwys":[["01","19",46.0069,-83.7397,46.0139,-83.7411,2500,150,"grass",0,0,0],["08","26",46.007,-83.7539,46.0103,-83.7389,4000,75,"asphalt",1,650,170]]}],"navaids":[]}

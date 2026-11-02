@@ -1,0 +1,1 @@
+{"airports":[{"id":"KSMN","local":"SMN","name":"Lemhi County Airport","city":"Salmon","state":"ID","lat":45.12223,"lon":-113.88196,"elev":4043,"size":"M","freqs":{"awos":135.075,"unicom":122.8,"ctaf":122.8},"rwys":[["17","35",45.1308,-113.88,45.1168,-113.883,5510,75,"asphalt",1,0,0]]}],"navaids":[]}

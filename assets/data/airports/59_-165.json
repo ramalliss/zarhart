@@ -1,0 +1,1 @@
+{"airports":[{"id":"PAKI","local":"IIK","name":"Kipnuk Airport","city":"Kipnuk","state":"AK","lat":59.9318,"lon":-164.0282,"elev":11,"size":"S","freqs":{},"rwys":[["17","35",59.9358,-164.032,59.9301,-164.02901,3200,60,"dirt",0,0,0]]}],"navaids":[{"id":"IIK","name":"Kipnuk","type":"VOR-DME","freq":115.9,"lat":59.9428,"lon":-164.034,"elev":0,"var":13.359}]}

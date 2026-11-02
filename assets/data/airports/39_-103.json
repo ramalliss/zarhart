@@ -1,0 +1,1 @@
+{"airports":[{"id":"KITR","local":"ITR","name":"Kit Carson County Airport","city":"Burlington","state":"CO","lat":39.2425,"lon":-102.285,"elev":4219,"size":"S","freqs":{"awos":135.225,"unicom":122.8,"ctaf":122.8},"rwys":[["15","33",39.2492,-102.289,39.2358,-102.282,5199,75,"asphalt",1,0,0]]}],"navaids":[]}

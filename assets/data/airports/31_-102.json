@@ -1,0 +1,1 @@
+{"airports":[{"id":"KE41","local":"E41","name":"Reagan County Airport","city":"Big Lake","state":"TX","lat":31.1989,"lon":-101.473,"elev":2706,"size":"S","freqs":{"ctaf":122.9},"rwys":[["09","27",31.1965,-101.48,31.1953,-101.469,4001,60,"grass",0,0,0],["16","34",31.2043,-101.474,31.1934,-101.471,5035,50,"asphalt",1,0,0]]}],"navaids":[]}

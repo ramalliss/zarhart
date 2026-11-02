@@ -3,7 +3,7 @@ import * as THREE from "three";
 import { Sky } from "three/addons/objects/Sky.js";
 import {
   WORLD_HALF, WATER, LAKE, RIVER, HIGHWAY, RAILROAD, TOWNS, OBSTACLES, DAM, LAUNCH, POWER_PLANT,
-  AIRPORTS, NAVAIDS, heightAt, inLake, fbm, simplex, rectDist, distPolyline,
+  AIRPORTS, NAVAIDS, heightAt, inLake, fbm, simplex, rectDist, distPolyline, REAL,
 } from "./world-data.js";
 import { preset, asphaltTexture, reliefTexture, rockTexture, rippleTexture, facadeTexture } from "./gfx.js";
 
@@ -261,7 +261,28 @@ if (tDist < 6000.0) { // detail normals from the same relief samples as the blot
   normal = normalize((viewMatrix * vec4(w, 0.0)).xyz);
 }`);
 }
-function buildTerrain(groundCanvas, Q) {
+/**
+ * Real World mode's ground: the aerial photo of the whole square, plus a sharper one around the home airport blended in
+ * over its last 6 %. Photos already hold the ground's own light and shade, so there's no baked AO or detail relief.
+ */
+function realTerrainShader(inner, rect) {
+  return (sh) => {
+    sh.uniforms.uSnow = WX.uSnow; sh.uniforms.uWet = WX.uWet;
+    sh.uniforms.uInner = { value: inner }; sh.uniforms.uInnerRect = { value: new THREE.Vector4(rect.x0, rect.z0, rect.size, inner ? 1 : 0) };
+    sh.vertexShader = sh.vertexShader.replace("#include <common>", "#include <common>\nvarying vec3 vWPos;")
+      .replace("#include <begin_vertex>", "#include <begin_vertex>\nvWPos = (modelMatrix * vec4(transformed, 1.0)).xyz;");
+    sh.fragmentShader = sh.fragmentShader.replace("#include <common>", `#include <common>
+varying vec3 vWPos; uniform float uSnow; uniform float uWet; uniform sampler2D uInner; uniform vec4 uInnerRect;`)
+      .replace("#include <map_fragment>", `#include <map_fragment>
+if (uInnerRect.w > 0.5) {
+  vec2 iu = (vWPos.xz - uInnerRect.xy) / uInnerRect.z, e = min(iu, 1.0 - iu);
+  float k = smoothstep(0.0, 0.06, min(e.x, e.y));
+  if (k > 0.0) diffuseColor.rgb = mix(diffuseColor.rgb, texture2D(uInner, vec2(iu.x, 1.0 - iu.y)).rgb, k);
+}
+diffuseColor.rgb = mix(diffuseColor.rgb * (1.0 - 0.15 * uWet), vec3(0.9, 0.92, 0.95), clamp(uSnow * 0.8, 0.0, 1.0));`);
+  };
+}
+function buildTerrain(groundCanvas, Q, real = null) {
   const N = Q.terrainN;
   const pos = new Float32Array((N + 1) * (N + 1) * 3), uv = new Float32Array((N + 1) * (N + 1) * 2);
   for (let j = 0; j <= N; j++) for (let i = 0; i <= N; i++) {
@@ -280,11 +301,12 @@ function buildTerrain(groundCanvas, Q) {
   geo.setAttribute("uv", new THREE.BufferAttribute(uv, 2));
   geo.setIndex(new THREE.BufferAttribute(idx, 1));
   geo.computeVertexNormals();
-  if (Q.pbr) geo.setAttribute("color", new THREE.BufferAttribute(terrainAO(pos, N, W / N), 3));
+  if (Q.pbr && !real) geo.setAttribute("color", new THREE.BufferAttribute(terrainAO(pos, N, W / N), 3));
   const tex = new THREE.CanvasTexture(groundCanvas);
   tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8; tex.generateMipmaps = true; tex.minFilter = THREE.LinearMipmapLinearFilter;
-  const mat = new THREE.MeshLambertMaterial({ map: tex, vertexColors: Q.pbr });
-  if (Q.pbr) mat.onBeforeCompile = terrainDetail;
+  const mat = new THREE.MeshLambertMaterial({ map: tex, vertexColors: Q.pbr && !real });
+  if (real) mat.onBeforeCompile = realTerrainShader(real.inner, real.rect);
+  else if (Q.pbr) mat.onBeforeCompile = terrainDetail;
   else mat.onBeforeCompile = (sh) => {
     sh.uniforms.uSnow = WX.uSnow; sh.uniforms.uWet = WX.uWet;
     sh.vertexShader = sh.vertexShader.replace("#include <common>", "#include <common>\nvarying vec3 vWPos;")
@@ -301,13 +323,15 @@ diffuseColor.rgb = mix(diffuseColor.rgb * (1.0 - 0.15 * uWet), vec3(0.9, 0.92, 0
   };
   const mesh = new THREE.Mesh(geo, mat);
   mesh.receiveShadow = Q.shadows > 0;
-  // a big skirt beyond the edge so the horizon never shows a hole
-  const skirt = new THREE.Mesh(new THREE.RingGeometry(WORLD_HALF * 1.38, WORLD_HALF * 9, 64, 1), new THREE.MeshLambertMaterial({ color: 0x5f7148 }));
-  skirt.rotation.x = -Math.PI / 2; skirt.position.y = 110;
-  const edge = new THREE.Mesh(new THREE.PlaneGeometry(W * 1.6, W * 1.6), new THREE.MeshLambertMaterial({ color: 0x5f7148 }));
-  edge.rotation.x = -Math.PI / 2; edge.position.y = 60;
+  // a big skirt beyond the edge so the horizon never shows a hole (in the real world: just under the lowest ground, in the photo's colour)
+  let rimY = 110, rimColor = 0x5f7148;
+  if (real) { let lo = Infinity; for (let k = 1; k < pos.length; k += 3) if (pos[k] < lo) lo = pos[k]; rimY = lo - 2; rimColor = real.average; }
+  const skirt = new THREE.Mesh(new THREE.RingGeometry(WORLD_HALF * 1.38, WORLD_HALF * 9, 64, 1), new THREE.MeshLambertMaterial({ color: rimColor }));
+  skirt.rotation.x = -Math.PI / 2; skirt.position.y = rimY;
+  const edge = new THREE.Mesh(new THREE.PlaneGeometry(W * 1.6, W * 1.6), new THREE.MeshLambertMaterial({ color: rimColor }));
+  edge.rotation.x = -Math.PI / 2; edge.position.y = rimY - 50;
   const g = new THREE.Group(); g.add(mesh, skirt, edge);
-  return { group: g, material: mat, texture: tex, rim: [skirt.material, edge.material] };
+  return { group: g, material: mat, texture: tex, rim: [skirt.material, edge.material], rimColor };
 }
 
 /* ===================== water, roads ===================== */
@@ -537,6 +561,12 @@ function runwayCanvas(r, ap, scale = 1, maxPx = 4096) {
   const Wpx = 128 * scale, Hpx = Math.min(4096 * scale, maxPx, Math.round(r.len * 2.4 * scale));
   const c = canvas(Wpx, Hpx), g = c.getContext("2d");
   const sx = Wpx / r.wid, sy = Hpx / r.len;
+  if (r.surface === "dirt") { // gravel or dirt: unpainted, a lighter and rougher strip with corner markers
+    g.fillStyle = "#8b7c64"; g.fillRect(0, 0, Wpx, Hpx);
+    const R = rng(r.len + 7); for (let i = 0; i < 5000; i++) { const lt = R() > 0.5; g.fillStyle = lt ? "rgba(235,225,205,0.07)" : "rgba(40,32,22,0.08)"; g.fillRect(R() * Wpx, R() * Hpx, 2, 2 + R() * 5); }
+    g.fillStyle = "#fff"; for (const yy of [0, Hpx - 6]) for (const xx of [0, Wpx - 6]) g.fillRect(xx, yy, 6, 6);
+    return c;
+  }
   if (r.surface === "grass") {
     for (let y = 0; y < Hpx; y += 24) { g.fillStyle = (y / 24) % 2 ? "#5f7f3e" : "#68884a"; g.fillRect(0, y, Wpx, 24); }
     g.fillStyle = "#fff"; for (const yy of [0, Hpx - 6]) for (const xx of [0, Wpx - 6]) g.fillRect(xx, yy, 6, 6);
@@ -1040,6 +1070,36 @@ export class World {
   async build(progress = () => {}) {
     const Q = this.Q;
     const step = async (msg, fn) => { progress(msg); await new Promise((r) => setTimeout(r, 16)); return fn(); };
+    if (REAL) await this.buildReal(progress);
+    else await this.buildValley(step);
+    const ap = await step("Painting runways", () => buildAirports(this.lightsTex, this.renderer, Q, this.lightMats));
+    this.scene.add(ap.root); this.ap = ap;
+    if (!REAL) {
+      const lm = await step("Placing landmarks", () => buildLandmarks(this.lightsTex, this.lightMats));
+      this.scene.add(lm.group); this.blinkers = lm.blinkers;
+      if (Q.pbr) lm.group.traverse((o) => { if (o.isMesh) o.castShadow = o.receiveShadow = true; });
+    } else this.blinkers = [];
+    this.buildSky(progress);
+  }
+  /** Real World mode: aerial photos over the real terrain (realworld.js) */
+  async buildReal(progress) {
+    const Q = this.Q, { loadPhotos } = await import("./realworld.js"), home = AIRPORTS[0], low = !Q.pbr;
+    const say = (what) => (d, n) => progress(`Downloading ${what} (${d}/${n})`);
+    let base = await loadPhotos(REAL.frame, 0, 0, WORLD_HALF, low ? 2048 : 4096, low ? 12 : 13, say("aerial photos"));
+    if (!base) { base = canvas(64, 64); const g = base.getContext("2d"); g.fillStyle = "#6b7650"; g.fillRect(0, 0, 64, 64); } // offline or no coverage: plain ground
+    const S = 3200, inner = low ? null : await loadPhotos(REAL.frame, home.x, home.z, S, Q.post ? 4096 : 2048, Q.post ? 16 : 15, say(`close-up photos of ${home.id}`));
+    let innerTex = null;
+    if (inner) { innerTex = new THREE.CanvasTexture(inner); innerTex.colorSpace = THREE.SRGBColorSpace; innerTex.anisotropy = 8; }
+    // the photo's average colour, for the ground beyond the edge
+    const a = canvas(1, 1).getContext("2d"); a.drawImage(base, 0, 0, 1, 1); const [r, g, b] = a.getImageData(0, 0, 1, 1).data;
+    this.groundCanvas = base;
+    progress("Raising the terrain"); await new Promise((res) => setTimeout(res, 16));
+    const terrain = buildTerrain(base, Q, { inner: innerTex, rect: { x0: home.x - S, z0: home.z - S, size: 2 * S }, average: (r << 16) | (g << 8) | b });
+    this.scene.add(terrain.group); this.terrain = terrain; this.trees = null;
+  }
+  /** Zarhart Valley: the painted ground, lake, towns and forests */
+  async buildValley(step) {
+    const Q = this.Q;
     this.groundCanvas = await step("Painting the valley", () => buildGroundCanvas(Q.groundPx));
     const terrain = await step("Raising the terrain", () => buildTerrain(this.groundCanvas, Q));
     this.scene.add(terrain.group); this.terrain = terrain;
@@ -1047,11 +1107,9 @@ export class World {
     const towns = await step("Building towns", () => buildTowns(Q)); this.scene.add(towns.mesh);
     if (towns.lights) { this.townLights = new THREE.Points(towns.lights, townLightMaterial(this.lightsTex, this.renderer.getPixelRatio())); this.townLights.visible = false; this.scene.add(this.townLights); }
     this.trees = await step("Planting forests", () => buildTrees(this.quality, Q)); this.scene.add(this.trees);
-    const ap = await step("Painting runways", () => buildAirports(this.lightsTex, this.renderer, Q, this.lightMats));
-    this.scene.add(ap.root); this.ap = ap;
-    const lm = await step("Placing landmarks", () => buildLandmarks(this.lightsTex, this.lightMats));
-    this.scene.add(lm.group); this.blinkers = lm.blinkers;
-    if (Q.pbr) lm.group.traverse((o) => { if (o.isMesh) o.castShadow = o.receiveShadow = true; });
+  }
+  buildSky(progress) {
+    const Q = this.Q;
     progress("Lighting the sky");
     this.sky = new Sky(); this.sky.scale.setScalar(100000); this.scene.add(this.sky);
     this.sun = new THREE.DirectionalLight(0xffffff, 2.4); this.scene.add(this.sun); this.scene.add(this.sun.target);
@@ -1084,7 +1142,7 @@ export class World {
   setEnvironment(env) {
     const gloom = env.gloom || 0;
     WX.uSnow.value = env.snow || 0; WX.uWet.value = env.wet || 0;
-    if (this.terrain?.rim) for (const m of this.terrain.rim) m.color.setHex(0x5f7148).lerp(new THREE.Color(0xdde2e8), env.snow || 0);
+    if (this.terrain?.rim) for (const m of this.terrain.rim) m.color.setHex(this.terrain.rimColor ?? 0x5f7148).lerp(new THREE.Color(0xdde2e8), env.snow || 0);
     if (this.trees) for (const m of this.trees.userData.mats || [this.trees.material]) m.color.setScalar(1 + 1.8 * (env.snow || 0));
     const { elev, az } = sunFromHour(env.hour);
     const e = elev * DEG, a = az * DEG;

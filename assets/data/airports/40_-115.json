@@ -1,0 +1,1 @@
+{"airports":[{"id":"KENV","local":"ENV","name":"Wendover Airport","city":"Wendover","state":"UT","lat":40.7187,"lon":-114.031,"elev":4237,"size":"M","freqs":{"awos":135.075,"unicom":122.8,"ctaf":122.8},"rwys":[["08","26",40.7189,-114.043,40.719,-114.015,10002,150,"asphalt",1,0,0],["12","30",40.7262,-114.043,40.7107,-114.023,8002,100,"asphalt",1,0,0]]}],"navaids":[]}

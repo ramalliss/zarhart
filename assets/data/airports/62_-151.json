@@ -1,0 +1,1 @@
+{"airports":[{"id":"PATK","local":"TKA","name":"Talkeetna Airport","city":"Talkeetna","state":"AK","lat":62.3205,"lon":-150.09399,"elev":358,"size":"M","freqs":{},"rwys":[["01","19",62.31709,-150.0974,62.32561,-150.08806,3500,75,"asphalt",1,0,0]]}],"navaids":[{"id":"TKA","name":"Talkeetna","type":"VOR-DME","freq":116.2,"lat":62.2987,"lon":-150.106,"elev":360,"var":20.367}]}

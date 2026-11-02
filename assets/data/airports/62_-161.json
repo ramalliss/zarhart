@@ -1,0 +1,1 @@
+{"airports":[{"id":"PANV","local":"ANV","name":"Anvik Airport","city":"Anvik","state":"AK","lat":62.6467,"lon":-160.19099,"elev":291,"size":"M","freqs":{"awos":133.55,"unicom":122.7,"ctaf":122.7},"rwys":[["17","35",62.6507,-160.19,62.6427,-160.192,4000,75,"dirt",1,0,0]]}],"navaids":[]}

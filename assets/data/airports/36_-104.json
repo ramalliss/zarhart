@@ -1,0 +1,1 @@
+{"airports":[{"id":"KCAO","local":"CAO","name":"Clayton Municipal Airpark","city":"Clayton","state":"NM","lat":36.4462,"lon":-103.167,"elev":4965,"size":"S","freqs":{"awos":120.625,"unicom":122.8,"ctaf":122.8},"rwys":[["02","20",36.4388,-103.158,36.4537,-103.147,6307,75,"asphalt",1,0,0],["12","30",36.4496,-103.151,36.4424,-103.141,4105,60,"asphalt",1,0,0]]}],"navaids":[]}

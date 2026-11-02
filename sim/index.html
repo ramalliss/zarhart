@@ -158,6 +158,11 @@
         <button class="btn ghost" id="startFree">Free flight</button>
         <button class="btn" id="startVR" hidden>Fly in VR</button>
       </div>
+      <div class="realpick" id="realPick">
+        <label for="realApt">Or fly from a real US airport: real terrain, aerial photos, runways and frequencies</label>
+        <div class="row"><input id="realApt" placeholder="Airport ID, like KPAO" maxlength="8" autocomplete="off" spellcheck="false" autocapitalize="characters"><button class="btn" id="realGo">Fly there</button></div>
+        <span class="dnote" id="realMsg" role="status"></span>
+      </div>
       <ul class="quickkeys">
         <li><kbd>↑</kbd><kbd>↓</kbd> pitch · <kbd>←</kbd><kbd>→</kbd> bank: in Assisted mode let go and the airplane holds its attitude (<kbd>U</kbd> changes assist)</li>
         <li><kbd>R</kbd><kbd>F</kbd> throttle · <kbd>[</kbd><kbd>]</kbd> flaps · <kbd>T</kbd><kbd>G</kbd> trim · <kbd>B</kbd> brakes · <kbd>Shift</kbd>+<kbd>B</kbd> parking brake</li>

@@ -1,0 +1,1 @@
+{"airports":[{"id":"PASD","local":"SDP","name":"Sand Point Airport","city":"Sand Point","state":"AK","lat":55.31391,"lon":-160.5221,"elev":21,"size":"M","freqs":{"awos":134.85,"clnc":122.3,"ctaf":122.3,"unicom":122.8},"rwys":[["13","31",55.3197,-160.528,55.3104,-160.51801,4000,150,"asphalt",1,0,0]]}],"navaids":[]}

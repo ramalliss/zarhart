@@ -1,0 +1,1 @@
+{"airports":[{"id":"PACV","local":"CDV","name":"Merle K (Mudhole) Smith Airport","city":"Cordova","state":"AK","lat":60.4918,"lon":-145.478,"elev":54,"size":"M","freqs":{"app":133.6,"awos":134.8,"ctaf":123.6},"rwys":[["09","27",60.4967,-145.49699,60.4883,-145.459,7500,150,"asphalt",1,0,0],["16","34",60.4915,-145.477,60.4863,-145.477,1934,30,"dirt",0,0,0]]}],"navaids":[]}

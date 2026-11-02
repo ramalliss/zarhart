@@ -1,0 +1,1 @@
+{"airports":[{"id":"KCOD","local":"COD","name":"Yellowstone Regional Airport","city":"Cody","state":"WY","lat":44.5202,"lon":-109.024,"elev":5102,"size":"M","freqs":{"awos":135.075,"unicom":122.8,"ctaf":122.8},"rwys":[["04","22",44.5133,-109.036,44.5271,-109.011,8268,100,"asphalt",1,690,400]]}],"navaids":[]}

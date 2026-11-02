@@ -1,0 +1,1 @@
+{"airports":[{"id":"KBYY","local":"BYY","name":"Bay City Regional Airport","city":"Bay City","state":"TX","lat":28.9733,"lon":-95.8635,"elev":45,"size":"S","freqs":{"awos":118.075,"unicom":122.8,"ctaf":122.8},"rwys":[["13","31",28.9781,-95.8692,28.9684,-95.8577,5107,75,"asphalt",1,0,0]]}],"navaids":[]}

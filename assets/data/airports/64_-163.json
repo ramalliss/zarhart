@@ -1,0 +1,1 @@
+{"airports":[{"id":"PFEL","local":"ELI","name":"Elim Airport","city":"Elim","state":"AK","lat":64.6147,"lon":-162.272,"elev":162,"size":"S","freqs":{},"rwys":[["01","19",64.6109,-162.276,64.619,-162.265,3401,60,"dirt",0,0,0]]}],"navaids":[{"id":"MOS","name":"Moses Point","type":"VOR-DME","freq":116.3,"lat":64.6965,"lon":-162.071,"elev":14,"var":15.349}]}

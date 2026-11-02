@@ -1,0 +1,1 @@
+{"airports":[{"id":"PARY","local":"RBY","name":"Ruby Airport","city":"Ruby","state":"AK","lat":64.7272,"lon":-155.47,"elev":658,"size":"M","freqs":{"awos":119.925,"ctaf":122.8},"rwys":[["03","21",64.7238,-155.48,64.7307,-155.46001,4000,100,"dirt",1,0,0]]}],"navaids":[]}

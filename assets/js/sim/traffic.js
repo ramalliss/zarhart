@@ -79,7 +79,7 @@ export class Traffic {
 
   /** what a pilot of `a` says reaching a waypoint tagged `tag` (and the controller's reply at a towered field) */
   speak(a, tag) {
-    const ap = a.ap, rw = a.e.id, sideW = a.side > 0 ? "right" : "left", short = ap.name.split(" ")[0], f = this.freq(ap), pl = this.o.player();
+    const ap = a.ap, rw = a.e.id, sideW = a.side > 0 ? "right" : "left", short = ap.call || ap.name.split(" ")[0], f = this.freq(ap), pl = this.o.player();
     const onRwy = pl.onGround && rectDist(pl.x, pl.z, a.r) <= 5;
     if (!ap.towered) {
       const lines = { downwind: `${sideW} downwind runway ${rw}, touch and go`, base: `${sideW} base runway ${rw}`, final: `final runway ${rw}, touch and go` };
@@ -115,8 +115,8 @@ export class Traffic {
       if (B.leg === "lineup" && onRwy) { a.spd = 0; this.place(a, t, dt); continue; }
       if ((B.leg === "flare" || (B.leg === "final" && a.i >= path.length - 4)) && onRwy && !a.goingAround) {
         a.goingAround = true;
-        if (a.ap.towered) this.say(this.freq(a.ap), `${a.ap.name.split(" ")[0]} Tower`, `${a.call}, go around, traffic on the runway.`, [a.short, `Going around, ${a.call}.`]);
-        else this.say(this.freq(a.ap), a.short, `${a.ap.name.split(" ")[0]} traffic, ${a.call}, going around runway ${a.e.id}.`);
+        if (a.ap.towered) this.say(this.freq(a.ap), `${(a.ap.call || a.ap.name.split(" ")[0])} Tower`, `${a.call}, go around, traffic on the runway.`, [a.short, `Going around, ${a.call}.`]);
+        else this.say(this.freq(a.ap), a.short, `${(a.ap.call || a.ap.name.split(" ")[0])} traffic, ${a.call}, going around runway ${a.e.id}.`);
         const up = path.findIndex((p) => p.leg === "upwind"); a.i = up - 1; a.path = path.map((p, k) => (k === up - 1 ? { ...p, x: a.x, z: a.z, h: a.y, ground: false } : p)); continue;
       }
       // advance when past the end of this leg

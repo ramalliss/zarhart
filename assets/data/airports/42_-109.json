@@ -1,0 +1,1 @@
+{"airports":[{"id":"KLND","local":"LND","name":"Hunt Field","city":"Lander","state":"WY","lat":42.8152,"lon":-108.73,"elev":5586,"size":"M","freqs":{"awos":118.15,"unicom":122.8,"ctaf":122.8},"rwys":[["04","22",42.8102,-108.736,42.8203,-108.724,5000,75,"asphalt",1,0,0]]}],"navaids":[]}

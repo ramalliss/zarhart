@@ -1,0 +1,1 @@
+{"airports":[{"id":"KORB","local":"ORB","name":"Orr Regional Airport","city":"Orr","state":"MN","lat":48.0159,"lon":-92.8561,"elev":1311,"size":"S","freqs":{"awos":118.325,"unicom":122.8,"ctaf":122.8},"rwys":[["13","31",48.02,-92.8615,48.0118,-92.8506,4000,75,"asphalt",1,0,0]]}],"navaids":[]}
