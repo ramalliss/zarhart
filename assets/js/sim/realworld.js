@@ -204,7 +204,25 @@ export async function loadRealWorld(ident, { half = 30000, demZoom = 12, grid = 
 }
 
 /* ---------- taxiways, ramps and buildings (OpenStreetMap) ---------- */
-const OVERPASS = ["https://overpass-api.de/api/interpreter", "https://overpass.private.coffee/api/interpreter"];
+// public Overpass servers, run by volunteers: asked one after another, not all at once
+const OVERPASS = ["https://overpass-api.de/api/interpreter", "https://maps.mail.ru/osm/tools/overpass/api/interpreter", "https://overpass.private.coffee/api/interpreter", "https://overpass.kumi.systems/api/interpreter"];
+/**
+ * The first answer from a list of servers: the first is asked at once, and the next joins when the one before fails or
+ * hasn't answered within `stagger` ms. Each gets up to `cap` ms; the others are cancelled when one answers. null if none do.
+ */
+function firstAnswer(asks, stagger = 12000, cap = 60000) {
+  return new Promise((resolve) => {
+    const ctl = asks.map(() => new AbortController()); let next = 0, failed = 0, done = false, timer = null;
+    const finish = (v) => { if (done) return; done = true; clearTimeout(timer); ctl.forEach((c) => c.abort()); resolve(v); };
+    const start = () => {
+      if (done || next >= asks.length) return;
+      const i = next++, kill = setTimeout(() => ctl[i].abort(), cap);
+      clearTimeout(timer); timer = setTimeout(start, stagger);
+      asks[i](ctl[i].signal).then(finish, () => { clearTimeout(kill); if (++failed === asks.length) finish(null); else if (i === next - 1) start(); });
+    };
+    start();
+  });
+}
 /** how far an airport's paved surfaces reach from its reference point (m): the area physics checks for runways and ramps */
 function reachOf(ap) {
   let r = 0;
@@ -246,9 +264,8 @@ async function loadAirportDetail(frame, airports) {
   let data = null;
   try { const hit = await kv("get", key); if (hit && Date.now() - hit.saved < 30 * 864e5) data = hit.data; } catch { /* no IndexedDB here */ }
   if (!data) {
-    for (const url of OVERPASS) {
-      try { const r = await fetch(url, { method: "POST", body: "data=" + encodeURIComponent(q), headers: { "Content-Type": "application/x-www-form-urlencoded" } }); if (r.ok) { data = await r.json(); break; } } catch { /* try the next server */ }
-    }
+    const body = "data=" + encodeURIComponent(q), headers = { "Content-Type": "application/x-www-form-urlencoded" };
+    data = await firstAnswer(OVERPASS.map((url) => (signal) => fetch(url, { method: "POST", body, headers, signal }).then((r) => (r.ok ? r.json() : Promise.reject(new Error(r.status))))));
     if (!data) return null;
     try { await kv("put", key, { saved: Date.now(), data }); } catch { /* fine without */ }
   }
