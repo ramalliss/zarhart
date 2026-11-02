@@ -263,8 +263,8 @@ async function loadAirportDetail(frame, airports) {
     const R = Math.max(...ap.runways.map((r) => r.len / 2)) + 800, [n, w] = frame.toGeo(ap.x - R, ap.z - R), [s, e] = frame.toGeo(ap.x + R, ap.z + R);
     return `(${s.toFixed(5)},${w.toFixed(5)},${n.toFixed(5)},${e.toFixed(5)})`;
   };
-  const q = `[out:json][timeout:90];(${airports.map((ap) => { const b = box(ap); return `way["aeroway"~"^(taxiway|taxilane|apron|hangar|terminal)$"]${b};way["building"="hangar"]${b};node["aeroway"~"^(windsock|parking_position)$"]${b};`; }).join("")});out geom qt;`;
-  const key = `osm1:${airports.map((a) => a.id).join("-")}`;
+  const q = `[out:json][timeout:90];(${airports.map((ap) => { const b = box(ap); return `way["aeroway"~"^(taxiway|taxilane|apron|hangar|terminal)$"]${b};way["building"="hangar"]${b};node["aeroway"~"^(windsock|parking_position|navigationaid)$"]${b};`; }).join("")});out geom qt;`;
+  const key = `osm2:${airports.map((a) => a.id).join("-")}`;
   let data = null;
   try { const hit = await kv("get", key); if (hit && Date.now() - hit.saved < 30 * 864e5) data = hit.data; } catch { /* no IndexedDB here */ }
   if (!data) {
@@ -273,11 +273,15 @@ async function loadAirportDetail(frame, airports) {
     if (!data) return null;
     try { await kv("put", key, { saved: Date.now(), data }); } catch { /* fine without */ }
   }
-  const out = Object.fromEntries(airports.map((a) => [a.id, { taxiways: [], aprons: [], buildings: [], windsocks: [], parking: [] }]));
+  const out = Object.fromEntries(airports.map((a) => [a.id, { taxiways: [], aprons: [], buildings: [], windsocks: [], parking: [], papis: [] }]));
   const owner = (x, z) => { let best = null, bd = Infinity; for (const a of airports) { const d = Math.hypot(a.x - x, a.z - z); if (d < bd && d < Math.max(...a.runways.map((r) => r.len / 2)) + 1200) { bd = d; best = a; } } return best; };
   for (const el of data.elements || []) {
     const t = el.tags || {};
-    if (el.type === "node") { const [x, z] = frame.toLocal(el.lat, el.lon), a = owner(x, z); if (!a) continue; (t.aeroway === "windsock" ? out[a.id].windsocks : out[a.id].parking).push({ x, z, ref: t.ref }); continue; }
+    if (el.type === "node") {
+      const [x, z] = frame.toLocal(el.lat, el.lon), a = owner(x, z); if (!a) continue;
+      if (t.aeroway === "navigationaid") { const k = (t.navigationaid || "").toLowerCase(); if (/papi|vasi/.test(k)) out[a.id].papis.push({ x, z, kind: k.includes("vasi") ? "vasi" : "papi" }); continue; }
+      (t.aeroway === "windsock" ? out[a.id].windsocks : out[a.id].parking).push({ x, z, ref: t.ref }); continue;
+    }
     if (!el.geometry || el.geometry.length < 2) continue;
     const pts = el.geometry.map((g) => frame.toLocal(g.lat, g.lon)), cx = pts.reduce((v, p) => v + p[0], 0) / pts.length, cz = pts.reduce((v, p) => v + p[1], 0) / pts.length, a = owner(cx, cz);
     if (!a) continue;
@@ -329,6 +333,19 @@ export function applyAirportDetail(ap, d, flatten) {
     }
   }
   ap.holdShort = holds;
+  // PAPI and VASI: matched to the runway end whose touchdown zone they stand beside; mapped units of one system are merged
+  ap.papis = [];
+  for (const p of d.papis || []) {
+    let best = null;
+    for (const r of ap.runways) for (const e of r.ends) {
+      const h = e.hdg * DEG, along = (p.x - e.x) * Math.sin(h) + (p.z - e.z) * -Math.cos(h), side = (p.x - e.x) * Math.cos(h) + (p.z - e.z) * Math.sin(h);
+      if (along > 0 && along < 800 && Math.abs(side) > r.wid / 2 && Math.abs(side) < r.wid / 2 + 90 && (!best || along < best.along)) best = { e, along, side };
+    }
+    if (!best) continue;
+    const same = ap.papis.find((q) => q.end === best.e.id && Math.hypot(q.x - p.x, q.z - p.z) < 45);
+    if (same) { same.n++; same.x += (p.x - same.x) / same.n; same.z += (p.z - same.z) / same.n; continue; }
+    ap.papis.push({ x: p.x, z: p.z, n: 1, kind: p.kind, end: best.e.id, hdg: best.e.hdg, side: Math.sign(best.side) });
+  }
   // a ramp start: the parking spot nearest the field's reference point that isn't on a runway, facing the nearest taxiway
   const onRunway = (x, z) => ap.runways.some((r) => Math.abs(across(r, x, z).s) < r.wid / 2 + 40 && Math.abs(across(r, x, z).t) < r.len / 2 + 60);
   const offRunway = d.parking.filter((p) => !onRunway(p.x, p.z)), onRamp = offRunway.filter((p) => d.aprons.some((poly) => inPoly(p.x, p.z, poly)));

@@ -828,6 +828,65 @@ function diversionReport(sim, ls) {
 }
 
 /* ---------------- runner ---------------- */
+/* ---------- Real World mode: lessons at the real home field ---------- */
+/**
+ * Lessons built from a real airport (Real World mode): a traffic pattern, a landing from a 3-mile final, and flying
+ * the PAPI or VASI where one is mapped. They use the runway the wind favours and keep the weather and time of day there.
+ * magVar turns true headings into the magnetic ones the instruments show.
+ */
+export function realLessons(ap, weather, magVar = 0) {
+  const act = weather.activeRunway(ap), id = act.end.id, e = end(ap, id), pa = ap.elevFt + 1000, rwy = `runway ${id.replace(/^0/, "")}`;
+  const mag = (h) => String(Math.round((((h - magVar) % 360) + 360) % 360 / 10) * 10 || 360).padStart(3, "0");
+  const dwHdg = (e.hdg + 180) % 360, field = `${ap.id} ${ap.call || ap.name}`;
+  const radios = (sim) => { sim.radio.com1 = ap.freqs.twr || ap.freqs.ctaf || 122.9; sim.radio.com2 = ap.freqs.gnd || ap.freqs.atis || ap.freqs.awos || 121.5; };
+  const land = () => [
+    { text: `Land on ${rwy}`, check: (sim) => landedOn(sim, ap, id), fail: offRunway(ap) },
+    { text: "Slow to taxi speed on the runway", check: (sim) => sim.d.onGround && sim.d.gs < 8, result: (ls, sim) => touchdownReport(sim, ap, id) },
+  ];
+  const out = [
+    {
+      id: "rw-pattern", title: `Traffic pattern at ${field}`, tag: "Real airport", time: "8 min", level: 1, real: true,
+      summary: `Take off from ${rwy}, climb at Vy, fly a left-hand pattern at ${pa.toLocaleString()} ft (1,000 ft above the field) and land, in today's real weather.`,
+      exam: ["t16", "t26", "t1"],
+      tips: [`Pattern altitude here is ${pa.toLocaleString()} ft MSL: field elevation ${ap.elevFt.toLocaleString()} ft + 1,000.`, `Downwind is parallel to ${rwy}, heading about ${mag(dwHdg)}.`, ap.towered ? `Talk to ${ap.call} Tower (${ap.freqs.twr?.toFixed(3)}) before you take off and when you turn downwind.` : `Announce each leg on the CTAF (${(ap.freqs.ctaf || 122.9).toFixed(3)}).`, "Carb heat on and power back abeam the numbers, then 10° of flaps."],
+      setup(sim) { sim.spawn({ ...(ap.spawn[`rwy${id}`] || ap.spawn.start), onGround: true, engineRunning: true }); sim.ac.flapsSet = 0; radios(sim); },
+      objectives: [
+        { text: "Release the parking brake (Shift+B), full throttle, rotate at 55 KIAS", check: (sim) => !sim.d.onGround && sim.d.agl > 30 },
+        { text: `Climb at Vy 74 KIAS to pattern altitude, ${pa.toLocaleString()} ft`, check(sim, ls, dt) { ls.vyT = (ls.vyT || 0) + dt; if (Math.abs(sim.d.ias - 74) < 6) ls.vyOk = (ls.vyOk || 0) + dt; return sim.d.altInd > pa - 80; }, result: (ls) => `Vy held within 6 kt for ${Math.round((100 * (ls.vyOk || 0)) / Math.max(1, ls.vyT))}% of the climb.` },
+        { text: `Fly downwind (heading about ${mag(dwHdg)}) at ${pa.toLocaleString()} ft ±100 for 20 s`, check(sim, ls, dt) { if (Math.abs(wrap180(sim.d.hdg - dwHdg)) < 25 && Math.abs(sim.d.altInd - pa) < 100) ls.dw = (ls.dw || 0) + dt; return (ls.dw || 0) > 20; } },
+        ...land(),
+      ],
+    },
+    {
+      id: "rw-final", title: `Landing at ${field} from a 3-mile final`, tag: "Real airport", time: "3 min", level: 1, real: true,
+      summary: `Three miles out on final for ${rwy}: hold a 3° glidepath and 65–70 KIAS, then land.`,
+      exam: ["t23", "t52", "t54"],
+      tips: ["A 3° glidepath is about 300 ft of height per mile out.", "Aim for the aiming-point markings, about 1,000 ft past the threshold.", "Power controls the glidepath, pitch the speed: adjust both together."],
+      setup(sim) { sim.spawn(onFinal(ap, id, 3, 70, 20)); sim.ac.ctl.throttle = 0.3; sim.ac.ctl.trim = 0.35; radios(sim); },
+      objectives: [
+        { text: "Stay within 0.7° of a 3° glidepath down to 200 ft above the field", check(sim, ls, dt) { const d = Math.max(30, distFromThreshold(e, sim.ac.pos.x, sim.ac.pos.z) * -1 + 300), ang = Math.atan2(sim.ac.pos.y - ap.elev, d) / DEG; ls.tot = (ls.tot || 0) + dt; if (Math.abs(ang - 3) < 0.7) ls.on = (ls.on || 0) + dt; return sim.d.altInd < ap.elevFt + 200; }, result: (ls) => `On the glidepath ${Math.round((100 * (ls.on || 0)) / Math.max(1, ls.tot))}% of the time.` },
+        ...land(),
+      ],
+    },
+  ];
+  const papi = (ap.papis || []).filter((p) => p.end === id);
+  if (papi.length) {
+    const kind = papi[0].kind === "vasi" ? "VASI" : "PAPI";
+    out.push({
+      id: "rw-papi", title: `Fly the ${kind} into ${field}`, tag: "Real airport", time: "3 min", level: 1, real: true,
+      summary: `Three miles out on final for ${rwy}: keep the ${kind} on glidepath${kind === "PAPI" ? " (two white, two red)" : " (red over white)"} down to 200 ft, then land.`,
+      exam: ["t23", "t52", "t54"],
+      tips: kind === "PAPI" ? ["Two white, two red: on glidepath. More white: high. More red: low.", "Four red means you're well below the glidepath: add power and level off until it comes back."] : ["Red over white, you're all right. White over white: too high. Red over red: too low."],
+      setup(sim) { sim.spawn(onFinal(ap, id, 3, 70, 20)); sim.ac.ctl.throttle = 0.3; sim.ac.ctl.trim = 0.35; radios(sim); },
+      objectives: [
+        { text: `Keep the ${kind} on glidepath until 200 ft above the field`, check(sim, ls, dt) { const w = sim.vasi(ap.id, id), white = w.filter(Boolean).length, on = kind === "PAPI" ? white === 2 : w.length >= 2 && w[0] && !w[1]; ls.tot = (ls.tot || 0) + dt; if (on) ls.on = (ls.on || 0) + dt; return sim.d.altInd < ap.elevFt + 200; }, result: (ls) => `On the ${kind} glidepath ${Math.round((100 * (ls.on || 0)) / Math.max(1, ls.tot))}% of the time.` },
+        ...land(),
+      ],
+    });
+  }
+  return out;
+}
+
 export class LessonRunner {
   constructor(sim) { this.sim = sim; this.lesson = null; }
   start(id) {

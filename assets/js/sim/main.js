@@ -13,7 +13,7 @@ import { Audio } from "./audio.js";
 import { Panel, setPanelV } from "./panel.js";
 import { buildSectionalBase, drawMap } from "./map.js";
 import { CHECKLISTS, suggestChecklist } from "./checklists.js";
-import { LESSONS, LessonRunner } from "./lessons.js";
+import { LESSONS, LessonRunner, realLessons } from "./lessons.js";
 import { VR, VR_CONTROLS, PHONE_VR_CONTROLS } from "./vr.js";
 import { buildCall, scoreCall, Listener } from "./radio.js";
 import { Traffic } from "./traffic.js";
@@ -566,9 +566,9 @@ function renderDrawer() {
   if (n === "lessons") {
     B.innerHTML = `<p class="dnote">Every lesson links to the written-test questions it teaches. Click a question code to open it in Prep.</p>
       <div class="lesson-list">${LESSONS.filter((l) => !l.pro).map(lessonCard).join("")}</div>
-      <h3 class="dsub">Pro lessons <span class="pro">Free preview</span></h3>
+      ${REAL ? `<p class="dnote">These use ${esc(KZAR.id)}'s runway in use and today's weather. The full lesson course flies in <a href="./">Zarhart Valley</a>.</p>` : `<h3 class="dsub">Pro lessons <span class="pro">Free preview</span></h3>
       <p class="dnote">Checkride maneuvers, emergencies and a night cross-country from the Private Pilot ACS. They'll be part of Zarhart Pro; fly them free while Pro is in the works.</p>
-      <div class="lesson-list">${LESSONS.filter((l) => l.pro).map(lessonCard).join("")}</div>
+      <div class="lesson-list">${LESSONS.filter((l) => l.pro).map(lessonCard).join("")}</div>`}
       <h3 class="dsub">Free flight</h3>
       <div class="form"><label>Start <select id="ffStart">${REAL ? realStarts().map(([v, l]) => `<option value="${v}">${esc(l)}</option>`).join("") : ""}${REAL ? "" : `<option value="kzarRamp">Zarhart ramp: cold & dark (use the checklists)</option><option value="kzar27">Zarhart runway 27, engine running</option><option value="kzar09">Zarhart runway 09</option><option value="kame36">Earhart Municipal runway 36</option><option value="z19">Electra Field grass 04</option><option value="z40">Electra Pass runway 36 (mountains)</option><option value="ksrh">Southridge Regional runway 31</option><option value="z23">Itasca West runway 34</option><option value="air">Airborne over the valley, 3,500 ft</option>`}</select></label>
       <label>Airplane <select id="ffType">${Object.entries(TYPE_LABELS).map(([k, l]) => `<option value="${k}" ${settings.acType === k ? "selected" : ""}>${esc(l)}</option>`).join("")}</select></label>
@@ -1002,7 +1002,7 @@ function realWorldUi() {
   if (REAL) {
     $("#startLesson").hidden = $("#startPick").hidden = true;
     $("#startFree").textContent = `Fly from ${KZAR.id}`; $("#startFree").classList.add("primary");
-    pick.innerHTML = `<p class="dnote"><b>${esc(KZAR.id)} ${esc(KZAR.name)}</b>, ${esc(KZAR.city || "")} ${esc(KZAR.state || "")} · ${KZAR.elevFt.toLocaleString()} ft · ${AIRPORTS.length} airports in this 60 km square. Real terrain, aerial photos, runways, taxiways, frequencies and airspace, with the weather and time of day there right now. Lessons fly in Zarhart Valley. <a href="./">Back to Zarhart Valley</a></p>`;
+    pick.innerHTML = `<p class="dnote"><b>${esc(KZAR.id)} ${esc(KZAR.name)}</b>, ${esc(KZAR.city || "")} ${esc(KZAR.state || "")} · ${KZAR.elevFt.toLocaleString()} ft · ${AIRPORTS.length} airports in this 60 km square. Real terrain, aerial photos, runways, taxiways, frequencies and airspace, with the weather and time of day there right now. Lessons here use this airport's runway in use and today's weather. <a href="./">Back to Zarhart Valley</a></p>`;
     const at = document.createElement("div"); at.className = "attrib"; at.textContent = REAL_ATTRIBUTION; document.body.appendChild(at);
     return;
   }
@@ -1052,6 +1052,7 @@ async function startLiveWeather(prog) {
   r.com1s = KZAR.freqs.atis || KZAR.freqs.awos || r.com1s; if (vors[0]) r.nav1 = vors[0].freq; if (vors[1]) r.nav1s = vors[1].freq;
   sim.setWeather(REAL.live ? REAL.live.params : PRESETS.scattered); sim.setTime(localNow());
   if (REAL.live) $("#realPick")?.insertAdjacentHTML("beforeend", `<p class="metar mono">${esc(REAL.live.raw)}</p>`);
+  setupRealLessons();
   // a new observation every 30 minutes while you're flying the live weather
   setInterval(async () => {
     if (!weather.isLive) return;
@@ -1059,6 +1060,12 @@ async function startLiveWeather(prog) {
     REAL.live = fresh; sim.setWeather(fresh.params); say(`New weather at ${fresh.station}: ${fresh.raw}`, "info", 8000);
   }, 30 * 60 * 1000);
   if (!REAL.live) say("Couldn't get the real weather just now, so it's a nice scattered day. Weather presets are in the Weather menu.", "info", 6000);
+}
+/** the lessons for the real home field (lessons.js realLessons), on the start screen and in the Lessons menu */
+function setupRealLessons() {
+  LESSONS.splice(0, LESSONS.length, ...realLessons(KZAR, weather, MAGVAR));
+  startLessonId = LESSONS[0].id; $("#startLesson").textContent = `Start lesson: ${LESSONS[0].title}`; $("#startLesson").hidden = $("#startPick").hidden = false;
+  if (openDrawerName === "lessons") renderDrawer();
 }
 /** OpenStreetMap's taxiways and ramps, when they arrive after the world was built */
 function realDetailLater() {
@@ -1068,6 +1075,7 @@ function realDetailLater() {
     let n = 0; for (const ap of AIRPORTS) if (applyAirportDetail(ap, detail[ap.id], false)) { world.addAirportDetail(ap); n++; }
     realDepartureTraffic();
     if (n) say(`Taxiways and ramps are in for ${n} airport${n > 1 ? "s" : ""} (OpenStreetMap).`, "info", 4000);
+    if (KZAR.papis?.length && !lessons.lesson) setupRealLessons(); // a PAPI lesson, now that the lights are mapped
   }).catch((err) => console.warn("OpenStreetMap detail:", err));
 }
 realWorldUi();

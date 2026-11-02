@@ -787,6 +787,19 @@ function buildRealDetail(ap, mats, lights) {
     m.castShadow = m.receiveShadow = Q.pbr; g.add(m);
   }
   addHolds(ap, g, mats, y);
+  // PAPI: four units in a row beside the touchdown zone, the inner ones set highest (3.5°, 3.17°, 2.83°, 2.5°), so on the
+  // glidepath you see two white and two red. A 2-bar VASI: the near bar set at 2.75°, the far bar 150 m on at 3.25°.
+  for (const p of ap.papis || []) {
+    const h = p.hdg * DEG, out = [Math.cos(h) * p.side, Math.sin(h) * p.side], fwd = [Math.sin(h), -Math.cos(h)];
+    const units = p.kind === "vasi" ? [[0, 0, 2.75], [0, 150, 3.25]] : [[-13.5, 0, 3.5], [-4.5, 0, 3.17], [4.5, 0, 2.83], [13.5, 0, 2.5]];
+    for (const [o, f, ang] of units) {
+      const x = p.x + out[0] * o + fwd[0] * f, z = p.z + out[1] * o + fwd[1] * f, uy = y(x, z) + 0.9;
+      const box = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.9, 0.9), new THREE.MeshLambertMaterial({ color: 0x333333 })); box.position.set(x, uy - 0.45, z); box.rotation.y = -h; g.add(box);
+      const geo = new THREE.BufferGeometry(); geo.setAttribute("position", new THREE.Float32BufferAttribute([x, uy, z], 3)); geo.setAttribute("color", new THREE.Float32BufferAttribute([1, 1, 1], 3));
+      const pts = new THREE.Points(geo, mats.ptsMat(7)); g.add(pts);
+      lights.vasi.push({ pts, x, z, y: uy, ang, ap: ap.id, end: p.end, n: 1 });
+    }
+  }
   // blue taxiway edge lights at lighted fields
   if (ap.runways.some((r) => r.lights) && paved.length) {
     const p = [], c = [];
@@ -1350,7 +1363,7 @@ export class World {
     for (const v of this.ap.lights.vasi) {
       const d = Math.hypot(eye.x - v.x, eye.z - v.z); const ang = Math.atan2(eye.y - v.y, d) / DEG;
       const white = ang > v.ang; const c = v.pts.geometry.attributes.color;
-      for (let k = 0; k < 3; k++) c.setXYZ(k, 1, white ? 1 : 0.12, white ? 1 : 0.08);
+      for (let k = 0; k < (v.n || 3); k++) c.setXYZ(k, 1, white ? 1 : 0.12, white ? 1 : 0.08);
       c.needsUpdate = true; v.lastWhite = white;
       v.pts.material.size = night ? 7 : 5;
     }
