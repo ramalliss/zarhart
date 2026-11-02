@@ -214,6 +214,26 @@ function lakeD(x, z) {
 }
 export function inLake(x, z) { return !REAL && lakeD(x, z) < 1; }
 
+/** the rectangles in a list that can matter within `reach` m of a point, from a 400 m grid (big real airports have thousands) */
+const grids = new WeakMap(), NONE = [];
+function near(list, x, z, reach) {
+  if (list.length < 48) return list;
+  let G = grids.get(list);
+  if (!G || G.n !== list.length) {
+    const C = 400, cells = new Map();
+    for (const r of list) {
+      const R = Math.hypot(r.len, r.wid) / 2 + reach;
+      for (let i = Math.floor((r.cx - R) / C); i <= Math.floor((r.cx + R) / C); i++) for (let j = Math.floor((r.cz - R) / C); j <= Math.floor((r.cz + R) / C); j++) { const k = i * 65536 + j; let c = cells.get(k); if (!c) cells.set(k, (c = [])); c.push(r); }
+    }
+    G = { n: list.length, cells, C }; grids.set(list, G);
+  }
+  return G.cells.get(Math.floor(x / G.C) * 65536 + Math.floor(z / G.C)) || NONE;
+}
+function inPoly(x, z, pts) {
+  let inside = false;
+  for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) { const [xi, zi] = pts[i], [xj, zj] = pts[j]; if ((zi > z) !== (zj > z) && x < ((xj - xi) * (z - zi)) / (zj - zi) + xi) inside = !inside; }
+  return inside;
+}
 /** Signed distance (m) from a point to an oriented rectangle (negative inside). */
 export function rectDist(px, pz, r, grow = 0) {
   const c = Math.cos(r.hdg * DEG), s = Math.sin(r.hdg * DEG);
@@ -297,9 +317,10 @@ export function heightAt(x, z) {
   }
   // airports: flat pads with a smooth blend
   for (const ap of AIRPORTS) {
-    if (Math.abs(x - ap.x) > 2600 || Math.abs(z - ap.z) > 2600) continue;
+    const R = (ap.reach ?? 1400) + 1200; // Zarhart's fields are compact; real ones reach as far as their longest runway
+    if (Math.abs(x - ap.x) > R || Math.abs(z - ap.z) > R) continue;
     let d = Infinity;
-    for (const r of ap.flat) d = Math.min(d, rectDist(x, z, r, 160));
+    for (const r of near(ap.flat, x, z, 810)) d = Math.min(d, rectDist(x, z, r, 160));
     if (d < 650) h = lerp(ap.elev, h, smooth(d / 650));
   }
   return h;
@@ -308,9 +329,14 @@ export function heightAt(x, z) {
 /** Surface under a point: { h, type } where type is asphalt | grass | dirt | water. */
 export function groundAt(x, z) {
   for (const ap of AIRPORTS) {
-    if (Math.abs(x - ap.x) > 1400 || Math.abs(z - ap.z) > 1400) continue;
+    const R = ap.reach ?? 1400;
+    if (Math.abs(x - ap.x) > R || Math.abs(z - ap.z) > R) continue;
     for (const r of ap.runways) if (rectDist(x, z, r) <= 0) return { h: ap.elev, type: r.surface === "grass" || r.surface === "dirt" ? r.surface : "asphalt" };
-    for (const r of [...ap.taxiways, ...ap.aprons]) if (rectDist(x, z, r) <= 0) return { h: ap.elev, type: r.surface };
+    // a real field's taxiways and ramps that arrived after the ground was shaped lie on the terrain instead of the levelled pad
+    const pave = (type) => ({ h: ap.flattened === false ? heightAt(x, z) : ap.elev, type });
+    for (const r of near(ap.taxiways, x, z, 1)) if (rectDist(x, z, r) <= 0) return pave(r.surface);
+    for (const r of ap.aprons) if (rectDist(x, z, r) <= 0) return pave(r.surface);
+    for (const poly of ap.apronPolys || []) if (inPoly(x, z, poly)) return pave("asphalt");
     if (Math.abs(heightAt(x, z) - ap.elev) < 0.01) return { h: ap.elev, type: "grass" };
   }
   if (REAL) { const h = heightAt(x, z); return { h, type: realWater(x, z) ? "water" : "grass" }; }

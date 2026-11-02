@@ -307,7 +307,8 @@ function suggestCall(fi) {
   const k = callsFor(fi); if (!k.length) return null;
   if (fi.kind !== "twr") return k[0];
   const d = ac.derived, { dnm } = posReport(KZAR);
-  if (d.onGround) return !REAL && Math.hypot(ac.pos.x + 300, ac.pos.z + 250) < 400 ? null : "depart"; // at the ramp you call Ground, not Tower
+  const rp = KZAR.spawn.ramp; // at the ramp you call Ground, not Tower
+  if (d.onGround) return (!REAL || KZAR.hasRamp) && Math.hypot(ac.pos.x - rp.x, ac.pos.z - rp.z) < (REAL ? 250 : 400) ? null : "depart";
   return dnm < 2.5 && d.agl < 1500 ? "land" : "inbound";
 }
 function radioCall(kind, spoken) {
@@ -330,7 +331,7 @@ function radioCall(kind, spoken) {
   if (fi.kind === "guard") { radioLog("You", spoken || `Mayday, mayday, mayday, ${CALLSIGN}, ${ac.failures.engine || !ac.eng.running ? "engine failure" : "emergency"}, ${Math.round(d.altInd)} feet.`, false); setTimeout(() => radioLog(`${HOME} Approach`, `${SHORT}, roger mayday. Squawk 7700. ${HOME} altimeter ${weather.qnhInHg.toFixed(2)}. Nearest airport ${nearestAirport(ac.pos.x, ac.pos.z).airport.name}.`), 2200); return; }
   // tower / ground at KZAR
   const { dnm, dir } = posReport(KZAR);
-  if (kind === "taxi") { radioLog("You", spoken || `${HOME} Ground, ${CALLSIGN}, at the ramp with information ${weatherLetter()}, ready to taxi.`, false); setTimeout(() => radioLog(`${HOME} Ground`, `${SHORT}, runway ${rw}, taxi via ${REAL ? "the parallel taxiway" : "Alpha"}. Hold short of runway ${rw}.`), 1800); sim.flags.taxiClr = true; return; }
+  if (kind === "taxi") { radioLog("You", spoken || `${HOME} Ground, ${CALLSIGN}, at the ramp with information ${weatherLetter()}, ready to taxi.`, false); setTimeout(() => radioLog(`${HOME} Ground`, `${SHORT}, runway ${rw}, taxi via ${taxiVia(KZAR, rw)}. Hold short of runway ${rw}.`), 1800); sim.flags.taxiClr = true; return; }
   if (kind === "depart") { radioLog("You", spoken || `${HOME} Tower, ${CALLSIGN}, holding short runway ${rw}, ready for departure.`, false); setTimeout(() => { radioLog(`${HOME} Tower`, `${SHORT}, wind ${String(Math.round(weather.windDir / 10) * 10).padStart(3, "0")} at ${Math.round(weather.windKt)}, runway ${rw}, cleared for takeoff.`); sim.flags.departCall = true; sim.flags.dContact = true; }, 1800); return; }
   if (kind === "inbound") { radioLog("You", spoken || `${HOME} Tower, ${CALLSIGN}, ${Math.round(dnm)} miles ${dir}, ${Math.round(d.altInd / 100) * 100}, inbound for landing with ${weatherLetter()}.`, false); setTimeout(() => { const side = REAL || rw === "27" || rw === "36" ? "left" : "right"; radioLog(`${HOME} Tower`, `${SHORT}, Zarhart Tower, enter ${side} downwind runway ${rw}, report midfield.${traffic.advisory(KZAR)}`); sim.flags.inboundCall = true; sim.flags.dContact = true; }, 1800); return; }
   if (kind === "land") { radioLog("You", spoken || `${HOME} Tower, ${SHORT}, midfield ${rw === "27" ? "left" : ""} downwind, full stop.`, false); setTimeout(() => radioLog(`${HOME} Tower`, `${SHORT}, runway ${rw}, cleared to land.${traffic.advisory(KZAR)}`), 1600); sim.flags.dContact = true; return; }
@@ -931,7 +932,8 @@ $("#startFree").addEventListener("click", () => { startFlying(); freeFlight(REAL
 /** start choices for a real place: every runway end of the nearest airports, and on final to the home field */
 function realStarts() {
   const out = [];
-  AIRPORTS.slice(0, 12).forEach((ap, i) => { for (const r of ap.runways) for (const e of r.ends) out.push([`${i}:rwy${e.id}`, `${ap.id} ${ap.call}: runway ${e.id}${i ? "" : " (home)"}`]); });
+  if (KZAR.hasRamp) out.push(["0:rampCold", `${KZAR.id} ${KZAR.call}: ramp, cold & dark (use the checklists)`], ["0:ramp", `${KZAR.id} ${KZAR.call}: ramp, engine running`]);
+  AIRPORTS.slice(0, 12).forEach((ap, i) => { if (i && ap.hasRamp) out.push([`${i}:ramp`, `${ap.id} ${ap.call}: ramp`]); for (const r of ap.runways) for (const e of r.ends) out.push([`${i}:rwy${e.id}`, `${ap.id} ${ap.call}: runway ${e.id}${i ? "" : " (home)"}`]); });
   return [...out, ["air", `In the air, 3 miles from ${KZAR.id}`]];
 }
 function realStart(where) {
@@ -939,8 +941,9 @@ function realStart(where) {
     const r = KZAR.runways[0], e = r.ends[0], back = 5600;
     spawn({ x: e.x - r.dir[0] * back, z: e.z - r.dir[1] * back, hdg: e.hdg, onGround: false, altFt: KZAR.elevFt + 1000, kias: 85 }); ac.ctl.throttle = 0.55;
   } else {
-    const [i, key] = where.split(":"), ap = AIRPORTS[+i] || KZAR;
-    spawn({ ...(ap.spawn[key] || ap.spawn.start), onGround: true });
+    const [i, key] = where.split(":"), ap = AIRPORTS[+i] || KZAR, cold = key === "rampCold";
+    spawn({ ...(ap.spawn[cold ? "ramp" : key] || ap.spawn.start), onGround: true, ...(cold ? { engineRunning: false, coldDark: true } : {}) });
+    if (cold) { checkTab = "start"; say("Cold and dark. Open the checklist (K) and the Aircraft drawer to start the engine.", "lesson", 9000); }
   }
   const ap = nearestAirport(ac.pos.x, ac.pos.z).airport;
   sim.radio.com1 = ap.freqs.twr || ap.freqs.ctaf || 122.9; sim.radio.com2 = ap.freqs.gnd || ap.freqs.awos || ap.freqs.atis || 121.5;
@@ -969,7 +972,25 @@ function realWorldUi() {
   $("#realGo").addEventListener("click", go);
   $("#realApt").addEventListener("keydown", (ev) => { ev.stopPropagation(); if (ev.key === "Enter") go(); });
 }
-const REAL_ATTRIBUTION = "Terrain: Terrain Tiles on AWS (USGS 3DEP, SRTM) · Imagery: USGS The National Map · Airports: OurAirports";
+const REAL_ATTRIBUTION = "Terrain: Terrain Tiles on AWS (USGS 3DEP, SRTM) · Imagery: USGS The National Map · Airports: OurAirports · Taxiways: © OpenStreetMap contributors";
+/** what Ground says to get from here to a runway: the nearest named taxiway, then the one at that runway's hold-short line */
+function taxiVia(ap, rw) {
+  if (!REAL) return "Alpha";
+  const named = ap.taxiways.filter((t) => t.name && !t.lane), dist = (t, x, z) => Math.hypot(t.cx - x, t.cz - z);
+  const first = named.sort((p, q) => dist(p, ac.pos.x, ac.pos.z) - dist(q, ac.pos.x, ac.pos.z))[0]?.name;
+  const end = ap.runways.flatMap((r) => r.ends).find((e) => e.id === rw), id = rw.replace(/^0/, "");
+  const hold = end && ap.holdShort.filter((h) => h.twy && h.sign.split("-").includes(id)).sort((p, q) => Math.hypot(p.x - end.x, p.z - end.z) - Math.hypot(q.x - end.x, q.z - end.z))[0];
+  return [first, hold?.twy].filter((v, i, a) => v && a.indexOf(v) === i).join(", ") || "the parallel taxiway";
+}
+/** OpenStreetMap's taxiways and ramps, when they arrive after the world was built */
+function realDetailLater() {
+  REAL.detail?.then(async (detail) => {
+    if (!detail) return;
+    const { applyAirportDetail } = await import("./realworld.js");
+    let n = 0; for (const ap of AIRPORTS) if (applyAirportDetail(ap, detail[ap.id], false)) { world.addAirportDetail(ap); n++; }
+    if (n) say(`Taxiways and ramps are in for ${n} airport${n > 1 ? "s" : ""} (OpenStreetMap).`, "info", 4000);
+  }).catch((err) => console.warn("OpenStreetMap detail:", err));
+}
 realWorldUi();
 $("#crashRetry").addEventListener("click", retry);
 /* ---------------- VR ---------------- */
@@ -1189,7 +1210,7 @@ async function boot() {
     addParked(); world.labelsOn = settings.labels !== false;
     sim.setWeather(PRESETS.scattered); sim.setTime(13);
     spawn({ ...(KZAR.spawn.rwy27 || KZAR.spawn.start), onGround: true });
-    if (REAL) sim.radio.com1 = KZAR.freqs.twr || KZAR.freqs.ctaf || 122.9, sim.radio.com2 = KZAR.freqs.gnd || KZAR.freqs.awos || KZAR.freqs.atis || 121.5;
+    if (REAL) { sim.radio.com1 = KZAR.freqs.twr || KZAR.freqs.ctaf || 122.9; sim.radio.com2 = KZAR.freqs.gnd || KZAR.freqs.awos || KZAR.freqs.atis || 121.5; realDetailLater(); }
     sim.ready = true; sim.d = ac.derived;
     if (post) post.overlay = world.labels;
     $("#loading").hidden = true; $("#startChoices").hidden = false;

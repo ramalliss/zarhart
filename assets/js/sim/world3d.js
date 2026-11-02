@@ -649,6 +649,7 @@ function buildAirports(lightsTex, renderer, Q = { pbr: false, runwayScale: 1 }, 
   const yellowMat = Q.pbr ? pavement({ color: 0xd8ac1c, ...off(6) }) : weatherize(new THREE.MeshBasicMaterial({ color: 0xd8ac1c, ...off(6) }));
   const hsTex = holdShortTexture();
   const ptsMat = (size) => { const m = new THREE.PointsMaterial({ size, sizeAttenuation: false, map: lightsTex, vertexColors: true, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }); lightMats.push(m); return m; };
+  const mats = { Q, taxiMat, apronMat, yellowMat, hsTex, ptsMat, off, solid };
   for (const ap of AIRPORTS) {
     const y = ap.elev;
     const edgePts = [], edgeCol = [];
@@ -684,7 +685,8 @@ function buildAirports(lightsTex, renderer, Q = { pbr: false, runwayScale: 1 }, 
         }
       }
     }
-    for (const t of ap.taxiways) {
+    if (ap.real) { if (ap.detail) root.add(buildRealDetail(ap, mats, lights)); }
+    else for (const t of ap.taxiways) {
       const m = new THREE.Mesh(planeGroup(t.len, t.wid, t.hdg), t.surface === "grass" ? new THREE.MeshLambertMaterial({ color: 0x6b8a4c }) : taxiMat); m.position.set(t.cx, y + 0.015, t.cz); m.receiveShadow = Q.pbr; root.add(m);
       if (t.surface !== "grass") {
         const cl = new THREE.Mesh(planeGroup(t.len, 0.35, t.hdg), yellowMat); cl.position.set(t.cx, y + 0.03, t.cz); cl.receiveShadow = Q.pbr; root.add(cl);
@@ -694,7 +696,24 @@ function buildAirports(lightsTex, renderer, Q = { pbr: false, runwayScale: 1 }, 
     }
     for (const a of ap.aprons) { const m = new THREE.Mesh(planeGroup(a.len, a.wid, a.hdg), a.surface === "grass" ? new THREE.MeshLambertMaterial({ color: 0x6b8a4c }) : apronMat); m.position.set(a.cx, y + 0.01, a.cz); m.receiveShadow = Q.pbr; root.add(m); }
     // hold-short markings and mandatory signs
-    for (const h of ap.holdShort) {
+    if (!ap.real) addHolds(ap, root, mats);
+    for (const h of ap.rwyHold || []) {
+      const r = ap.runways[0]; const sign = buildSign(h.sign, "mandatory");
+      sign.position.set(h.x, y, h.z + (h.z < 0 ? -0 : 0)); sign.rotation.y = h.z < 0 ? -Math.PI / 2 : Math.PI / 2; root.add(sign); void r;
+    }
+    // lights object
+    const geo = new THREE.BufferGeometry(); geo.setAttribute("position", new THREE.Float32BufferAttribute(edgePts, 3)); geo.setAttribute("color", new THREE.Float32BufferAttribute(edgeCol, 3));
+    const pts = new THREE.Points(geo, ptsMat(4)); pts.visible = false; root.add(pts);
+    if (ap.id === "KAME") lights.pcl = pts; else (ap.id === "KZAR" ? lights.kzar : lights.taxi).push(pts);
+    buildAirportProps(ap, root, mats, lights);
+    // parked airplanes are added by the caller (they reuse the airplane model)
+  }
+  return { root, lights, mats };
+}
+/** hold-short markings and the mandatory and location signs beside them; y(x, z) is the ground height there */
+function addHolds(ap, root, mats, y = () => ap.elev) {
+  const { Q, hsTex, off } = mats;
+  for (const h of ap.holdShort) {
       // which way is the runway? the nearest runway centre is on the dashed side
       let best = null, bd = Infinity; for (const r of ap.runways) { const d = Math.abs(rectDist(h.x, h.z, { ...r, wid: 0.01 })); if (d < bd) { bd = d; best = r; } }
       const toR = new THREE.Vector2(best.cx - h.x, best.cz - h.z);
@@ -705,20 +724,87 @@ function buildAirports(lightsTex, renderer, Q = { pbr: false, runwayScale: 1 }, 
       m.receiveShadow = Q.pbr;
       // texture top (-z local) = solid lines = away from runway
       m.rotation.y = Math.atan2(toR.x, toR.y);
-      m.position.set(h.x, y + 0.04, h.z); root.add(m);
-      const sign = buildSign(h.sign, "mandatory"); const loc = buildSign(h.twy, "location");
+      const hy = y(h.x, h.z);
+      m.position.set(h.x, hy + 0.04, h.z); root.add(m);
+      const sign = buildSign(h.sign, "mandatory"); const loc = buildSign(h.twy || "", "location");
       const sideX = -toR.y, sideZ = toR.x;
-      sign.position.set(h.x + sideX * 13 - toR.x * 3, y, h.z + sideZ * 13 - toR.y * 3); sign.rotation.y = Math.atan2(-toR.x, -toR.y) + Math.PI; root.add(sign);
-      loc.position.set(h.x + sideX * 13 - toR.x * 3 + toR.x * -0.01 + sideX * 3.4, y, h.z + sideZ * 13 - toR.y * 3 + sideZ * 3.4); loc.rotation.y = sign.rotation.y; root.add(loc);
+      sign.position.set(h.x + sideX * 13 - toR.x * 3, hy, h.z + sideZ * 13 - toR.y * 3); sign.rotation.y = Math.atan2(-toR.x, -toR.y) + Math.PI; root.add(sign);
+      if (h.twy) { loc.position.set(h.x + sideX * 13 - toR.x * 3 + toR.x * -0.01 + sideX * 3.4, hy, h.z + sideZ * 13 - toR.y * 3 + sideZ * 3.4); loc.rotation.y = sign.rotation.y; root.add(loc); }
     }
-    for (const h of ap.rwyHold || []) {
-      const r = ap.runways[0]; const sign = buildSign(h.sign, "mandatory");
-      sign.position.set(h.x, y, h.z + (h.z < 0 ? -0 : 0)); sign.rotation.y = h.z < 0 ? -Math.PI / 2 : Math.PI / 2; root.add(sign); void r;
+}
+/**
+ * A real airport's OpenStreetMap detail (taxiways, ramps, buildings, hold-short lines, taxiway edge lights), merged into a
+ * few meshes so a big airport with thousands of taxiway pieces still draws in a handful of calls. Laid on the levelled
+ * pad when it arrived in time to level it, otherwise on the terrain.
+ */
+function buildRealDetail(ap, mats, lights) {
+  const { Q, taxiMat, apronMat, yellowMat, ptsMat } = mats, g = new THREE.Group();
+  const y = ap.flattened ? () => ap.elev : (x, z) => heightAt(x, z);
+  const quads = (list, lift) => { // oriented rectangles → one geometry
+    const pos = [], idx = [];
+    for (const t of list) {
+      const s = Math.sin(t.hdg * DEG), c = -Math.cos(t.hdg * DEG), px = -c, pz = s, L = t.len / 2, W = t.wid / 2, k = pos.length / 3;
+      const hy = ap.flattened ? ap.elev : Math.max(y(t.cx - s * L, t.cz - c * L), y(t.cx, t.cz), y(t.cx + s * L, t.cz + c * L));
+      for (const [a, b] of [[-L, -W], [L, -W], [L, W], [-L, W]]) pos.push(t.cx + s * a + px * b, hy + lift, t.cz + c * a + pz * b);
+      idx.push(k, k + 2, k + 1, k, k + 3, k + 2);
     }
-    // lights object
-    const geo = new THREE.BufferGeometry(); geo.setAttribute("position", new THREE.Float32BufferAttribute(edgePts, 3)); geo.setAttribute("color", new THREE.Float32BufferAttribute(edgeCol, 3));
-    const pts = new THREE.Points(geo, ptsMat(4)); pts.visible = false; root.add(pts);
-    if (ap.id === "KAME") lights.pcl = pts; else (ap.id === "KZAR" ? lights.kzar : lights.taxi).push(pts);
+    const geo = new THREE.BufferGeometry(); geo.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3)); geo.setIndex(idx); geo.computeVertexNormals();
+    for (let i = 1, n = geo.attributes.normal; i < n.array.length; i += 3) n.array[i] = Math.abs(n.array[i]); // all face up
+    return geo;
+  };
+  const add = (geo, mat) => { const m = new THREE.Mesh(geo, mat); m.receiveShadow = Q.pbr; g.add(m); return m; };
+  const paved = ap.taxiways.filter((t) => t.surface !== "grass"), turf = ap.taxiways.filter((t) => t.surface === "grass");
+  if (paved.length) add(quads(paved, 0.015), taxiMat);
+  if (turf.length) add(quads(turf, 0.015), new THREE.MeshLambertMaterial({ color: 0x6b8a4c, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 }));
+  if (paved.length) add(quads(paved.map((t) => ({ ...t, len: t.line, wid: 0.3 })), 0.03), yellowMat); // centrelines
+  // ramps: their outlines, triangulated
+  if (ap.apronPolys?.length) {
+    const pos = [], idx = [];
+    for (const poly of ap.apronPolys) {
+      const pts = poly.map(([x, z]) => new THREE.Vector2(x, z)), tri = THREE.ShapeUtils.triangulateShape(pts, []), k = pos.length / 3;
+      for (const [x, z] of poly) pos.push(x, y(x, z) + 0.008, z);
+      for (const [a, b, c] of tri) { const [ax, az] = poly[a], [bx, bz] = poly[b], [cx, cz] = poly[c]; if ((bz - az) * (cx - ax) - (bx - ax) * (cz - az) > 0) idx.push(k + a, k + b, k + c); else idx.push(k + a, k + c, k + b); }
+    }
+    const geo = new THREE.BufferGeometry(); geo.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3)); geo.setIndex(idx); geo.computeVertexNormals();
+    for (let i = 1, n = geo.attributes.normal; i < n.array.length; i += 3) n.array[i] = Math.abs(n.array[i]);
+    add(geo, apronMat);
+  }
+  // hangars and terminals: their footprints raised to their height
+  const byKind = { hangar: [], terminal: [] };
+  for (const b of ap.buildings || []) {
+    const shape = new THREE.Shape(b.pts.map(([x, z]) => new THREE.Vector2(x, -z)));
+    const lo = Math.min(...b.pts.map(([x, z]) => y(x, z))), hi = Math.max(...b.pts.map(([x, z]) => y(x, z)));
+    const geo = new THREE.ExtrudeGeometry(shape, { depth: b.h + (hi - lo), bevelEnabled: false }); geo.rotateX(-Math.PI / 2); geo.translate(0, lo - 0.3, 0);
+    byKind[b.kind].push(geo.index ? geo.toNonIndexed() : geo);
+  }
+  for (const [kind, list] of Object.entries(byKind)) {
+    if (!list.length) continue;
+    const n = list.reduce((v, gg) => v + gg.attributes.position.array.length, 0), pos = new Float32Array(n), nor = new Float32Array(n); let o = 0;
+    for (const gg of list) { pos.set(gg.attributes.position.array, o); nor.set(gg.attributes.normal.array, o); o += gg.attributes.position.array.length; }
+    const geo = new THREE.BufferGeometry(); geo.setAttribute("position", new THREE.BufferAttribute(pos, 3)); geo.setAttribute("normal", new THREE.BufferAttribute(nor, 3));
+    const color = kind === "terminal" ? 0xcfc8bb : 0xb7bcc1;
+    const m = new THREE.Mesh(geo, Q.pbr ? new THREE.MeshStandardMaterial({ color, roughness: kind === "terminal" ? 0.8 : 0.5, metalness: kind === "terminal" ? 0 : 0.35 }) : new THREE.MeshLambertMaterial({ color }));
+    m.castShadow = m.receiveShadow = Q.pbr; g.add(m);
+  }
+  addHolds(ap, g, mats, y);
+  // blue taxiway edge lights at lighted fields
+  if (ap.runways.some((r) => r.lights) && paved.length) {
+    const p = [], c = [];
+    for (const t of paved) {
+      if (t.lane) continue;
+      const s = Math.sin(t.hdg * DEG), cc = -Math.cos(t.hdg * DEG), px = -cc, pz = s;
+      for (let d = -t.line / 2; d <= t.line / 2; d += 30) for (const side of [-1, 1]) { const x = t.cx + s * d + px * side * (t.wid / 2 + 0.8), z = t.cz + cc * d + pz * side * (t.wid / 2 + 0.8); p.push(x, y(x, z) + 0.4, z); c.push(0.25, 0.4, 1); }
+    }
+    const geo = new THREE.BufferGeometry(); geo.setAttribute("position", new THREE.Float32BufferAttribute(p, 3)); geo.setAttribute("color", new THREE.Float32BufferAttribute(c, 3));
+    const pts = new THREE.Points(geo, ptsMat(4)); pts.visible = false; g.add(pts); lights.taxi.push(pts);
+  }
+  g.name = `detail-${ap.id}`;
+  return g;
+}
+/** an airport's buildings, tower, beacon, windsock and segmented circle */
+function buildAirportProps(ap, root, mats, lights) {
+  const { Q, solid, ptsMat } = mats, y = ap.elev;
+  {
     // buildings
     for (const [hx, hz, w, l] of ap.hangars || []) {
       const body = solid(new THREE.Mesh(new THREE.BoxGeometry(w, 7, l), Q.pbr ? new THREE.MeshStandardMaterial({ color: 0xb9bcc0, roughness: 0.55, metalness: 0.35 }) : new THREE.MeshLambertMaterial({ color: 0xb9bcc0 }))); body.position.set(hx, y + 3.5, hz); root.add(body);
@@ -753,9 +839,7 @@ function buildAirports(lightsTex, renderer, Q = { pbr: false, runwayScale: 1 }, 
         const short = new THREE.Mesh(new THREE.BoxGeometry(7, 0.5, 1.4), mat); short.position.set(sc.x - 3.5, y + 0.25, sc.z + sgn * (sc.r + 16.3)); root.add(short);
       }
     }
-    // parked airplanes are added by the caller (they reuse the airplane model)
   }
-  return { root, lights };
 }
 
 /* ===================== landmarks ===================== */
@@ -1093,10 +1177,15 @@ export class World {
     // the photo's average colour, for the ground beyond the edge
     const a = canvas(1, 1).getContext("2d"); a.drawImage(base, 0, 0, 1, 1); const [r, g, b] = a.getImageData(0, 0, 1, 1).data;
     this.groundCanvas = base;
+    // OpenStreetMap's taxiways and ramps: if they're here by now, level the ground under them too
+    const detail = await Promise.race([REAL.detail?.catch(() => null), new Promise((res) => setTimeout(res, 2500))]);
+    if (detail) { const { applyAirportDetail } = await import("./realworld.js"); for (const ap of AIRPORTS) applyAirportDetail(ap, detail[ap.id], true); }
     progress("Raising the terrain"); await new Promise((res) => setTimeout(res, 16));
     const terrain = buildTerrain(base, Q, { inner: innerTex, rect: { x0: home.x - S, z0: home.z - S, size: 2 * S }, average: (r << 16) | (g << 8) | b });
     this.scene.add(terrain.group); this.terrain = terrain; this.trees = null;
   }
+  /** a real airport's OpenStreetMap detail that arrived after the world was built (laid on the terrain) */
+  addAirportDetail(ap) { this.ap.root.add(buildRealDetail(ap, this.ap.mats, this.ap.lights)); }
   /** Zarhart Valley: the painted ground, lake, towns and forests */
   async buildValley(step) {
     const Q = this.Q;

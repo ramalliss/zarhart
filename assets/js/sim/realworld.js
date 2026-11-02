@@ -3,10 +3,11 @@
 //   terrain heights  Terrain Tiles on AWS (Tilezen/Mapzen: USGS 3DEP, SRTM and other public sources)
 //   aerial photos    USGS The National Map, orthoimagery (public domain)
 //   airports, VORs   OurAirports (public domain), packed per 1° square by tools/build-airports.mjs
+//   taxiways, ramps  OpenStreetMap (© OpenStreetMap contributors, ODbL), asked for live and kept in the browser for 30 days
 // The sim's frame is flat: x metres east and z metres south of the home airport, so north is -z, as in Zarhart Valley.
 
 const R = 6378137, DEG = Math.PI / 180, FT = 0.3048;
-export const ATTRIBUTION = "Terrain: Terrain Tiles on AWS (USGS 3DEP, SRTM) · Imagery: USGS The National Map · Airports: OurAirports";
+export const ATTRIBUTION = "Terrain: Terrain Tiles on AWS (USGS 3DEP, SRTM) · Imagery: USGS The National Map · Airports: OurAirports · Taxiways: © OpenStreetMap contributors";
 const DATA = new URL("../../data/airports/", import.meta.url).href;
 const DEM = (z, x, y) => `https://s3.amazonaws.com/elevation-tiles-prod/terrarium/${z}/${x}/${y}.png`;
 const PHOTO = (z, x, y) => `https://basemap.nationalmap.gov/arcgis/rest/services/USGSImageryOnly/MapServer/tile/${z}/${y}/${x}`;
@@ -147,13 +148,16 @@ function toSim(a, frame) {
   spawn.start = spawn[`rwy${main.ids[0]}`]; spawn.ramp = spawn.start;
   const side = main.wid / 2 + 70, wx = main.cx - main.dir[1] * side, wz = main.cz + main.dir[0] * side; // a windsock beside the main runway
   const ap = {
-    id: a.id, local: a.local, name: a.name, city: a.city, state: a.state, call: callName(a.name), real: true, x, z, towered, size: a.size,
+    id: a.id, local: a.local, name: a.name, city: a.city, state: a.state, real: true,
+    call: a.city && a.name.toLowerCase().startsWith(a.city.toLowerCase()) ? a.city : callName(a.name), // "Aspen-Pitkin County Airport" in Aspen: "Aspen Tower"
+    x, z, towered, size: a.size,
     calmRwy: main.ids[0], pcl: !towered && main.lights,
     freqs: Object.fromEntries(Object.entries({ atis: f.atis, twr: f.twr, gnd: f.gnd, ctaf: towered ? undefined : f.ctaf || f.unicom || 122.9, awos: f.awos, app: f.app }).filter(([, v]) => v)),
     runways, taxiways: [], aprons: [], holdShort: [], rwyHold: [], windsock: { x: wx, z: wz }, hangars: [], parked: [], spawn,
     elevFt: Math.round(a.elev), elev: a.elev * FT,
   };
   ap.flat = runways.map((r) => rect(r.cx, r.cz, r.hdg, r.len, r.wid));
+  ap.reach = reachOf(ap);
   return ap;
 }
 
@@ -194,6 +198,134 @@ export async function loadRealWorld(ident, { half = 30000, demZoom = 12, grid = 
   const airspace = airports.filter((a) => a.towered).map((a) => a.size === "L"
     ? { id: `${a.id}-C`, name: `${a.call} Class C (approximate)`, cls: "C", x: a.x, z: a.z, r: 9260, floorFt: 0, ceilFt: Math.round((a.elevFt + 4000) / 100) * 100 }
     : { id: `${a.id}-D`, name: `${a.call} Class D (approximate)`, cls: "D", x: a.x, z: a.z, r: 7780, floorFt: 0, ceilFt: Math.round((a.elevFt + 2500) / 100) * 100 });
+  const detail = loadAirportDetail(frame, airports); // taxiways and ramps arrive whenever OpenStreetMap answers (often while the terrain loads)
   const heights = await loadHeights(frame, half, { zoom: demZoom, G: grid, progress: (d, n) => progress(`Downloading real terrain (${d}/${n})`) });
-  return { frame, airports, navaids, airspace, heights, variation: near?.var ?? 0, half };
+  return { frame, airports, navaids, airspace, heights, variation: near?.var ?? 0, half, detail };
+}
+
+/* ---------- taxiways, ramps and buildings (OpenStreetMap) ---------- */
+const OVERPASS = ["https://overpass-api.de/api/interpreter", "https://overpass.private.coffee/api/interpreter"];
+/** how far an airport's paved surfaces reach from its reference point (m): the area physics checks for runways and ramps */
+function reachOf(ap) {
+  let r = 0;
+  for (const f of [...ap.flat, ...ap.taxiways]) r = Math.max(r, Math.hypot(f.cx - ap.x, f.cz - ap.z) + f.len / 2 + f.wid);
+  for (const poly of ap.apronPolys || []) for (const [x, z] of poly) r = Math.max(r, Math.hypot(x - ap.x, z - ap.z));
+  return Math.max(1400, r + 100);
+}
+const area = (pts) => { let a = 0; for (let i = 0; i < pts.length; i++) { const [x1, z1] = pts[i], [x2, z2] = pts[(i + 1) % pts.length]; a += x1 * z2 - x2 * z1; } return Math.abs(a) / 2; };
+export function inPoly(x, z, pts) {
+  let inside = false;
+  for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) { const [xi, zi] = pts[i], [xj, zj] = pts[j]; if ((zi > z) !== (zj > z) && x < ((xj - xi) * (z - zi)) / (zj - zi) + xi) inside = !inside; }
+  return inside;
+}
+
+/** a tiny key-value store in IndexedDB (the browser's database), for answers worth keeping between visits */
+function kv(op, key, value) {
+  return new Promise((resolve, reject) => {
+    const open = indexedDB.open("zarhart", 1);
+    open.onupgradeneeded = () => open.result.createObjectStore("kv");
+    open.onerror = () => reject(open.error);
+    open.onsuccess = () => {
+      const db = open.result, tx = db.transaction("kv", op === "get" ? "readonly" : "readwrite"), store = tx.objectStore("kv");
+      const req = op === "get" ? store.get(key) : store.put(value, key);
+      req.onsuccess = () => resolve(req.result); req.onerror = () => reject(req.error); tx.oncomplete = () => db.close();
+    };
+  });
+}
+/**
+ * Asks OpenStreetMap (Overpass API) for the taxiways, taxilanes, ramps, hangars, terminals, windsocks and parking spots
+ * around every airport in the square, in one request. Resolves to { [airport id]: detail } or null if it can't be had.
+ */
+async function loadAirportDetail(frame, airports) {
+  const box = (ap) => {
+    const R = Math.max(...ap.runways.map((r) => r.len / 2)) + 800, [n, w] = frame.toGeo(ap.x - R, ap.z - R), [s, e] = frame.toGeo(ap.x + R, ap.z + R);
+    return `(${s.toFixed(5)},${w.toFixed(5)},${n.toFixed(5)},${e.toFixed(5)})`;
+  };
+  const q = `[out:json][timeout:90];(${airports.map((ap) => { const b = box(ap); return `way["aeroway"~"^(taxiway|taxilane|apron|hangar|terminal)$"]${b};way["building"="hangar"]${b};node["aeroway"~"^(windsock|parking_position)$"]${b};`; }).join("")});out geom qt;`;
+  const key = `osm1:${airports.map((a) => a.id).join("-")}`;
+  let data = null;
+  try { const hit = await kv("get", key); if (hit && Date.now() - hit.saved < 30 * 864e5) data = hit.data; } catch { /* no IndexedDB here */ }
+  if (!data) {
+    for (const url of OVERPASS) {
+      try { const r = await fetch(url, { method: "POST", body: "data=" + encodeURIComponent(q), headers: { "Content-Type": "application/x-www-form-urlencoded" } }); if (r.ok) { data = await r.json(); break; } } catch { /* try the next server */ }
+    }
+    if (!data) return null;
+    try { await kv("put", key, { saved: Date.now(), data }); } catch { /* fine without */ }
+  }
+  const out = Object.fromEntries(airports.map((a) => [a.id, { taxiways: [], aprons: [], buildings: [], windsocks: [], parking: [] }]));
+  const owner = (x, z) => { let best = null, bd = Infinity; for (const a of airports) { const d = Math.hypot(a.x - x, a.z - z); if (d < bd && d < Math.max(...a.runways.map((r) => r.len / 2)) + 1200) { bd = d; best = a; } } return best; };
+  for (const el of data.elements || []) {
+    const t = el.tags || {};
+    if (el.type === "node") { const [x, z] = frame.toLocal(el.lat, el.lon), a = owner(x, z); if (!a) continue; (t.aeroway === "windsock" ? out[a.id].windsocks : out[a.id].parking).push({ x, z, ref: t.ref }); continue; }
+    if (!el.geometry || el.geometry.length < 2) continue;
+    const pts = el.geometry.map((g) => frame.toLocal(g.lat, g.lon)), cx = pts.reduce((v, p) => v + p[0], 0) / pts.length, cz = pts.reduce((v, p) => v + p[1], 0) / pts.length, a = owner(cx, cz);
+    if (!a) continue;
+    const d = out[a.id], closed = pts.length > 3 && Math.hypot(pts[0][0] - pts.at(-1)[0], pts[0][1] - pts.at(-1)[1]) < 0.5;
+    if (t.aeroway === "taxiway" || t.aeroway === "taxilane") {
+      const w = parseFloat(t.width), lane = t.aeroway === "taxilane";
+      d.taxiways.push({ pts, ref: t.ref || "", lane, wid: w > 3 && w < 60 ? w : lane ? 7.5 : { L: 23, M: 15 }[a.size] || 10.5, grass: /grass|dirt|ground|gravel/.test(t.surface || "") });
+    } else if (closed && t.aeroway === "apron") d.aprons.push(pts.slice(0, -1));
+    else if (closed) { const h = parseFloat(t.height) || (parseFloat(t["building:levels"]) * 3.5) || (t.aeroway === "terminal" ? 9 : 8); d.buildings.push({ pts: pts.slice(0, -1), h: Math.min(40, h), kind: t.aeroway === "terminal" ? "terminal" : "hangar" }); }
+  }
+  return out;
+}
+
+/** a point on the nearest runway's centreline, and how far along and across it a point lies */
+function across(r, x, z) { const t = (x - r.cx) * r.dir[0] + (z - r.cz) * r.dir[1], s = (x - r.cx) * -r.dir[1] + (z - r.cz) * r.dir[0]; return { t, s }; }
+const strip = (id) => id.replace(/^0/, "");
+/** "13-31" written so the runway whose threshold is on your left comes first, for someone at h facing (fx, fz) (AIM 2-3-8) */
+function signFor(h, r, fx, fz) { const [e0, e1] = r.ends, e0Right = (e0.x - h.x) * -fz + (e0.z - h.z) * fx > 0; return e0Right ? `${strip(e1.id)}-${strip(e0.id)}` : `${strip(e0.id)}-${strip(e1.id)}`; }
+
+/**
+ * Puts an airport's OpenStreetMap detail into its sim record: taxiway segments (as the oriented rectangles the sim uses),
+ * ramp outlines, buildings, the windsock, a ramp start at a parking spot, and hold-short lines where each taxiway
+ * reaches the holding distance from a runway (125 ft from the centreline at small fields, 200 ft at medium, 250 ft at
+ * large ones). flatten: also level the ground under them (only before the terrain is built).
+ */
+export function applyAirportDetail(ap, d, flatten) {
+  if (!d || ap.detail) return false;
+  const segs = [];
+  for (const tw of d.taxiways) for (let i = 0; i < tw.pts.length - 1; i++) {
+    const [x1, z1] = tw.pts[i], [x2, z2] = tw.pts[i + 1], len = Math.hypot(x2 - x1, z2 - z1); if (len < 0.5) continue;
+    const hdg = ((Math.atan2(x2 - x1, -(z2 - z1)) / DEG) + 360) % 360;
+    segs.push({ ...rect((x1 + x2) / 2, (z1 + z2) / 2, hdg, len + tw.wid, tw.wid, tw.grass ? "grass" : "asphalt"), name: tw.ref, lane: tw.lane, line: len });
+  }
+  ap.taxiways = segs; ap.apronPolys = d.aprons; ap.buildings = d.buildings;
+  if (d.windsocks.length) { const r = ap.runways[0]; ap.windsock = d.windsocks.sort((p, q) => Math.hypot(p.x - r.cx, p.z - r.cz) - Math.hypot(q.x - r.cx, q.z - r.cz))[0]; }
+  // hold-short lines
+  const dist = { L: 76, M: 61 }[ap.size] || 38, holds = [];
+  for (const tw of d.taxiways) {
+    if (tw.lane) continue;
+    for (let i = 0; i < tw.pts.length - 1; i++) for (const r of ap.runways) {
+      const a = across(r, ...tw.pts[i]), b = across(r, ...tw.pts[i + 1]), P = tw.pts[i], Qp = tw.pts[i + 1];
+      for (const side of [1, -1]) { // the holding line on each side of the runway, wherever this segment crosses it
+        const up = side * a.s - dist, uq = side * b.s - dist; if ((up > 0) === (uq > 0)) continue;
+        const k = up / (up - uq), x = P[0] + (Qp[0] - P[0]) * k, z = P[1] + (Qp[1] - P[1]) * k, t = a.t + (b.t - a.t) * k;
+        if (Math.abs(t) > r.len / 2 + 80 || holds.some((h) => Math.hypot(h.x - x, h.z - z) < 25)) continue;
+        const fx = side * r.dir[1], fz = -side * r.dir[0]; // facing the runway
+        holds.push({ x, z, hdg: ((Math.atan2(fx, -fz) / DEG) + 360) % 360, sign: signFor({ x, z }, r, fx, fz), twy: tw.ref || "" });
+      }
+    }
+  }
+  ap.holdShort = holds;
+  // a ramp start: the parking spot nearest the field's reference point that isn't on a runway, facing the nearest taxiway
+  const onRunway = (x, z) => ap.runways.some((r) => Math.abs(across(r, x, z).s) < r.wid / 2 + 40 && Math.abs(across(r, x, z).t) < r.len / 2 + 60);
+  const offRunway = d.parking.filter((p) => !onRunway(p.x, p.z)), onRamp = offRunway.filter((p) => d.aprons.some((poly) => inPoly(p.x, p.z, poly)));
+  const spots = onRamp.length ? onRamp : offRunway; // a spot on a mapped ramp, if there is one
+  let ramp = spots.sort((p, q) => Math.hypot(p.x - ap.x, p.z - ap.z) - Math.hypot(q.x - ap.x, q.z - ap.z))[0];
+  if (!ramp && d.aprons.length) { const big = [...d.aprons].sort((p, q) => area(q) - area(p))[0]; ramp = { x: big.reduce((v, p) => v + p[0], 0) / big.length, z: big.reduce((v, p) => v + p[1], 0) / big.length }; if (onRunway(ramp.x, ramp.z)) ramp = null; }
+  if (ramp) {
+    const tw = segs.filter((t) => !t.lane).sort((p, q) => Math.hypot(p.cx - ramp.x, p.cz - ramp.z) - Math.hypot(q.cx - ramp.x, q.cz - ramp.z))[0];
+    const hdg = tw ? ((Math.atan2(tw.cx - ramp.x, -(tw.cz - ramp.z)) / DEG) + 360) % 360 : ap.runways[0].hdg;
+    ap.spawn.ramp = { x: ramp.x, z: ramp.z, hdg }; ap.hasRamp = true;
+  }
+  if (flatten) {
+    ap.flat.push(...segs.map((t) => rect(t.cx, t.cz, t.hdg, t.len, t.wid)));
+    for (const poly of [...d.aprons, ...d.buildings.map((b) => b.pts)]) {
+      const xs = poly.map((p) => p[0]), zs = poly.map((p) => p[1]), x0 = Math.min(...xs), x1 = Math.max(...xs), z0 = Math.min(...zs), z1 = Math.max(...zs);
+      ap.flat.push(rect((x0 + x1) / 2, (z0 + z1) / 2, 0, z1 - z0, x1 - x0));
+    }
+  }
+  ap.flattened = !!flatten; ap.detail = true; ap.reach = reachOf(ap);
+  return true;
 }
