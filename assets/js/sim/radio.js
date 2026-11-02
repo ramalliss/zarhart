@@ -53,12 +53,14 @@ export function buildCall(kind, c) {
   if (kind === "inbound") return { kind, text: `${c.facility}, ${c.callsign}, ${c.miles} miles ${c.dir}, ${c.alt}, inbound for landing with information ${c.atis}.`, parts: [to, who, P("Where you are", `${c.miles} miles`, "miles", c.dir), P("Your altitude", String(c.alt), `${c.alt} feet`), P("What you want", "inbound", "landing", "full stop"), P(`The ATIS letter (${c.atis})`, `information ${c.atis}`, c.atis)] };
   if (kind === "land") return { kind, text: `${c.facility}, ${c.short}, midfield downwind runway ${c.rw}, full stop.`, parts: [to, who, P("Where you are", "downwind", "midfield", "base", "final"), P("What you want", "full stop", "landing", "touch and go", "option")] };
   if (kind === "announce") {
-    const first = c.apName.split(" ")[0]; // pilots say "Earhart traffic", not "Earhart Municipal traffic"
+    const first = c.apCall || c.apName.split(" ")[0]; // pilots say "Earhart traffic", not "Earhart Municipal traffic"
     const traffic = { label: `Who you're calling (${first} traffic)`, alts: [normalize(`${first} traffic`), normalize(first)] };
     return c.onGround
       ? { kind, text: `${first} traffic, ${c.callsign}, departing runway ${c.rw}, ${first}.`, parts: [traffic, who, P(`The runway (${c.rw})`, c.rw), P("What you're doing", "departing", "taking off", "takeoff", "departure")] }
       : { kind, text: `${first} traffic, ${c.callsign}, ${c.miles} miles ${c.dir}, ${c.alt} feet, inbound for landing runway ${c.rw}, ${c.pattern} traffic, ${first}.`, parts: [traffic, who, P("Where you are", `${c.miles} miles`, "miles", c.dir), P("Your altitude", String(c.alt)), P(`The runway (${c.rw})`, c.rw), P("What you're doing", "inbound", "landing", "entering")] };
   }
+  if (kind === "following") return { kind, text: `${c.facility}, ${c.callsign}, ${c.miles} miles ${c.dir} of ${c.near}, ${c.alt}, request flight following.`, parts: [to, who, P("Where you are", `${c.miles} miles`, "miles", c.dir), P("Your altitude", String(c.alt), `${c.alt} feet`), P("What you want", "flight following", "following", "traffic advisories", "advisories")] };
+  if (kind === "bravo") return { kind, text: `${c.facility}, ${c.short}, request Class Bravo transition, ${c.alt}.`, parts: [to, who, P("What you want", "bravo", "class b", "transition"), P("Your altitude", String(c.alt), `${c.alt} feet`)] };
   if (kind === "mayday") return { kind, text: `Mayday, mayday, mayday, ${c.callsign}, ${c.emergency}, ${c.alt} feet, ${c.miles} miles ${c.dir} of ${c.apName}.`, parts: [P("Mayday (say it three times)", "mayday"), who, P("What's wrong", "engine", "failure", "fire", "fuel", "emergency", "smoke", "lost"), P("Your altitude or position", String(c.alt), "miles", "feet")] };
   return null;
 }

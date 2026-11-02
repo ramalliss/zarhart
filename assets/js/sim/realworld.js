@@ -154,7 +154,7 @@ function toSim(a, frame) {
     call: a.city && a.name.toLowerCase().startsWith(a.city.toLowerCase()) ? a.city : callName(a.name), // "Aspen-Pitkin County Airport" in Aspen: "Aspen Tower"
     x, z, towered, size: a.size,
     calmRwy: main.ids[0], pcl: !towered && main.lights,
-    freqs: Object.fromEntries(Object.entries({ atis: f.atis, twr: f.twr, gnd: f.gnd, ctaf: towered ? undefined : f.ctaf || f.unicom || 122.9, awos: f.awos, app: f.app }).filter(([, v]) => v)),
+    freqs: Object.fromEntries(Object.entries({ atis: f.atis, twr: f.twr, gnd: f.gnd, ctaf: towered ? undefined : f.ctaf || f.unicom || 122.9, awos: f.awos, app: f.app, appName: f.appName }).filter(([, v]) => v)),
     runways, taxiways: [], aprons: [], holdShort: [], rwyHold: [], windsock: { x: wx, z: wz }, hangars: [], parked: [], spawn,
     elevFt: Math.round(a.elev), elev: a.elev * FT,
   };
@@ -400,7 +400,7 @@ export async function loadLiveWeather(ap) {
     }
     if (!obs) return null;
     const params = parseMetar(obs.raw);
-    return { ...obs, params: { ...params, label: `Live weather: ${obs.station} METAR, ${obs.ageMin} min old` } };
+    return { ...obs, params: { ...params, live: true, label: `Live weather: ${obs.station} METAR, ${obs.ageMin} min old` } };
   } catch { return null; }
 }
 

@@ -28,7 +28,14 @@ const [KZAR, KAME, Z19, Z40, KSRH, Z23] = AIRPORTS; // in Real World mode KZAR i
 /** what the home field's controllers are called: "Zarhart", or a real airport's name ("Palo Alto") */
 const HOME = KZAR.call || "Zarhart";
 /** Real World mode: every airport's real frequencies */
-const realFreqs = () => [...AIRPORTS.flatMap((ap) => Object.entries({ atis: "ATIS", twr: "Tower", gnd: "Ground", ctaf: "CTAF", awos: "AWOS" }).filter(([k]) => ap.freqs[k]).map(([k, n]) => ({ f: ap.freqs[k], name: `${ap.call} ${n}`, ap, kind: k }))), { f: 121.5, name: "Guard (emergency)", kind: "guard" }];
+const realFreqs = () => {
+  const list = AIRPORTS.flatMap((ap) => Object.entries({ atis: "ATIS", twr: "Tower", gnd: "Ground", ctaf: "CTAF", awos: "AWOS" }).filter(([k]) => ap.freqs[k]).map(([k, n]) => ({ f: ap.freqs[k], name: `${ap.call} ${n}`, ap, kind: k })));
+  // approach control: one facility per frequency, by its own name ("NorCal Approach") or else the biggest field that lists it
+  const app = new Map(), rank = { L: 3, M: 2, S: 1 };
+  for (const ap of AIRPORTS) { const f = ap.freqs.app, cur = f && app.get(f); if (f && (!cur || (rank[ap.size] || 0) > (rank[cur.size] || 0))) app.set(f, ap); }
+  for (const [f, ap] of app) { const named = AIRPORTS.find((a) => a.freqs.app === f && a.freqs.appName); list.push({ f, name: `${named?.freqs.appName || ap.call} Approach`, ap, kind: "app" }); }
+  return [...list, { f: 121.5, name: "Guard (emergency)", kind: "guard" }];
+};
 const FREQS = REAL ? realFreqs() : [
   { f: 127.85, name: "Zarhart ATIS", ap: KZAR, kind: "atis" }, { f: 118.3, name: "Zarhart Tower", ap: KZAR, kind: "twr" }, { f: 121.9, name: "Zarhart Ground", ap: KZAR, kind: "gnd" },
   { f: 122.8, name: "Earhart CTAF", ap: KAME, kind: "ctaf" }, { f: 118.525, name: "Earhart AWOS", ap: KAME, kind: "awos" }, { f: 122.9, name: "Electra CTAF", ap: Z19, kind: "ctaf" },
@@ -85,7 +92,7 @@ const sim = {
   lastTouchdown: null, lightGun: null, showG: false, view: "cockpit", vor1: null,
   say, radioLog, callsign: SHORT, spawn, setRoute, vasi: (ap, endId) => world.vasiAt(ap, endId, { x: ac.pos.x, y: ac.pos.y + 0.6, z: ac.pos.z }),
   setWeather(p) {
-    weather.set(p); ac.inst.kollsman = weather.qnhInHg; if (world.clouds) world.clouds.build(weather.cloudLayersMsl());
+    weather.set(p); weather.isLive = !!p?.live; // live weather keeps itself current (Real World mode) ac.inst.kollsman = weather.qnhInHg; if (world.clouds) world.clouds.build(weather.cloudLayersMsl());
     const mb = weather.microburst; if (world.shaft) world.setStorm(mb, mb ? heightAt(mb.x, mb.z) : 0, mb ? (weather.cloudLayersMsl()[0]?.baseMsl ?? 1500) : 0);
   },
   setTime(h) { weather.hour = h; },
@@ -301,16 +308,19 @@ const micFreq = () => (sim.radio.mic === 2 ? sim.radio.com2 : sim.radio.com1);
 function callContext(fi) {
   const ap = fi?.ap || KZAR, { dnm, dir } = posReport(ap), d = ac.derived;
   return { facility: fi?.name.replace(/ (CTAF|AWOS|ATIS)$/, "") || "", callsign: CALLSIGN, short: SHORT, rw: activeRwy(ap), atis: weatherLetter(), miles: Math.max(1, Math.round(dnm)), dir, alt: Math.round(d.altInd / 100) * 100,
-    apName: ap.name, pattern: (ap.segmentedCircle && ap.segmentedCircle.pattern[activeRwy(ap)]) || "left", onGround: d.onGround, emergency: ac.failures.engine || !ac.eng.running ? "engine failure" : "emergency" };
+    apName: ap.name, apCall: ap.call, near: (() => { const n = nearestAirport(ac.pos.x, ac.pos.z).airport; return n.call || n.name; })(), pattern: (ap.segmentedCircle && ap.segmentedCircle.pattern[activeRwy(ap)]) || "left", onGround: d.onGround, emergency: ac.failures.engine || !ac.eng.running ? "engine failure" : "emergency" };
 }
-function callsFor(fi) { return !fi ? [] : fi.kind === "ctaf" ? ["announce"] : fi.kind === "gnd" ? ["taxi"] : fi.kind === "twr" ? ["depart", "inbound", "land"] : fi.kind === "guard" ? ["mayday"] : []; }
+function callsFor(fi) { return !fi ? [] : fi.kind === "ctaf" ? ["announce"] : fi.kind === "gnd" ? ["taxi"] : fi.kind === "twr" ? ["depart", "inbound", "land"] : fi.kind === "app" ? ["following", "bravo"] : fi.kind === "guard" ? ["mayday"] : []; }
+/** you told this tower where you are (the Class D rule), or Zarhart's tower in the lessons */
+function contacted(ap) { (sim.flags.contacted ||= new Set()).add(ap.id); if (ap === KZAR) sim.flags.dContact = true; }
 /** the call this moment calls for */
 function suggestCall(fi) {
   const k = callsFor(fi); if (!k.length) return null;
+  if (fi.kind === "app") return !sim.app?.contact ? "following" : REAL?.airspace.some((a) => a.cls === "B") && !sim.flags.bravoCleared ? "bravo" : null;
   if (fi.kind !== "twr") return k[0];
-  const d = ac.derived, { dnm } = posReport(KZAR);
-  const rp = KZAR.spawn.ramp; // at the ramp you call Ground, not Tower
-  if (d.onGround) return (!REAL || KZAR.hasRamp) && Math.hypot(ac.pos.x - rp.x, ac.pos.z - rp.z) < (REAL ? 250 : 400) ? null : "depart";
+  const ap = fi.ap || KZAR, d = ac.derived, { dnm } = posReport(ap);
+  const rp = ap.spawn.ramp; // at the ramp you call Ground, not Tower
+  if (d.onGround) return (!REAL || ap.hasRamp) && Math.hypot(ac.pos.x - rp.x, ac.pos.z - rp.z) < (REAL ? 250 : 400) ? null : "depart";
   return dnm < 2.5 && d.agl < 1500 ? "land" : "inbound";
 }
 function radioCall(kind, spoken) {
@@ -324,21 +334,51 @@ function radioCall(kind, spoken) {
   if (fi.kind === "ctaf") {
     const { dnm, dir } = posReport(ap);
     const pattern = ap.segmentedCircle ? ap.segmentedCircle.pattern[rw] : "left";
-    const msg = d.onGround ? `${ap.name} traffic, ${CALLSIGN}, departing runway ${rw}, ${ap.name}.` : `${ap.name} traffic, ${CALLSIGN}, ${Math.max(1, Math.round(dnm))} miles ${dir}, ${Math.round(d.altInd / 100) * 100} feet, inbound for landing runway ${rw}, ${pattern || "left"} traffic, ${ap.name}.`;
+    const nm = ap.call || ap.name;
+    const msg = d.onGround ? `${nm} traffic, ${CALLSIGN}, departing runway ${rw}, ${nm}.` : `${nm} traffic, ${CALLSIGN}, ${Math.max(1, Math.round(dnm))} miles ${dir}, ${Math.round(d.altInd / 100) * 100} feet, inbound for landing runway ${rw}, ${pattern || "left"} traffic, ${nm}.`;
     radioLog("You", spoken || msg, false);
     if (d.onGround) sim.flags.departCall = true; else { sim.flags.inboundCall = true; if (ap === KAME && dnm > 6.5 && dnm < 13.5) sim.flags.inboundCallKAME = true; if (dnm < 6.5) say("Tip: make your first CTAF call about 10 NM out (AIM 4-1-9).", "tip"); if (dnm > 13.5) say("A little early. About 10 NM out is the standard first call.", "tip"); }
     return;
   }
   if (fi.kind === "atis" || fi.kind === "awos") return say("That's a broadcast. Just listen.", "tip");
+  if (fi.kind === "app") return approachCall(kind, spoken, fi);
   if (fi.kind === "guard") { radioLog("You", spoken || `Mayday, mayday, mayday, ${CALLSIGN}, ${ac.failures.engine || !ac.eng.running ? "engine failure" : "emergency"}, ${Math.round(d.altInd)} feet.`, false); setTimeout(() => radioLog(`${HOME} Approach`, `${SHORT}, roger mayday. Squawk 7700. ${HOME} altimeter ${weather.qnhInHg.toFixed(2)}. Nearest airport ${nearestAirport(ac.pos.x, ac.pos.z).airport.name}.`), 2200); return; }
-  // tower / ground at KZAR
-  const { dnm, dir } = posReport(KZAR);
-  if (kind === "taxi") { radioLog("You", spoken || `${HOME} Ground, ${CALLSIGN}, at the ramp with information ${weatherLetter()}, ready to taxi.`, false); setTimeout(() => radioLog(`${HOME} Ground`, `${SHORT}, runway ${rw}, taxi via ${taxiVia(KZAR, rw)}. Hold short of runway ${rw}.`), 1800); sim.flags.taxiClr = true; return; }
-  if (kind === "depart") { radioLog("You", spoken || `${HOME} Tower, ${CALLSIGN}, holding short runway ${rw}, ready for departure.`, false); setTimeout(() => { radioLog(`${HOME} Tower`, `${SHORT}, wind ${String(Math.round(weather.windMag() / 10) * 10 || 360).padStart(3, "0")} at ${Math.round(weather.windKt)}, runway ${rw}, cleared for takeoff.`); sim.flags.departCall = true; sim.flags.dContact = true; }, 1800); return; }
-  if (kind === "inbound") { radioLog("You", spoken || `${HOME} Tower, ${CALLSIGN}, ${Math.round(dnm)} miles ${dir}, ${Math.round(d.altInd / 100) * 100}, inbound for landing with ${weatherLetter()}.`, false); setTimeout(() => { const side = REAL || rw === "27" || rw === "36" ? "left" : "right"; radioLog(`${HOME} Tower`, `${SHORT}, Zarhart Tower, enter ${side} downwind runway ${rw}, report midfield.${traffic.advisory(KZAR)}`); sim.flags.inboundCall = true; sim.flags.dContact = true; }, 1800); return; }
-  if (kind === "land") { radioLog("You", spoken || `${HOME} Tower, ${SHORT}, midfield ${rw === "27" ? "left" : ""} downwind, full stop.`, false); setTimeout(() => radioLog(`${HOME} Tower`, `${SHORT}, runway ${rw}, cleared to land.${traffic.advisory(KZAR)}`), 1600); sim.flags.dContact = true; return; }
+  // tower and ground at the field this frequency belongs to (Zarhart Field, or any towered real one)
+  const T = ap, NAME = T.call || HOME, letter = weather.atis(T, weather.hour).letter;
+  const { dnm, dir } = posReport(T);
+  if (kind === "taxi") { radioLog("You", spoken || `${NAME} Ground, ${CALLSIGN}, at the ramp with information ${letter}, ready to taxi.`, false); setTimeout(() => radioLog(`${NAME} Ground`, `${SHORT}, runway ${rw}, taxi via ${taxiVia(T, rw)}. Hold short of runway ${rw}.`), 1800); sim.flags.taxiClr = true; return; }
+  if (kind === "depart") { radioLog("You", spoken || `${NAME} Tower, ${CALLSIGN}, holding short runway ${rw}, ready for departure.`, false); setTimeout(() => { radioLog(`${NAME} Tower`, `${SHORT}, wind ${String(Math.round(weather.windMag() / 10) * 10 || 360).padStart(3, "0")} at ${Math.round(weather.windKt)}, runway ${rw}, cleared for takeoff.`); sim.flags.departCall = true; contacted(T); }, 1800); return; }
+  if (kind === "inbound") { radioLog("You", spoken || `${NAME} Tower, ${CALLSIGN}, ${Math.round(dnm)} miles ${dir}, ${Math.round(d.altInd / 100) * 100}, inbound for landing with ${letter}.`, false); setTimeout(() => { const side = REAL || rw === "27" || rw === "36" ? "left" : "right"; radioLog(`${NAME} Tower`, `${SHORT}, ${NAME} Tower, enter ${side} downwind runway ${rw}, report midfield.${traffic.advisory(T)}`); sim.flags.inboundCall = true; contacted(T); }, 1800); return; }
+  if (kind === "land") { radioLog("You", spoken || `${NAME} Tower, ${SHORT}, midfield ${rw === "27" ? "left" : ""} downwind, full stop.`, false); setTimeout(() => radioLog(`${NAME} Tower`, `${SHORT}, runway ${rw}, cleared to land.${traffic.advisory(T)}`), 1600); contacted(T); return; }
 }
 function weatherLetter() { return weather.atis(KZAR, weather.hour).letter; }
+/**
+ * Approach control: flight following gives you a code to squawk, then "radar contact" once your transponder shows it
+ * (that is the two-way radio contact Class C needs). With radar contact you can ask for a Class B transition; most of
+ * the time you're cleared, sometimes it's "remain clear", as on a busy day.
+ */
+function approachCall(kind, spoken, fi) {
+  const d = ac.derived, near = nearestAirport(ac.pos.x, ac.pos.z).airport, { dnm, dir } = posReport(near), alt = Math.round(d.altInd / 100) * 100, fac = fi.name;
+  if (kind === "bravo" && sim.app?.contact) {
+    radioLog("You", spoken || `${fac}, ${SHORT}, request Class Bravo transition, ${alt}.`, false);
+    const ok = Math.random() < 0.75, top = Math.max(2500, Math.ceil((alt + 500) / 500) * 500);
+    setTimeout(() => { if (ok) { sim.flags.bravoCleared = true; radioLog(fac, `${SHORT}, cleared into the Class Bravo airspace, maintain VFR at or below ${top.toLocaleString()}.`); } else radioLog(fac, `${SHORT}, remain clear of the Class Bravo airspace, traffic volume.`); }, 2000);
+    return;
+  }
+  const code = sim.app?.code || [4 + ((Math.random() * 2) | 0), ...[0, 0, 0].map(() => (Math.random() * 8) | 0)].join(""); // squawk codes use the digits 0–7
+  radioLog("You", spoken || `${fac}, ${CALLSIGN}, ${Math.max(1, Math.round(dnm))} miles ${dir} of ${near.call || near.name}, ${alt}, request flight following.`, false);
+  sim.app = { code, fac, t: sim.t, contact: false, reminded: false };
+  setTimeout(() => radioLog(fac, `${SHORT}, squawk ${code}, ${fac.replace(/ Approach$/, "")} altimeter ${weather.qnhInHg.toFixed(2)}.`), 1800);
+}
+/** radar contact once the code shows on the scope (checked with the other monitors) */
+function approachRadar() {
+  const A = sim.app; if (!A || A.contact) return;
+  if (ac.xpdr.code === A.code && ac.xpdr.mode !== "STBY") {
+    A.contact = true; (sim.flags.contacted ||= new Set()).add("APP");
+    const near = nearestAirport(ac.pos.x, ac.pos.z).airport, { dnm, dir } = posReport(near);
+    radioLog(A.fac, `${SHORT}, radar contact, ${Math.max(1, Math.round(dnm))} miles ${dir} of ${near.call || near.name}, ${Math.round(ac.derived.altInd / 100) * 100}. Altimeter ${weather.qnhInHg.toFixed(2)}.`);
+  } else if (!A.reminded && sim.t - A.t > 25) { A.reminded = true; radioLog(A.fac, `${SHORT}, squawk ${A.code}.`); }
+}
 const listener = new Listener();
 const ptt = { down: false, t0: 0, listening: false, pad: false, result: null };
 function pttDown() {
@@ -399,6 +439,7 @@ function pttClick() {
 /* ---------------- flags, monitors ---------------- */
 let lastAirspace = null, vfrText = "", atisHeardT = 0, lastAtisLetter = null, lastXpdr = "1200";
 function monitors(dt) {
+  approachRadar();
   const d = ac.derived, f = sim.flags;
   if (ac.eng.running) f.everRan = true;
   if (!d.onGround) { f.everAirborne = true; f.airborneOnce = true; }
@@ -431,9 +472,11 @@ function monitors(dt) {
   if (key !== lastAirspace) {
     if (lastAirspace != null) {
       const named = (c) => as.hits.find((h) => h.cls === c)?.name || `${HOME} Class ${c}`;
-      if (as.cls === "D" && !f.dContact && !f.departCall && !d.onGround) say(`You entered the ${named("D")} without two-way radio contact. Call the tower first (14 CFR 91.129).`, "warn", 9000);
-      if (as.cls === "C" && !d.onGround) say(`You entered the ${named("C")}. Class C needs two-way radio contact with approach before you enter (14 CFR 91.130).`, "warn", 9000);
-      if (as.cls === "B" && !d.onGround) say(`You entered the ${named("B")}. Class B needs a clearance ("cleared into the Class Bravo") before you enter (14 CFR 91.131). Turn away or descend below the shelf.`, "warn", 10000);
+      const towerFor = (name) => AIRPORTS.find((a) => a.towered && a.call && name.toLowerCase().includes(a.call.toLowerCase()));
+      const dOk = REAL ? f.contacted?.has(towerFor(named("D"))?.id) : f.dContact;
+      if (as.cls === "D" && !dOk && !f.departCall && !d.onGround) say(`You entered the ${named("D")} without two-way radio contact. Call the tower first (14 CFR 91.129).`, "warn", 9000);
+      if (as.cls === "C" && !d.onGround && !f.contacted?.has("APP")) say(`You entered the ${named("C")}. Class C needs two-way radio contact with approach before you enter (14 CFR 91.130).`, "warn", 9000);
+      if (as.cls === "B" && !d.onGround && !f.bravoCleared) say(`You entered the ${named("B")}. Class B needs a clearance ("cleared into the Class Bravo") before you enter (14 CFR 91.131). Turn away or descend below the shelf.`, "warn", 10000);
       for (const s of as.special) say(s.cls === "P" ? `Prohibited area ${s.name || s.id}: flight is not allowed here. Turn away now.` : s.cls === "R" ? `Restricted area ${s.name || s.id} is active: you need permission to enter.` : `Entering ${s.name}: military training. Use extreme caution.`, s.cls === "MOA" ? "info" : "warn", 9000);
     }
     lastAirspace = key;
@@ -1009,6 +1052,12 @@ async function startLiveWeather(prog) {
   r.com1s = KZAR.freqs.atis || KZAR.freqs.awos || r.com1s; if (vors[0]) r.nav1 = vors[0].freq; if (vors[1]) r.nav1s = vors[1].freq;
   sim.setWeather(REAL.live ? REAL.live.params : PRESETS.scattered); sim.setTime(localNow());
   if (REAL.live) $("#realPick")?.insertAdjacentHTML("beforeend", `<p class="metar mono">${esc(REAL.live.raw)}</p>`);
+  // a new observation every 30 minutes while you're flying the live weather
+  setInterval(async () => {
+    if (!weather.isLive) return;
+    const fresh = await loadLiveWeather(KZAR); if (!fresh || fresh.raw === REAL.live?.raw) return;
+    REAL.live = fresh; sim.setWeather(fresh.params); say(`New weather at ${fresh.station}: ${fresh.raw}`, "info", 8000);
+  }, 30 * 60 * 1000);
   if (!REAL.live) say("Couldn't get the real weather just now, so it's a nice scattered day. Weather presets are in the Weather menu.", "info", 6000);
 }
 /** OpenStreetMap's taxiways and ramps, when they arrive after the world was built */

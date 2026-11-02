@@ -51,7 +51,12 @@ const KIND = { TWR: "twr", GND: "gnd", ATIS: "atis", "D-ATIS": "atis", CTAF: "ct
 for (const f of csv("airport-frequencies.csv")) {
   const e = byId.get(f.airport_ref); const k = KIND[f.type.toUpperCase()]; const mhz = num(f.frequency_mhz);
   if (!e || !k || !(mhz >= 108 && mhz < 137)) continue;
-  if (!e.freqs[k]) e.freqs[k] = Math.round(mhz * 1000) / 1000;
+  if (!e.freqs[k]) {
+    e.freqs[k] = Math.round(mhz * 1000) / 1000;
+    // the approach facility's own name when the description gives one: "NORCAL APP" → "NorCal", "POTOMAC APP/DEP" → "Potomac"
+    const name = k === "app" && f.description.toUpperCase().replace(/\b(APP|APPROACH|DEP|DEPARTURE|CNTR|CENTER|CONTROL|RADAR|TRACON|SECONDARY|PRIMARY|INITIAL CONTACT)\b.*$/, "").replace(/[^A-Z ]/g, "").trim();
+    if (name.length > 2 && !/^(RGNL|REGIONAL|INTL|MUNI|COUNTY|CTAF|UNICOM|ATIS|TWR|GND|AIRPORT)$/.test(name)) e.freqs.appName = name.toLowerCase().replace(/\b[a-z]/g, (c) => c.toUpperCase()).replace(/^Norcal$/, "NorCal").replace(/^Socal$/, "SoCal");
+  }
 }
 for (const e of byId.values()) if (!e.freqs.ctaf && e.freqs.unicom && !e.freqs.twr) e.freqs.ctaf = e.freqs.unicom;
 
