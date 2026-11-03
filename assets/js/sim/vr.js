@@ -10,6 +10,7 @@ const EYE = new THREE.Vector3(-0.32, 0.62, -0.42); // pilot's eye point, aircraf
 const DASH = { w: 1.44, h: 0.42, x: 0, y: 0.12, z: -1.0, tilt: -12 * Math.PI / 180 }; // instrument panel, tilted back toward the pilot
 const PANEL_TEX_W = 1600, PANEL_LOGICAL_W = 1400;
 const HUD = { w: 0.56, h: 0.09, x: -0.32, y: 0.4, z: -1.05, tilt: -25 * Math.PI / 180, texW: 1024 }; // message strip on the glareshield
+const STATS = { w: 0.3, h: 0.075, x: 0.3, y: 0.4, z: -1.05, texW: 512 }; // ?vrstats=1: frame-rate strip, right of the message strip
 const DEAD = 0.12;
 const dz = (v) => (Math.abs(v) < DEAD ? 0 : (v - Math.sign(v) * DEAD) / (1 - DEAD));
 
@@ -68,6 +69,13 @@ export class VR {
     this.hudTex = this.texture(this.hc);
     this.hudMesh = new THREE.Mesh(new THREE.PlaneGeometry(HUD.w, HUD.h), new THREE.MeshBasicMaterial({ map: this.hudTex, toneMapped: false, transparent: true }));
     this.hudMesh.position.set(HUD.x, HUD.y, HUD.z); this.hudMesh.rotation.x = HUD.tilt; this.interior.add(this.hudMesh);
+    if (o.stats) { // frame-rate readout for testing on a headset (?vrstats=1)
+      this.sc = document.createElement("canvas"); this.sc.width = STATS.texW; this.sc.height = Math.round(STATS.texW * STATS.h / STATS.w);
+      this.statsTex = this.texture(this.sc);
+      this.statsMesh = new THREE.Mesh(new THREE.PlaneGeometry(STATS.w, STATS.h), new THREE.MeshBasicMaterial({ map: this.statsTex, toneMapped: false, transparent: true }));
+      this.statsMesh.position.set(STATS.x, STATS.y, STATS.z); this.statsMesh.rotation.x = HUD.tilt; this.interior.add(this.statsMesh);
+      this.showStats(null, "measuring…");
+    }
     this.panelT = 0; this.hudT = 0; this.prev = {};
   }
 
@@ -212,6 +220,26 @@ export class VR {
       this.panel.draw(this.panelState()); this.panelTex.needsUpdate = true;
     }
     if (this.hudT > 0.25) { this.hudT = 0; this.drawHud(); this.hudTex.needsUpdate = true; }
+  }
+
+  /** ?vrstats=1: r = { fps, ms, worst, cpu } from FrameStats (null before the first reading); label: setting, depth buffer, size */
+  showStats(r, label) {
+    if (!this.sc) return;
+    const g = this.sc.getContext("2d"), W = this.sc.width, H = this.sc.height, s = W / 512;
+    g.clearRect(0, 0, W, H);
+    g.fillStyle = "rgba(5, 6, 7, 0.82)"; roundRect(g, 0, 0, W, H, 12 * s); g.fill();
+    const text = (str, x, y, px, weight, color) => { // shrinks the font until the line fits
+      g.font = `${weight} ${px * s}px "IBM Plex Mono", monospace`; const w = g.measureText(str).width, room = W - x - 14 * s;
+      if (w > room) g.font = `${weight} ${(px * s * room) / w}px "IBM Plex Mono", monospace`;
+      g.fillStyle = color; g.fillText(str, x, y);
+    };
+    text(r ? `${r.fps.toFixed(0)} fps` : "—", 16 * s, 42 * s, 32, 700, !r ? "#a4abb4" : r.fps >= 71 ? "#5be38a" : r.fps >= 55 ? "#ffb020" : "#ff4d4d");
+    if (r) {
+      text(`${r.ms.toFixed(1)} ms · worst ${r.worst.toFixed(0)} ms`, 178 * s, 40 * s, 20, 500, "#d5dae0");
+      text(`CPU ${r.cpu.toFixed(1)} ms a frame`, 16 * s, 76 * s, 20, 500, "#d5dae0");
+    }
+    text(label, 16 * s, 110 * s, 18, 500, "#a4abb4");
+    this.statsTex.needsUpdate = true;
   }
 
   message(text, kind = "info") {

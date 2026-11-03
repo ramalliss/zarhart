@@ -15,6 +15,7 @@ import { buildSectionalBase, drawMap } from "./map.js";
 import { CHECKLISTS, suggestChecklist } from "./checklists.js";
 import { LESSONS, LessonRunner, realLessons } from "./lessons.js";
 import { VR, VR_CONTROLS, PHONE_VR_CONTROLS } from "./vr.js";
+import { shouldOfferLowForVR, vrFlags, FrameStats } from "./headset.js";
 import { buildCall, scoreCall, Listener } from "./radio.js";
 import { Traffic } from "./traffic.js";
 import { Multiplayer } from "./mp.js";
@@ -52,7 +53,8 @@ const saveSettings = () => store.set("settings", settings);
 /* ---------------- renderer & scene ---------------- */
 const view = $("#view");
 const Q = preset(settings.quality); // Graphics: low, high or ultra (gfx.js)
-const renderer = new THREE.WebGLRenderer({ canvas: view, antialias: true, logarithmicDepthBuffer: true, powerPreference: "high-performance" });
+const FLAGS = vrFlags(location.search); // testing VR on a headset: ?vrstats=1, ?logdepth=0 (headset.js)
+const renderer = new THREE.WebGLRenderer({ canvas: view, antialias: true, logarithmicDepthBuffer: FLAGS.logDepth, powerPreference: "high-performance" });
 renderer.setPixelRatio(Math.min(devicePixelRatio || 1, Q.pixelRatio));
 const autoRes = new AutoRes(renderer.getPixelRatio()); // draws fewer pixels when the frame rate drops (Settings)
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -160,7 +162,7 @@ const vr = new VR({
   panelMode: () => settings.panel, panelState: () => panelState(), controls: () => ac.ctl,
   hud: () => ({ lesson: lessons.status(), stall: ac.derived.stallWarn, lightGun: sim.lightGun, paused: sim.paused, crashed: !$("#crash").hidden ? $("#crashReason").textContent : "" }),
   keys: { flapsDown: () => keymap["]"](), flapsUp: () => keymap["["](), mic: () => pttClick(), assist: () => keymap.u(), pause: () => togglePause(), retry: () => retry() },
-  onChange: (on) => vrChanged(on),
+  onChange: (on) => vrChanged(on), stats: FLAGS.stats,
 });
 /* ---------------- aircraft types ---------------- */
 const TYPE_LABELS = { c172: "Cessna 172 (the lesson trainer)", c152: "Cessna 152 (two seats, 110 hp)", pa28: "Piper PA-28 Warrior (low wing)" };
@@ -1091,6 +1093,7 @@ function enterVR() {
 let wakeLock = null;
 function vrChanged(on) {
   $("#vrBtn").textContent = on ? "Exit VR" : "VR"; $("#vrBtn").setAttribute("aria-pressed", String(on));
+  frameStats?.reset();
   const phone = on && !!vr.phone, mono = phone && vr.phone.mono;
   document.body.classList.toggle("phonevr", phone); document.body.classList.toggle("pvrmono", mono);
   $("#pvr").hidden = !phone || mono; $("#pvrBar").hidden = !mono;
@@ -1142,12 +1145,33 @@ $("#pvr").addEventListener("pointerdown", (e) => {
     else { vr.recenter(); vr.message("View recentered.", "info"); }
   }, 380);
 });
-$("#vrBtn").addEventListener("click", () => { if (vr.active) vr.end(); else enterVR(); });
-$("#startVR").addEventListener("click", () => {
+/*
+ * A standalone headset (Quest) with Graphics on High or Ultra: ask first whether to switch to Low. Yes saves Low and reloads,
+ * and the start screen offers Fly in VR again (WebXR needs a fresh tap, so it never starts by itself). No goes straight into
+ * VR from the same tap. Desktop browsers and phone VR never see the question; a "no" isn't saved and isn't asked again.
+ */
+let vrLowPending = null, vrLowDeclined = false;
+function vrGate(go) {
+  if (vrLowDeclined || !shouldOfferLowForVR({ webxr: vr.supported, ua: navigator.userAgent, quality: settings.quality })) return go();
+  const name = settings.quality === "ultra" ? "Ultra" : "High";
+  $("#vrLowNow").textContent = name; $("#vrLowNo").textContent = `Keep ${name} and fly in VR`;
+  vrLowPending = go; $("#vrLow").hidden = false; $("#vrLowYes").focus();
+}
+$("#vrLowYes").addEventListener("click", () => {
+  settings.quality = "low"; saveSettings();
+  try { sessionStorage.setItem("zarhart:vrReady", "1"); } catch { /* the note after the reload is only a nicety */ }
+  location.reload();
+});
+$("#vrLowNo").addEventListener("click", () => {
+  $("#vrLow").hidden = true; vrLowDeclined = true;
+  const go = vrLowPending; vrLowPending = null; go?.(); // still inside this tap, so WebXR may start
+});
+$("#vrBtn").addEventListener("click", () => { if (vr.active) vr.end(); else vrGate(enterVR); });
+$("#startVR").addEventListener("click", () => vrGate(() => {
   startFlying();
   if (new URLSearchParams(location.search).get("lesson")) lessons.start(startLessonId); else freeFlight("kzar27", "scattered", 13);
   enterVR();
-});
+}));
 $("#crashLessons").addEventListener("click", () => { hideCrash(); openDrawer("lessons"); });
 $("#resume").addEventListener("click", () => { sim.paused = false; $("#paused").hidden = true; });
 input.on("onPad", (id) => say(`Controller connected: ${id.slice(0, 40)}`, "good"));
@@ -1223,7 +1247,14 @@ function stepSim(dt, pilot) {
   monT += dt; if (monT > 0.2) { monitors(monT); monT = 0; }
   lessons.update(dt);
 }
+/** ?vrstats=1: frame rate, worst frame and CPU time on a strip in the cockpit while in VR */
+const frameStats = FLAGS.stats ? new FrameStats() : null;
+function statsLabel() {
+  const L = renderer.xr.getSession?.()?.renderState?.baseLayer, size = L ? `${L.framebufferWidth}×${L.framebufferHeight}` : `${view.width}×${view.height}`;
+  return `${settings.quality} · log depth ${FLAGS.logDepth ? "on" : "off"} · ${size}`;
+}
 function tick(now) {
+  const t0 = frameStats ? performance.now() : 0;
   const frameMs = now - last, dt = Math.max(0, Math.min(0.05, frameMs / 1000)); last = Math.max(last, now);
   if (vr.active) vr.poll();
   { const held = input.held(" ") || !!input._holds?.mic || ptt.pad; if (held !== ptt.down) { if (held) pttDown(); else pttUp(); } }
@@ -1274,6 +1305,7 @@ function tick(now) {
     hudT += dt; if (hudT > 0.12) { hudT = 0; hudUpdate(); }
     if (openDrawerName === "online" && mp.role === "atc" && mp.connected) { scopeT = (scopeT || 0) + dt; if (scopeT > 0.5) { scopeT = 0; drawScope(); } }
     audio.update(ac, d, sim.paused, vr.active ? "cockpit" : sim.view);
+    if (frameStats && vr.active) { const r = frameStats.add(frameMs, performance.now() - t0); if (r) vr.showStats(r, statsLabel()); }
   }
 }
 
@@ -1304,7 +1336,13 @@ async function boot() {
     $("#loading").hidden = true; $("#startChoices").hidden = false;
     const p = new URLSearchParams(location.search).get("lesson");
     if (p && !REAL && LESSONS.some((l) => l.id === p)) { startLessonId = p; $("#startLesson").textContent = `Start lesson: ${LESSONS.find((l) => l.id === p).title}`; }
-    vr.check().then((ok) => { $("#startVR").hidden = $("#vrBtn").hidden = !(ok || TOUCH); }); // phones without WebXR get phone VR
+    let vrReady = false; try { vrReady = sessionStorage.getItem("zarhart:vrReady") === "1"; sessionStorage.removeItem("zarhart:vrReady"); } catch { /* no session storage */ }
+    vr.check().then((ok) => {
+      $("#startVR").hidden = $("#vrBtn").hidden = !(ok || TOUCH); // phones without WebXR get phone VR
+      if (vrReady && ok) { // just switched to Low for VR: point at Fly in VR
+        $("#vrReady").hidden = false; $("#startLesson").classList.remove("primary"); $("#startVR").classList.add("primary"); $("#startVR").focus();
+      }
+    });
   } catch (err) {
     console.error(err); prog.textContent = "Zarhart couldn't start: " + err.message + ". Try another browser with WebGL turned on.";
   }

@@ -51,7 +51,18 @@ Open the simulator in the Quest's built-in browser and tap **Fly in VR** (or **V
 
 Right stick: pitch and roll · Left stick: throttle (up/down) and rudder (left/right) · Right trigger: brakes · A / B: flaps down / up · X: mic click · Y: recenter your view · Right stick press: flight assist · Left stick press: pause.
 
+**Graphics on a standalone headset.** A headset like the Quest draws the cockpit twice every frame, 72 to 90 times a second, on its built-in graphics chip. So when Graphics is High or Ultra, **Fly in VR** (and **VR** in the toolbar) first asks *Switch to Low for VR? Recommended on Quest.* **Switch** saves Graphics: Low and reloads the page, then highlights **Fly in VR**: tap it again, because a VR session can only start from a tap. **Keep** goes into VR with your current setting and isn't asked again until the page reloads. Desktop browsers driving a PC headset, and phone VR, never ask. The headset check is by browser (Meta Quest Browser, Pico Browser, Wolvic), in `assets/js/sim/headset.js`.
+
 WebXR needs HTTPS, so test VR on the live site rather than the local dev server. The VR button only appears in browsers that support immersive VR.
+
+### Testing VR on a headset
+
+Zarhart hasn't been measured on a headset yet, so neither setting is known to hold the frame rate. Two URL flags help compare them:
+
+- `?vrstats=1` shows a strip on the right of the glareshield in VR: frames per second (green at 71 and up, amber from 55, red below), the average and worst time between frames, and the CPU time of Zarhart's own work per frame, plus the Graphics setting, whether the logarithmic depth buffer is on, and the VR framebuffer size. It counts how often frames arrive; it doesn't measure the graphics chip. Use OVR Metrics Tool for that.
+- `?logdepth=0` turns off the logarithmic depth buffer. It keeps distant surfaces from flickering through each other across the 160 km view, but every pixel then writes its own depth, which stops a graphics chip from skipping hidden pixels early and can cost speed on a headset. three.js fixes it when the renderer starts, so the flag covers the whole page load, the flat view included. The default is unchanged (on). In still views on a computer, turning it off changed under 0.02% of pixels (far-off runway lights); watch for flicker in the distance while moving, such as runway markings and taxiways far ahead.
+
+Combine them: `https://ramalliss.github.io/zarhart/sim/?vrstats=1` and `https://ramalliss.github.io/zarhart/sim/?vrstats=1&logdepth=0`. For each one, on Low and on High, fly the same thing (for example free flight from runway 27, a minute on the runway and a minute at 2,000 ft over the valley) with Meta's OVR Metrics Tool (in the Meta Horizon Store; see [Meta's performance guide](https://developers.meta.com/horizon/documentation/native/android/ts-ovr-best-practices/)) showing its overlay, and note FPS, GPU and CPU utilization, GPU and CPU levels, and stale frames. In OVR Metrics Tool's Settings tab, turn on **Enable Persistent Overlay** so the graph stays on top of the browser, and **Record all captured metrics to CSV file** to compare runs afterwards on a computer.
 
 ### Phone VR (Cardboard-style viewers, iPhone included)
 
@@ -62,6 +73,8 @@ Phones without WebXR (iPhone Safari, the iOS app) get **phone VR** from the same
 ```bash
 python tools/serve.py        # http://localhost:8765 (no-cache dev server)
 node tools/test-fdm.mjs      # headless flight-model checks against C172 book numbers
+node tools/test-vr.mjs       # VR on headsets: headset detection, when to suggest Low, the VR test flags
+npm test                     # both
 ```
 
 To flight-test the lessons end to end, open `/sim/` on the dev server and run this in the browser console:
@@ -88,7 +101,8 @@ assets/img/shots/        product shots rendered in the simulator
 assets/js/sim/           fdm.js (flight model), world-data.js, world3d.js, plane3d.js, panel.js, map.js,
                          nav.js, weather.js, input.js, audio.js, checklists.js, lessons.js, main.js,
                          gfx.js (Graphics presets Low/High/Ultra, textures made in code, sun glare, Ultra's bloom),
-                         realworld.js (Real World mode: terrain, aerial photos and airports for a real place)
+                         realworld.js (Real World mode: terrain, aerial photos and airports for a real place),
+                         headset.js (VR on standalone headsets: the Low-for-VR suggestion and VR test flags)
 assets/data/airports/    real US airports, runways, frequencies and VORs per 1° square (OurAirports)
 assets/js/prep/prep.js   prep app
 assets/data/questions.json  question bank
