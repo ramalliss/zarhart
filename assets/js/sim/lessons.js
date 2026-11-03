@@ -869,6 +869,32 @@ export function realLessons(ap, weather, magVar = 0) {
       ],
     },
   ];
+  // a cross-country to a real paved field 10–25 NM away, on the GPS and the map
+  const dests = AIRPORTS.filter((a) => a !== ap && a.runways[0]?.surface === "asphalt" && a.runways[0].len > 700).map((a) => ({ a, nm: Math.hypot(a.x - ap.x, a.z - ap.z) / NM })).filter((d) => d.nm > 10 && d.nm < 25).sort((p, q) => Math.abs(p.nm - 17) - Math.abs(q.nm - 17));
+  if (dests.length) {
+    const dest = dests[0].a, dist = dests[0].nm, crsT = (Math.atan2(dest.x - ap.x, -(dest.z - ap.z)) / DEG + 360) % 360, crsM = (((crsT - magVar) % 360) + 360) % 360, east = crsM < 180;
+    let top = 0; for (let k = 0; k <= 50; k++) { const t = k / 50; top = Math.max(top, heightAt(ap.x + (dest.x - ap.x) * t, ap.z + (dest.z - ap.z) * t) / FT); }
+    // below 3,000 ft above the ground any altitude will do; above it, odd thousands + 500 eastbound, even + 500 westbound (14 CFR 91.159)
+    const low = Math.ceil((top + 1500) / 500) * 500, base = east ? 3500 : 4500, rule = (a) => { const m = (((a - base) % 2000) + 2000) % 2000; return m < 150 || m > 1850; };
+    const sug = low < Math.max(ap.elevFt, dest.elevFt) + 3000 ? low : Math.ceil((low - base) / 2000) * 2000 + base;
+    const callTo = dest.towered ? `${dest.call} Tower (${dest.freqs.twr.toFixed(3)})` : `${dest.call} traffic on the CTAF (${(dest.freqs.ctaf || 122.9).toFixed(3)})`;
+    const called = (sim) => (dest.towered ? sim.flags.contacted : sim.flags.ctafCalls)?.has(dest.id);
+    const offLine = (sim) => { const lx = dest.x - ap.x, lz = dest.z - ap.z, l = Math.hypot(lx, lz); return Math.abs(((sim.ac.pos.x - ap.x) * lz - (sim.ac.pos.z - ap.z) * lx) / l) / NM; };
+    out.push({
+      id: "rw-xc", title: `Cross-country: ${ap.id} to ${dest.id} ${dest.call}`, tag: "Real airport", time: `${Math.round(dist / 1.6 + 6)} min`, level: 3, real: true,
+      summary: `Fly ${Math.round(dist)} NM to ${dest.name} on a course of ${mag(crsT)}°, level at a VFR cruising altitude, call ${dest.call} about 10 NM out and land there.`,
+      exam: ["t57", "e62", "e56", "e57", "t1", "e10"],
+      tips: [`Course ${mag(crsT)}° magnetic, ${Math.round(dist)} NM: the GPS and the map show the line.`, `The highest ground on the way is about ${Math.round(top / 100) * 100} ft. A good cruise: ${sug.toLocaleString()} ft.`, `Above 3,000 ft AGL on this course, fly ${east ? "odd thousands + 500 (3,500, 5,500)" : "even thousands + 500 (4,500, 6,500)"} (14 CFR 91.159). Watch the map for Class B and C shelves on the way.`, `Call ${callTo} about 10 NM out.`],
+      setup(sim, ls) { sim.spawn({ ...(ap.spawn[`rwy${id}`] || ap.spawn.start), onGround: true, engineRunning: true }); sim.ac.flapsSet = 0; radios(sim); sim.radio.com2 = dest.freqs.twr || dest.freqs.ctaf || 122.9; sim.setRoute([{ x: ap.x, z: ap.z, id: ap.id, name: ap.id }, { x: dest.x, z: dest.z, id: dest.id, name: dest.id }]); ls.maxOff = 0; },
+      tick(sim, ls) { if (!sim.d.onGround && nmTo(sim, ap.x, ap.z) > 2) ls.maxOff = Math.max(ls.maxOff, offLine(sim)); },
+      objectives: [
+        { text: `Take off and turn on course, ${mag(crsT)}° toward ${dest.id}`, check: (sim) => !sim.d.onGround && nmTo(sim, ap.x, ap.z) > 1.5 && Math.abs(wrap180(sim.d.track - crsT)) < 25 },
+        { text: `Level off at a VFR cruising altitude for 30 s (about ${sug.toLocaleString()} ft)`, check(sim, ls, dt) { const ok = Math.abs(sim.d.vsTrue) < 200 && sim.d.agl > 1000 && (sim.d.agl < 3000 || rule(sim.d.altInd)); ls.lvl = ok ? (ls.lvl || 0) + dt : 0; return ls.lvl > 30; } },
+        { text: `Call ${callTo} about 10 NM out`, check: (sim) => called(sim) && nmTo(sim, dest.x, dest.z) < 13, fail: (sim) => (!called(sim) && nmTo(sim, dest.x, dest.z) < 4 ? `You were 4 NM from ${dest.id} without calling ${dest.call}.` : null) },
+        { text: `Land at ${dest.id} ${dest.call}`, check: (sim) => landedOn(sim, dest), fail: offRunway(dest), result: (ls, sim) => `Farthest from the course line: ${ls.maxOff.toFixed(1)} NM. ${touchdownReport(sim, dest, weather.activeRunway(dest).end.id)}` },
+      ],
+    });
+  }
   const papi = (ap.papis || []).filter((p) => p.end === id);
   if (papi.length) {
     const kind = papi[0].kind === "vasi" ? "VASI" : "PAPI";
