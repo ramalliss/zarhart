@@ -13,7 +13,7 @@ const r1 = (v) => Math.round(v * 10) / 10;
 
 /**
  * A few samples a second of what an instructor watches, plus events (touchdown, liftoff, crash). One sample:
- * { t (s), ias (kt), alt (indicated ft), agl (ft), vs (fpm), pitch, bank, hdg (deg), x, z (m), thr (0..1), flaps (deg),
+ * { t (s), ias (kt), alt (indicated ft), y (true altitude, ft), agl (ft), vs (fpm), pitch, bank, hdg (deg), x, z (m), thr (0..1), flaps (deg),
  *   gnd (on the ground), aoa (deg), sw (stall warning), g }
  */
 export class FlightRecorder {
@@ -25,7 +25,7 @@ export class FlightRecorder {
     this.next = Math.max(this.next + this.dt, t + this.dt * 0.5); // steady rate, no burst after a pause
     if (this.t0 == null) this.t0 = t;
     this.samples.push({
-      t: Math.round(t * 100) / 100, ias: r1(d.ias), alt: Math.round(d.altInd), agl: Math.round(d.agl), vs: Math.round(d.vsTrue),
+      t: Math.round(t * 100) / 100, ias: r1(d.ias), alt: Math.round(d.altInd), y: Math.round(d.altTrue ?? d.altInd), agl: Math.round(d.agl), vs: Math.round(d.vsTrue),
       pitch: r1(d.pitch), bank: r1(d.bank), hdg: r1(d.hdg), x: Math.round(pos.x), z: Math.round(pos.z),
       thr: Math.round((ctl?.throttle ?? d.throttle ?? 0) * 100) / 100, flaps: d.flaps ?? 0, gnd: !!d.onGround,
       aoa: r1(d.aoa ?? 0), sw: !!d.stallWarn, g: Math.round((d.g ?? 1) * 100) / 100,
@@ -114,11 +114,11 @@ export function findMistakes(rec, ctx) {
   const inFlare = (s) => s.agl < 60 && tds.some((e) => s.t <= e.t && s.t > e.t - 10); // the horn often sounds as you hold off
   for (const r of runs(S, (s) => air(s) && s.sw && s.agl > 20 && !inFlare(s), (a, b) => a.aoa > b.aoa)) {
     const s = r.worst;
-    add({ t: r.start, kind: "stallWarn", level: "warn", title: "Stall warning", detail: `The stall warning sounded at ${s.agl.toLocaleString()} ft above the ground, ${Math.round(s.ias)} KIAS${r.end - r.start >= 1 ? `, for ${Math.round(r.end - r.start + 0.25)} s` : ""}.`, fix: "Lower the nose first to get the wing flying again, then add power." });
+    add({ t: r.start, kind: "stallWarn", short: `${Math.round(s.ias)} KIAS at ${s.agl.toLocaleString()} ft`, level: "warn", title: "Stall warning", detail: `The stall warning sounded at ${s.agl.toLocaleString()} ft above the ground, ${Math.round(s.ias)} KIAS${r.end - r.start >= 1 ? `, for ${Math.round(r.end - r.start + 0.25)} s` : ""}.`, fix: "Lower the nose first to get the wing flying again, then add power." });
   }
   for (const r of runs(S, (s) => air(s) && s.agl > 15 && s.agl < 600 && Math.abs(s.bank) > 30, (a, b) => Math.abs(a.bank) > Math.abs(b.bank))) {
     const s = r.worst;
-    add({ t: s.t, kind: "steepLow", level: "warn", title: "Steep bank close to the ground", detail: `${Math.round(Math.abs(s.bank))}° of bank at ${s.agl} ft above the ground.`, fix: "Below 600 ft keep the bank at 30° or less. If you overshoot the turn to final, go around rather than tighten it." });
+    add({ t: s.t, kind: "steepLow", short: `${Math.round(Math.abs(s.bank))}° at ${s.agl} ft`, level: "warn", title: "Steep bank close to the ground", detail: `${Math.round(Math.abs(s.bank))}° of bank at ${s.agl} ft above the ground.`, fix: "Below 600 ft keep the bank at 30° or less. If you overshoot the turn to final, go around rather than tighten it." });
   }
 
   // each landing: the approach before it, the flare and the touchdown
@@ -129,8 +129,8 @@ export function findMistakes(rec, ctx) {
     const tag = (m) => add({ ...m, td: td.t, when: label(m.t) });
     if (!rwy) {
       const ahead = finalRunway(ctx.airports || [], td.x, td.z, td.hdg ?? 0), short = ahead && alongRunway(ahead, td.x, td.z) < 0 && Math.abs(acrossRunway(ahead, td.x, td.z)) < ahead.wid ? -alongRunway(ahead, td.x, td.z) : null;
-      if (short != null) tag({ t: td.t, kind: "short", level: "warn", title: "Short of the runway", detail: `Touched down ${Math.round(short / FT).toLocaleString()} ft before the threshold of runway ${ahead.id}.`, fix: "Keep your aiming point fixed in the windshield; if it moves up, you're getting low: add power." });
-      else tag({ t: td.t, kind: "offRunway", level: "warn", title: "Off the runway", detail: "The wheels touched down outside the runway.", fix: "Line up with the runway on a long final and keep the centreline under the nose all the way down." });
+      if (short != null) tag({ t: td.t, kind: "short", short: `${Math.round(short / FT).toLocaleString()} ft short`, level: "warn", title: "Short of the runway", detail: `Touched down ${Math.round(short / FT).toLocaleString()} ft before the threshold of runway ${ahead.id}.`, fix: "Keep your aiming point fixed in the windshield; if it moves up, you're getting low: add power." });
+      else tag({ t: td.t, kind: "offRunway", short: "outside the runway", level: "warn", title: "Off the runway", detail: "The wheels touched down outside the runway.", fix: "Line up with the runway on a long final and keep the centreline under the nose all the way down." });
       continue;
     }
 
@@ -140,33 +140,60 @@ export function findMistakes(rec, ctx) {
     // stable-approach checks from 500 ft down to 100 ft: speed within +10/−5 kt of the target, sink under 1,000 fpm
     const band = fin.filter((s) => s.agl >= 100 && s.agl <= 500), tgtOf = (s) => appSpeed(V, s.flaps, ctx);
     const fast = sustained(runs(band, (s) => s.ias > tgtOf(s) + 10, (a, b) => a.ias - tgtOf(a) > b.ias - tgtOf(b)), (a, b) => a.ias - tgtOf(a) > b.ias - tgtOf(b));
-    if (fast) { const s = fast.worst, tgt = tgtOf(s); tag({ t: s.t, kind: "fastFinal", level: "tip", title: "Fast on final", detail: `${Math.round(s.ias)} KIAS at ${s.agl} ft, ${Math.round(s.ias - tgt)} kt above the ${tgt} to aim for${span(fast)}.`, fix: `Pitch for ${tgt} KIAS on final and hold it; use power for the glide path. Extra speed makes you float down the runway.` }); }
+    if (fast) { const s = fast.worst, tgt = tgtOf(s); tag({ t: s.t, kind: "fastFinal", short: `${Math.round(s.ias)} KIAS at ${s.agl} ft`, level: "tip", title: "Fast on final", detail: `${Math.round(s.ias)} KIAS at ${s.agl} ft, ${Math.round(s.ias - tgt)} kt above the ${tgt} to aim for${span(fast)}.`, fix: `Pitch for ${tgt} KIAS on final and hold it; use power for the glide path. Extra speed makes you float down the runway.` }); }
     const slow = sustained(runs(band, (s) => s.ias < tgtOf(s) - 5, (a, b) => a.ias - tgtOf(a) < b.ias - tgtOf(b)), (a, b) => a.ias - tgtOf(a) < b.ias - tgtOf(b));
-    if (slow) { const s = slow.worst, tgt = tgtOf(s); tag({ t: s.t, kind: "slowFinal", level: "warn", title: "Slow on final", detail: `${Math.round(s.ias)} KIAS at ${s.agl} ft, ${Math.round(tgt - s.ias)} kt below the ${tgt} to aim for${span(slow)}.`, fix: "Lower the nose to get the speed back, and add power to hold the glide path. Slow and low is how stalls near the ground happen." }); }
+    if (slow) { const s = slow.worst, tgt = tgtOf(s); tag({ t: s.t, kind: "slowFinal", short: `${Math.round(s.ias)} KIAS at ${s.agl} ft`, level: "warn", title: "Slow on final", detail: `${Math.round(s.ias)} KIAS at ${s.agl} ft, ${Math.round(tgt - s.ias)} kt below the ${tgt} to aim for${span(slow)}.`, fix: "Lower the nose to get the speed back, and add power to hold the glide path. Slow and low is how stalls near the ground happen." }); }
     const sink = sustained(runs(band, (s) => s.vs < -1000, (a, b) => a.vs < b.vs), (a, b) => a.vs < b.vs);
-    if (sink) { const s = sink.worst; tag({ t: s.t, kind: "sinkRate", level: "warn", title: "Sinking fast on final", detail: `${Math.abs(s.vs).toLocaleString()} fpm down at ${s.agl} ft${span(sink)}.`, fix: "On a stable approach you sink about 500–700 fpm. Add power and raise the nose slightly; if it doesn't settle by 300 ft, go around." }); }
+    if (sink) { const s = sink.worst; tag({ t: s.t, kind: "sinkRate", short: `${Math.abs(s.vs).toLocaleString()} fpm at ${s.agl} ft`, level: "warn", title: "Sinking fast on final", detail: `${Math.abs(s.vs).toLocaleString()} fpm down at ${s.agl} ft${span(sink)}.`, fix: "On a stable approach you sink about 500–700 fpm. Add power and raise the nose slightly; if it doesn't settle by 300 ft, go around." }); }
 
     // the flare: sink rate around 50 ft against the sink rate just before touchdown
     const flare = S.filter((s) => before(s) && air(s) && s.t >= td.t - 30);
     const at = (lo, hi) => { const v = flare.filter((s) => s.agl >= lo && s.agl <= hi); return v.length ? v.reduce((a, s) => a + s.vs, 0) / v.length : null; };
     const vs50 = at(30, 70), vs10 = at(3, 12);
     if (td.fpm >= 400 && vs50 != null && vs10 != null && vs10 <= vs50 * 0.8) {
-      tag({ t: flare.filter((s) => s.agl <= 12).at(0)?.t ?? td.t, kind: "lateFlare", level: "tip", title: "Late flare", detail: `Still sinking ${Math.round(-vs10)} fpm at 10 ft, ${vs10 <= vs50 ? "faster than" : "nearly as fast as"} at 50 ft (${Math.round(-vs50)} fpm).`, fix: "Start the flare at 10–15 ft: ease back so the sink rate slows, and keep easing back as the airplane settles." });
+      tag({ t: flare.filter((s) => s.agl <= 12).at(0)?.t ?? td.t, kind: "lateFlare", short: `${Math.round(-vs10)} fpm at 10 ft`, level: "tip", title: "Late flare", detail: `Still sinking ${Math.round(-vs10)} fpm at 10 ft, ${vs10 <= vs50 ? "faster than" : "nearly as fast as"} at 50 ft (${Math.round(-vs50)} fpm).`, fix: "Start the flare at 10–15 ft: ease back so the sink rate slows, and keep easing back as the airplane settles." });
     }
     const high = runs(flare, (s) => s.agl > 15 && s.agl < 60 && s.vs > -100, (a, b) => a.agl > b.agl).find((r) => r.end - r.start >= 2);
-    if (high) tag({ t: high.start, kind: "highFlare", level: "tip", title: high.worst.vs > 200 ? "Ballooned" : "Flared too high", detail: `Levelled off ${high.worst.vs > 200 ? "and climbed " : ""}at about ${high.worst.agl} ft, then had to come down from there.`, fix: "Hold the approach attitude until 10–15 ft, then flare smoothly. If you balloon, hold the attitude and add a little power." });
+    if (high) tag({ t: high.start, kind: "highFlare", short: `level at ${high.worst.agl} ft`, level: "tip", title: high.worst.vs > 200 ? "Ballooned" : "Flared too high", detail: `Levelled off ${high.worst.vs > 200 ? "and climbed " : ""}at about ${high.worst.agl} ft, then had to come down from there.`, fix: "Hold the approach attitude until 10–15 ft, then flare smoothly. If you balloon, hold the attitude and add a little power." });
 
     // touchdown
-    if (td.fpm >= 400) tag({ t: td.t, kind: "hardLanding", level: td.fpm >= 650 ? "warn" : "tip", title: td.fpm >= 650 ? "Hard landing" : "Firm landing", detail: `Touched down at ${td.fpm} fpm${td.fpm >= 650 ? "; above about 1,100 fpm the gear can collapse" : ""}.`, fix: "A slower sink at touchdown comes from a stable approach and a flare that keeps easing back until the wheels touch." });
+    if (td.fpm >= 400) tag({ t: td.t, kind: "hardLanding", short: `${td.fpm} fpm`, level: td.fpm >= 650 ? "warn" : "tip", title: td.fpm >= 650 ? "Hard landing" : "Firm landing", detail: `Touched down at ${td.fpm} fpm${td.fpm >= 650 ? "; above about 1,100 fpm the gear can collapse" : ""}.`, fix: "A slower sink at touchdown comes from a stable approach and a flare that keeps easing back until the wheels touch." });
     const along = alongRunway(rwy, td.x, td.z), across = acrossRunway(rwy, td.x, td.z), longM = Math.max(1000 * FT, rwy.len / 3);
-    if (along > longM) tag({ t: td.t, kind: "long", level: along > rwy.len / 2 ? "warn" : "tip", title: "Long landing", detail: `Touched down ${Math.round(along / FT).toLocaleString()} ft past the threshold, with ${Math.round((rwy.len - along) / FT).toLocaleString()} ft of runway left.`, fix: "Aim for the first third of the runway. Arrive at the threshold at your approach speed, not faster, and don't hold the airplane off with power." });
-    if (Math.abs(across) > Math.max(3, rwy.wid * 0.15)) tag({ t: td.t, kind: "centreline", level: Math.abs(across) > rwy.wid * 0.35 ? "warn" : "tip", title: "Off the centreline", detail: `${Math.abs(across).toFixed(1)} m ${across < 0 ? "left" : "right"} of the centreline at touchdown.`, fix: "Line up early on final, then keep the nose on the centreline with rudder and correct drift with aileron into the wind." });
-    if (td.hdg != null && Math.abs(wrap180(td.hdg - rwy.hdg)) > 5) { const c = wrap180(td.hdg - rwy.hdg); tag({ t: td.t, kind: "crab", level: "tip", title: "Touched down crabbed", detail: `The nose pointed ${Math.abs(c).toFixed(0)}° ${c < 0 ? "left" : "right"} of the runway at touchdown.`, fix: "In a crosswind, just before touchdown use rudder to line the nose up with the runway and aileron into the wind to stop the drift." }); }
-    if (td.kias > (ctx.appKt ?? V.app ?? 65) - 3) tag({ t: td.t, kind: "fastTouchdown", level: "tip", title: "Fast touchdown", detail: `${td.kias} KIAS at touchdown; it should be close to stall speed${V.s0 ? ` (${V.s0} KIAS with full flaps)` : ""}.`, fix: "Keep easing back in the flare so the airplane slows and settles on the main wheels." });
+    if (along > longM) tag({ t: td.t, kind: "long", short: `${Math.round(along / FT).toLocaleString()} ft past the threshold`, level: along > rwy.len / 2 ? "warn" : "tip", title: "Long landing", detail: `Touched down ${Math.round(along / FT).toLocaleString()} ft past the threshold, with ${Math.round((rwy.len - along) / FT).toLocaleString()} ft of runway left.`, fix: "Aim for the first third of the runway. Arrive at the threshold at your approach speed, not faster, and don't hold the airplane off with power." });
+    if (Math.abs(across) > Math.max(3, rwy.wid * 0.15)) tag({ t: td.t, kind: "centreline", short: `${Math.abs(across).toFixed(1)} m ${across < 0 ? "left" : "right"}`, level: Math.abs(across) > rwy.wid * 0.35 ? "warn" : "tip", title: "Off the centreline", detail: `${Math.abs(across).toFixed(1)} m ${across < 0 ? "left" : "right"} of the centreline at touchdown.`, fix: "Line up early on final, then keep the nose on the centreline with rudder and correct drift with aileron into the wind." });
+    if (td.hdg != null && Math.abs(wrap180(td.hdg - rwy.hdg)) > 5) { const c = wrap180(td.hdg - rwy.hdg); tag({ t: td.t, kind: "crab", short: `${Math.abs(c).toFixed(0)}° ${c < 0 ? "left" : "right"}`, level: "tip", title: "Touched down crabbed", detail: `The nose pointed ${Math.abs(c).toFixed(0)}° ${c < 0 ? "left" : "right"} of the runway at touchdown.`, fix: "In a crosswind, just before touchdown use rudder to line the nose up with the runway and aileron into the wind to stop the drift." }); }
+    if (td.kias > (ctx.appKt ?? V.app ?? 65) - 3) tag({ t: td.t, kind: "fastTouchdown", short: `${td.kias} KIAS`, level: "tip", title: "Fast touchdown", detail: `${td.kias} KIAS at touchdown; it should be close to stall speed${V.s0 ? ` (${V.s0} KIAS with full flaps)` : ""}.`, fix: "Keep easing back in the flare so the airplane slows and settles on the main wheels." });
     const bounce = S.find((s) => s.t > td.t + 0.2 && s.t < td.t + 4 && !s.gnd && s.agl > 2);
-    if (bounce) tag({ t: bounce.t, kind: "bounce", level: "warn", title: "Bounced", detail: `Back in the air after touching down, up to ${Math.max(...S.filter((s) => s.t > td.t && s.t < td.t + 4).map((s) => s.agl))} ft.`, fix: "Hold the landing attitude and let it settle; after a big bounce, add full power and go around." });
+    if (bounce) tag({ t: bounce.t, kind: "bounce", short: `up to ${Math.max(...S.filter((x) => x.t > td.t && x.t < td.t + 4).map((x) => x.agl))} ft`, level: "warn", title: "Bounced", detail: `Back in the air after touching down, up to ${Math.max(...S.filter((s) => s.t > td.t && s.t < td.t + 4).map((s) => s.agl))} ft.`, fix: "Hold the landing attitude and let it settle; after a big bounce, add full power and go around." });
   }
   return out.sort((a, b) => a.t - b.t);
+}
+
+/**
+ * The approach before a touchdown, for a profile chart: each sample's distance from the threshold (ft, negative = before it),
+ * height above the runway (ft), airspeed and target speed, from 2.5 NM out to 4 s after touchdown; plus the 3° path to the
+ * aiming point (1,000 ft past the threshold, or the lesson's) and where each moment of that landing happened.
+ * Null when the touchdown wasn't on a runway or there's no final to draw.
+ */
+export function approachProfile(rec, td, ctx, moments = []) {
+  const rwy = td.rwy || landingRunway(ctx.airports || [], td.x, td.z, td.hdg ?? 0); if (!rwy) return null;
+  const S = rec.samples, after = S.filter((s) => s.t >= td.t && s.t <= td.t + 4 && s.gnd);
+  const elev = after.length ? after.reduce((a, s) => a + (s.y - s.agl), 0) / after.length : null; if (elev == null) return null;
+  const pt = (s) => ({ t: s.t, d: Math.round(alongRunway(rwy, s.x, s.z) / FT), h: Math.round(s.y - elev), ias: s.ias, tgt: appSpeed(ctx.V || {}, s.flaps, ctx), gnd: s.gnd });
+  let i = S.findIndex((s) => s.t >= td.t); if (i < 0) i = S.length;
+  const pts = [];
+  for (let j = i - 1; j >= 0; j--) { // back from touchdown while still on this final
+    const s = S[j], d = alongRunway(rwy, s.x, s.z);
+    if (td.t - s.t > 180 || d < -2.5 * NM || Math.abs(acrossRunway(rwy, s.x, s.z)) > 600 || Math.abs(wrap180(s.hdg - rwy.hdg)) > 35) break;
+    pts.unshift(pt(s));
+  }
+  if (pts.length < 8) return null;
+  for (const s of S.slice(i)) { if (s.t > td.t + 4) break; pts.push(pt(s)); }
+  // markers carry the moment's number in the list shown with the chart
+  const aimFt = ctx.aimFt ?? 1000, marks = moments.map((m, k) => ({ m, n: k + 1 })).filter((x) => x.m.td === td.t).map(({ m, n }) => {
+    const p = pts.reduce((a, b) => (Math.abs(b.t - m.t) < Math.abs(a.t - m.t) ? b : a)); return { n, kind: m.kind, level: m.level, d: p.d, h: p.h, ias: p.ias };
+  });
+  return { rwy: `${rwy.airport} ${rwy.id}`, aimFt, glide: Math.tan(3 * DEG), lenFt: Math.round(rwy.len / FT), pts, marks };
 }
 
 /** the single most useful thing to try next time: the first safety item, else the first technique item */

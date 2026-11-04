@@ -2,7 +2,7 @@
 // runway 27. Run: node tools/test-debrief.mjs
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { FlightRecorder, findMistakes, nextTry, LiveCoach, landingRunway, finalRunway, alongRunway, acrossRunway } from "../assets/js/sim/debrief.js";
+import { FlightRecorder, findMistakes, nextTry, LiveCoach, landingRunway, finalRunway, alongRunway, acrossRunway, approachProfile } from "../assets/js/sim/debrief.js";
 import { AIRPORTS } from "../assets/js/sim/world-data.js";
 
 const FT = 0.3048, NM = 1852, KT = 0.514444, DEG = Math.PI / 180;
@@ -48,7 +48,7 @@ test("recorder: 4 samples a second, compact, capped", () => {
   for (let t = 0; t < 10; t += 1 / 60) r.tick(t, { ias: 64.96, altInd: 1500.4, agl: 350.2, vsTrue: -512.7, pitch: 1.234, bank: -3.21, hdg: 270.04, flaps: 20, onGround: false, aoa: 5.55, stallWarn: false, g: 1.016 }, { x: 10.4, z: -3.6 }, { throttle: 0.456 });
   assert.equal(r.samples.length, 20, "capped at 5 s × 4 Hz");
   const s = r.samples.at(-1);
-  assert.deepEqual(Object.keys(s).sort(), ["agl", "alt", "aoa", "bank", "flaps", "g", "gnd", "hdg", "ias", "pitch", "sw", "t", "thr", "vs", "x", "z"]);
+  assert.deepEqual(Object.keys(s).sort(), ["agl", "alt", "aoa", "bank", "flaps", "g", "gnd", "hdg", "ias", "pitch", "sw", "t", "thr", "vs", "x", "y", "z"]);
   assert.equal(s.ias, 65); assert.equal(s.vs, -513); assert.equal(s.thr, 0.46); assert.equal(s.x, 10);
   const gaps = r.samples.slice(1).map((x, i) => x.t - r.samples[i].t);
   assert.ok(gaps.every((g) => g > 0.24 && g < 0.27), `steady 4 Hz: ${gaps.join(",")}`);
@@ -153,4 +153,19 @@ test("calibration: one note per kind with its span, gusts, a lesson's own speed,
   const horn = { extra: (t, d) => { if (d.agl > 600 && d.agl < 650) d.stallWarn = true; } };
   assert.equal(findMistakes(fly(horn), { ...ctx, skip: ["stallWarn"] }).some((x) => x.kind === "stallWarn"), false, "a stall lesson expects the horn");
   assert.equal(kinds(fly({ extra: (t, d) => { if (d.agl > 0 && d.agl < 40) d.stallWarn = true; } })).includes("stallWarn"), false, "the horn in the flare is normal");
+});
+
+test("approach profile: the final, to scale, with numbered markers and short notes", () => {
+  const rec = fly({ finalIas: (agl) => (agl > 200 && agl < 400 ? 80 : 65), tdAlongM: 600 });
+  const m = findMistakes(rec, ctx), td = rec.events[0], p = approachProfile(rec, td, ctx, m);
+  assert.equal(p.rwy, "KZAR 27"); assert.equal(p.aimFt, 1000); assert.equal(p.lenFt, Math.round(1500 / FT));
+  assert.ok(p.pts[0].d < -14000 && p.pts[0].d > -15500, `starts 2.5 NM out: ${p.pts[0].d}`);
+  assert.ok(p.pts.every((x, i) => i === 0 || x.d >= p.pts[i - 1].d), "distance only grows");
+  const land = p.pts.find((x) => x.gnd); assert.ok(Math.abs(land.h) <= 2 && Math.abs(land.d - 600 / FT) < 200, JSON.stringify(land));
+  const mid = p.pts.find((x) => x.d > -6000); assert.ok(Math.abs(mid.h - Math.tan(3 * DEG) * (600 / FT - mid.d)) < 30, "on the 3° path to the touchdown point");
+  assert.deepEqual(p.marks.map((x) => x.kind), ["fastFinal", "long"]); assert.deepEqual(p.marks.map((x) => x.n), [1, 2]);
+  assert.equal(p.marks[0].ias, 80);
+  assert.match(m[0].short, /^80 KIAS at \d{3} ft$/);
+  assert.match(m[1].short, /^\d,\d{3} ft past the threshold$/);
+  assert.equal(approachProfile(fly({ tdAcrossM: 80 }), fly({ tdAcrossM: 80 }).events[0], ctx), null, "off the runway: no chart");
 });

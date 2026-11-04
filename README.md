@@ -31,7 +31,7 @@ The sim records every flight, four samples a second: airspeed, altitude, height 
 - **The touchdown:** firm or hard, long (past the first third of the runway), short, off the centreline, crabbed, too fast, or bounced.
 - **Anywhere:** the stall warning (not in the flare, and not in the stall lessons, where it's the point), and more than 30° of bank below 600 ft.
 
-A finished lesson shows these as **Instructor's notes** under the result, with when each happened and what to try next. In free flight a short note follows each landing. While you fly, the sim calls out airspeed or sink rate on final and steep bank close to the ground, twice at most per approach. Settings → Controls has a switch for all of it. The rules are in `assets/js/sim/debrief.js`; the recording is what the AI debrief will read later.
+A finished lesson shows these as **Instructor's notes** under the result, with when each happened and what to try next. Below them, a chart of each approach draws your height against the 3° path to the 1,000 ft aiming point and your airspeed against the target band, with each note's number at the moment it happened. In free flight the same notes and chart open in a card after each landing. In VR they appear one at a time on the glareshield and are read aloud, and so are the callouts. While you fly, the sim calls out airspeed or sink rate on final and steep bank close to the ground, twice at most per approach. Settings → Controls has a switch for all of it. The rules are in `assets/js/sim/debrief.js`; the recording is what the AI debrief will read later.
 
 ## Radio practice, traffic and multiplayer
 
