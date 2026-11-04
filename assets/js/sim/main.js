@@ -18,6 +18,7 @@ import { VR, VR_CONTROLS, PHONE_VR_CONTROLS } from "./vr.js";
 import { buildCall, scoreCall, Listener } from "./radio.js";
 import { Traffic } from "./traffic.js";
 import { Multiplayer } from "./mp.js";
+import * as Limits from "../limits.js";
 
 const $ = (s, r = document) => r.querySelector(s);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -98,6 +99,7 @@ const sim = {
   setTime(h) { weather.hour = h; },
 };
 const lessons = new LessonRunner(sim);
+Limits.init(); // free plan: the first 5 minutes of each lesson (Pro: the whole lesson)
 /* automated traffic: heard only on the frequencies your audio panel is listening to */
 const traffic = new Traffic(scene, {
   weather, atis: () => weatherLetter(), player: () => ({ x: ac.pos.x, z: ac.pos.z, onGround: ac.derived.onGround, gs: ac.derived.gs }),
@@ -1157,6 +1159,8 @@ $("#startVR").addEventListener("click", () => {
   enterVR();
 });
 $("#crashLessons").addEventListener("click", () => { hideCrash(); openDrawer("lessons"); });
+$("#paywallFree").addEventListener("click", () => { lessons.stop(); hidePaywall(); sim.paused = false; say("Free flight. The lesson is closed; fly anywhere you like.", "info"); });
+$("#paywallLessons").addEventListener("click", () => { lessons.stop(); hidePaywall(); openDrawer("lessons"); });
 $("#resume").addEventListener("click", () => { sim.paused = false; $("#paused").hidden = true; });
 input.on("onPad", (id) => say(`Controller connected: ${id.slice(0, 40)}`, "good"));
 /** touch layout: the throttle slider and rudder buttons, or a right-hand throttle/rudder stick */
@@ -1231,7 +1235,21 @@ function stepSim(dt, pilot) {
   handleEvents();
   monT += dt; if (monT > 0.2) { monitors(monT); monT = 0; }
   lessons.update(dt);
+  checkLessonLimit();
 }
+
+/* free plan: a lesson stops after its first few minutes of flying (paused time doesn't count) */
+function checkLessonLimit() {
+  const L = lessons.lesson; if (!L || lessons.done || !Limits.on()) return;
+  const left = Limits.lessonSecondsLeft(sim.t - lessons.ls.t0);
+  if (left <= 60 && left > 0 && !lessons.ls.freeWarned) { lessons.ls.freeWarned = true; say("1 minute left in the free part of this lesson.", "warn"); }
+  if (left > 0) return;
+  const mins = Math.round(Limits.lessonLimitSeconds() / 60);
+  $("#paywallLede").textContent = `Free lessons run for the first ${mins >= 1 ? `${mins} minute${mins === 1 ? "" : "s"}` : `${Limits.lessonLimitSeconds()} seconds`}. Zarhart Pro lets you fly ${L.title ? `“${L.title}”` : "every lesson"} to the end, with objectives and a debrief.`;
+  $("#paywallPro").href = Limits.upgradeHref();
+  sim.paused = true; $("#paywall").hidden = false; $("#paywallPro").focus();
+}
+function hidePaywall() { $("#paywall").hidden = true; }
 function tick(now) {
   const frameMs = now - last, dt = Math.max(0, Math.min(0.05, frameMs / 1000)); last = Math.max(last, now);
   if (vr.active) vr.poll();

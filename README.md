@@ -1,6 +1,6 @@
 # Zarhart
 
-**Learn to fly in your browser.** Zarhart is a free, open-source flight simulator and FAA Private Pilot (PAR) written-test prep site, named for **Zara Rutherford** (youngest woman to fly solo around the world, 2022) and **Amelia Earhart** (first woman to fly solo across the Atlantic, 1932).
+**Learn to fly in your browser.** Zarhart is an open-source flight simulator and FAA Private Pilot (PAR) written-test prep site, named for **Zara Rutherford** (youngest woman to fly solo around the world, 2022) and **Amelia Earhart** (first woman to fly solo across the Atlantic, 1932).
 
 Created by **Sophia Ramalli**, a student pilot who built it while studying for the FAA written test.
 
@@ -11,6 +11,14 @@ Created by **Sophia Ramalli**, a student pilot who built it while studying for t
 | **Fly** (`/sim/`) | A Cessna 172N-class flight model checked against book numbers, three airplanes (Cessna 172 and 152, Piper PA-28), the Zarhart Valley (six airports including a 4,430 ft mountain strip and a regional field with a displaced threshold, blast pad and closed runway; two VORs; Class D airspace; landmarks for pilotage), weather with rain, snow, frost, icing, gusts, calm wind, fog and a microburst, wet and icy runways with hydroplaning, and 19 free lessons including rain, snow, a microburst, calm wind, density altitude and a displaced threshold, six-pack and G1000-style glass instruments, a sectional-style map, radios with ATIS and simple ATC, pilot-controlled lighting, light-gun signals, a VFR minimums monitor, checklists, failures, weather, weight & balance, and 13 lessons linked to written-test questions, plus ten Pro lessons from the Private Pilot ACS (short-field landing, slow flight, turns around a point, S-turns, rectangular course, forward slip, go-around, emergency descent, diversion, night cross-country), free while Pro is in the works. |
 | **Study** (`/prep/`) | 650+ practice questions with explanations, a study guide by topic (ACS area, PHAK chapter, simulator lesson), flashcards, smart-review quizzes, scenario quizzes (rain, icing, wind, storms, fog, METARs, markings, mountains, airplanes), calculation drills that generate new questions every time (METAR decoding and flight category, wind components, pressure and density altitude, time-speed-distance and fuel, true course to magnetic heading), ten fixed timed 60-question practice tests plus random ones, each with a topic report, and Quizlet export. |
 | **Path** (`/#path`) | The free route to the written test: FLY8MA ground school → FAA PHAK → Sporty's and King Schools practice tests → endorsement → FTN in IACRA → book with PSI. |
+
+## Free and Pro
+
+Free flight is unlimited. On the free plan, each lesson stops after its first 5 minutes, and the study pages give 3 practice questions and 3 flashcards a day (reset at local midnight); timed practice tests, the study guide's answers and Quizlet export are Pro. Zarhart Pro removes every limit. The limits and their numbers live in [`assets/js/limits.js`](assets/js/limits.js).
+
+- **App:** Pro comes from the App Store or Google Play through RevenueCat.
+- **Website:** the limits stay off until Pro can be bought on the website. To turn them on, deploy [`tools/license-worker.js`](tools/license-worker.js) (a free Cloudflare Worker that checks Lemon Squeezy license keys), put its URL in `WEB_PRO.verifyUrl` in `limits.js`, and add the Pro checkout links in `pricing/index.html`. Buyers unlock Pro on their browser with the license key from their receipt.
+- **Testing locally:** open a page with `?freelimits=1` to switch the limits on (`?freelimits=0` turns them off), `?freelesson=20` to stop lessons after 20 seconds, and `?freereset=1` to clear today's counts.
 
 ## What it borrows
 

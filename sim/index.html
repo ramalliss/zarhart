@@ -136,6 +136,14 @@
 
 <div id="paused" class="pausedOverlay" hidden><div><p class="eyebrow">Paused</p><button class="btn primary" id="resume">Resume (P)</button></div></div>
 
+<div id="paywall" class="modal" hidden role="dialog" aria-labelledby="paywallTitle">
+  <div class="card">
+    <p class="eyebrow">Zarhart Pro</p>
+    <h2 id="paywallTitle">That's the free part of this lesson.</h2>
+    <p id="paywallLede" class="lede"></p>
+    <div class="row"><a class="btn primary" id="paywallPro" href="../pricing/#t-pro">Get Zarhart Pro</a><button class="btn" id="paywallFree" type="button">Keep flying (free flight)</button><button class="btn" id="paywallLessons" type="button">Pick a lesson</button></div>
+  </div>
+</div>
 <div id="crash" class="modal" hidden role="dialog" aria-labelledby="crashTitle">
   <div class="card">
     <p class="eyebrow" style="color:var(--red)">Flight ended</p>

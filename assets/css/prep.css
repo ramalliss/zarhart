@@ -166,3 +166,16 @@ textarea { width: 100%; min-height: 280px; font: 13px/1.5 var(--f-mono); backgro
 .examintro h3 { margin: 0; }
 .qcode { margin: -4px 0 14px; padding: 10px 12px; border-left: 3px solid var(--magenta); background: rgba(255, 255, 255, .03); font: 500 14px/1.5 var(--f-mono); color: var(--text); overflow-wrap: anywhere; }
 .miss code { font: 500 12.5px var(--f-mono); color: var(--muted); }
+
+/* free plan (assets/js/limits.js) */
+.paywall { display: grid; gap: 10px; padding: clamp(22px, 3vw, 36px); background: var(--panel); border: 1px solid var(--line); }
+.paywall h3 { font-size: 20px; margin: 0; }
+.paywall p { margin: 0; color: var(--muted); }
+.paywall .actions { margin-top: 6px; }
+.paywall .redeem { display: grid; gap: 8px; margin-top: 10px; max-width: 460px; }
+.paywall .redeem label { display: grid; gap: 6px; font-size: 13px; color: var(--muted); }
+.paywall .redeem input { font: inherit; padding: 10px 12px; background: var(--bg); color: var(--text); border: 1px solid var(--line-2); }
+.paywall .redeem .msg { min-height: 1.3em; }
+.freeleft { color: var(--amber); }
+.freenote { margin: 0 0 14px; padding: 12px 14px; border: 1px solid var(--line-2); color: var(--muted); }
+.freenote a { color: var(--text); }
