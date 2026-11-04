@@ -310,7 +310,9 @@ export class VR {
       const x = (i % CONSOLE.cols) * cw, y = Math.floor(i / CONSOLE.cols) * ch, on = name === "brake" && this.pinchBrake > 0;
       g.fillStyle = on ? "#ffb020" : "rgba(255, 255, 255, 0.08)"; roundRect(g, x + 10 * s, y + 10 * s, cw - 20 * s, ch - 20 * s, 12 * s); g.fill();
       g.strokeStyle = "rgba(255, 255, 255, 0.28)"; g.lineWidth = 2 * s; roundRect(g, x + 10 * s, y + 10 * s, cw - 20 * s, ch - 20 * s, 12 * s); g.stroke();
-      g.fillStyle = on ? "#111" : "#f4f6f8"; g.font = `600 ${40 * s}px Barlow, sans-serif`; g.textAlign = "center"; g.textBaseline = "middle";
+      g.fillStyle = on ? "#111" : "#f4f6f8"; g.textAlign = "center"; g.textBaseline = "middle";
+      let px = 40 * s; g.font = `600 ${px}px Barlow, sans-serif`;
+      const room = cw - 48 * s, w = g.measureText(labels[name]).width; if (w > room) { px *= room / w; g.font = `600 ${px}px Barlow, sans-serif`; }
       g.fillText(labels[name], x + cw / 2, y + ch / 2);
     });
     this.consoleTex.needsUpdate = true;

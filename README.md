@@ -45,7 +45,7 @@ Runway lengths, widths, surfaces, lights and numbers are real, and so are the to
 
 The site is an installable web app. On iPhone or iPad, open it in Safari and tap **Share → Add to Home Screen**; on Android or desktop Chrome and Edge, use **Install the app** on the home page (or Install in the browser menu). It opens full screen, and pages you've visited work offline (`sw.js`, network first, so online visitors always get the latest version).
 
-## VR (Meta Quest, or a phone in a viewer)
+## VR (Meta Quest, Apple Vision Pro, or a phone in a viewer)
 
 Open the simulator in the Quest's built-in browser and tap **Fly in VR** (or **VR** in the toolbar). It's a seated cockpit view through WebXR: the instruments are on the dashboard, lesson objectives and radio calls are on a strip on the glareshield, and the controllers fly the airplane:
 
@@ -53,9 +53,19 @@ Right stick: pitch and roll · Left stick: throttle (up/down) and rudder (left/r
 
 **Graphics on a standalone headset.** A headset like the Quest draws the cockpit twice every frame, 72 to 90 times a second, on its built-in graphics chip. So when Graphics is High or Ultra, **Fly in VR** (and **VR** in the toolbar) first asks *Switch to Low for VR? Recommended on Quest.* **Switch** saves Graphics: Low and reloads the page, then highlights **Fly in VR**: tap it again, because a VR session can only start from a tap. **Keep** goes into VR with your current setting and isn't asked again until the page reloads. Desktop browsers driving a PC headset, and phone VR, never ask. The headset check is by browser (Meta Quest Browser, Pico Browser, Wolvic), in `assets/js/sim/headset.js`.
 
+**Without controllers: pinch controls (Apple Vision Pro, or a Quest with hand tracking).** If no controller with sticks shows up in the first few frames, or on the first pinch, the cockpit shows a small console of six buttons below the panel, and you fly with your hands:
+
+- **Right hand, pinch and move** works like a yoke. Pull toward you for nose up, push away for nose down, move sideways to roll. Full deflection takes 10 cm. Let go and the yoke centres.
+- **Left hand, pinch and move**: up and down move the throttle like a lever from where it was (15 cm for full travel), and sideways is rudder. Let go and the throttle stays where you left it.
+- **Look at a console button and pinch** for Flaps up, Flaps down, Brakes (on while you hold the pinch), Mic, Recenter, and Pause (Resume while paused, Try again after a crash). A button needs a short pinch that stays put; a long hold does nothing.
+
+Movement is measured from the way your head faced when the pinch began, so the controls still work if you turn in the seat. A pinch from a hand the headset doesn't call left or right takes the yoke on the right of your head and the lever on the left. The maths is in `assets/js/sim/headset.js`, the controls in `assets/js/sim/vr.js`.
+
 WebXR needs HTTPS, so test VR on the live site rather than the local dev server. The VR button only appears in browsers that support immersive VR.
 
 ### Testing VR on a headset
+
+Pinch controls have been tested only in a desktop browser with a simulated session, not on a Vision Pro or a Quest. On a headset, check: that the console appears and the controller message doesn't; that a right-hand pinch pulled back raises the nose, without needing so much movement that it's tiring; that the left hand moves the throttle and holds it when let go; that looking at each console button and pinching presses it, and that a pinch aimed elsewhere flies instead; and that Brakes stay on only while held.
 
 Zarhart hasn't been measured on a headset yet, so neither setting is known to hold the frame rate. Two URL flags help compare them:
 
@@ -73,7 +83,7 @@ Phones without WebXR (iPhone Safari, the iOS app) get **phone VR** from the same
 ```bash
 python tools/serve.py        # http://localhost:8765 (no-cache dev server)
 node tools/test-fdm.mjs      # headless flight-model checks against C172 book numbers
-node tools/test-vr.mjs       # VR on headsets: headset detection, when to suggest Low, the VR test flags
+node tools/test-vr.mjs       # VR on headsets: headset detection, when to suggest Low, the VR test flags, pinch-control maths
 npm test                     # both
 ```
 
@@ -102,7 +112,7 @@ assets/js/sim/           fdm.js (flight model), world-data.js, world3d.js, plane
                          nav.js, weather.js, input.js, audio.js, checklists.js, lessons.js, main.js,
                          gfx.js (Graphics presets Low/High/Ultra, textures made in code, sun glare, Ultra's bloom),
                          realworld.js (Real World mode: terrain, aerial photos and airports for a real place),
-                         headset.js (VR on standalone headsets: the Low-for-VR suggestion and VR test flags)
+                         headset.js (VR on standalone headsets: the Low-for-VR suggestion, VR test flags, pinch-control maths)
 assets/data/airports/    real US airports, runways, frequencies and VORs per 1° square (OurAirports)
 assets/js/prep/prep.js   prep app
 assets/data/questions.json  question bank
