@@ -855,6 +855,40 @@ function buildAirportProps(ap, root, mats, lights) {
   }
 }
 
+/* ===================== Real World obstacles ===================== */
+/**
+ * The FAA's obstacles, a few instanced meshes for hundreds of them: towers and antennas (in red and white bands when
+ * marked), stacks, wind turbines and tall buildings, with red beacons and white strobes on top (and halfway up the tall ones).
+ */
+function buildRealObstacles(lightsTex, lightMats, Q) {
+  const g = new THREE.Group(), blinkers = [], groups = { band: [], grey: [], stack: [], bldg: [], windmill: [] }, red = [], white = [];
+  for (const o of OBSTACLES) {
+    const base = heightAt(o.x, o.z), h = o.hAgl, key = o.type === "mast" ? (o.marked ? "band" : "grey") : o.type;
+    groups[key].push({ o, base, h });
+    if (o.red || !o.white) { red.push(o.x, base + h + 1, o.z); if (h > 100) red.push(o.x, base + h / 2, o.z); }
+    if (o.white) white.push(o.x, base + h + 1.5, o.z);
+  }
+  const unit = (geo) => { geo.translate(0, 0.5, 0); return geo; }, m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0);
+  const add = (list, geo, mat, size) => {
+    if (!list.length) return; const mesh = new THREE.InstancedMesh(geo, mat, list.length);
+    list.forEach(({ o, base, h }, i) => { const w = size(o, h); q.setFromAxisAngle(up, (o.x * 0.013 + o.z * 0.007) % Math.PI); m4.compose(new THREE.Vector3(o.x, base - 1, o.z), q, new THREE.Vector3(w, h + 1, w)); mesh.setMatrixAt(i, m4); });
+    mesh.computeBoundingSphere(); mesh.castShadow = mesh.receiveShadow = Q.pbr; g.add(mesh);
+  };
+  add(groups.band, unit(new THREE.CylinderGeometry(0.35, 1, 1, 6)), new THREE.MeshLambertMaterial({ map: bandTexture(["#d23a2a", "#f1efe9"]) }), () => 1.6);
+  add(groups.grey, unit(new THREE.CylinderGeometry(0.35, 1, 1, 6)), new THREE.MeshLambertMaterial({ color: 0x9a9da0 }), () => 1.6);
+  add(groups.stack, unit(new THREE.CylinderGeometry(0.75, 1, 1, 14)), new THREE.MeshLambertMaterial({ map: bandTexture(["#d23a2a", "#b9b6ae", "#b9b6ae", "#b9b6ae", "#b9b6ae", "#b9b6ae"], 14) }), (o, h) => Math.max(5, h * 0.06));
+  add(groups.windmill, unit(new THREE.CylinderGeometry(0.5, 1, 1, 10)), new THREE.MeshLambertMaterial({ color: 0xf1f1ee }), () => 3.5);
+  add(groups.bldg, unit(new THREE.BoxGeometry(1, 1, 1)), Q.pbr ? new THREE.MeshStandardMaterial({ color: 0x8d99a6, roughness: 0.35, metalness: 0.4 }) : new THREE.MeshLambertMaterial({ color: 0x8d99a6 }), (o, h) => Math.min(60, Math.max(18, h * 0.22)));
+  const lights = (arr, rgb, size) => {
+    if (!arr.length) return; const geo = new THREE.BufferGeometry(); geo.setAttribute("position", new THREE.Float32BufferAttribute(arr, 3));
+    geo.setAttribute("color", new THREE.Float32BufferAttribute(Array.from({ length: arr.length / 3 }, () => rgb).flat(), 3));
+    const m = new THREE.PointsMaterial({ size, sizeAttenuation: false, map: lightsTex, vertexColors: true, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }); lightMats.push(m);
+    const p = new THREE.Points(geo, m); p.frustumCulled = false; g.add(p); blinkers.push(p);
+  };
+  lights(red, [1, 0.1, 0.05], 7); lights(white, [1, 1, 1], 6);
+  return { group: g, blinkers };
+}
+
 /* ===================== landmarks ===================== */
 function bandTexture(colors, n = 7) { const c = canvas(4, 64), g = c.getContext("2d"); for (let i = 0; i < n; i++) { g.fillStyle = colors[i % colors.length]; g.fillRect(0, (i * 64) / n, 4, 64 / n + 1); } const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t; }
 function buildLandmarks(lightsTex, lightMats = []) {
@@ -1175,7 +1209,7 @@ export class World {
       const lm = await step("Placing landmarks", () => buildLandmarks(this.lightsTex, this.lightMats));
       this.scene.add(lm.group); this.blinkers = lm.blinkers;
       if (Q.pbr) lm.group.traverse((o) => { if (o.isMesh) o.castShadow = o.receiveShadow = true; });
-    } else this.blinkers = [];
+    } else { const ob = buildRealObstacles(this.lightsTex, this.lightMats, Q); this.scene.add(ob.group); this.blinkers = ob.blinkers; }
     this.buildSky(progress);
   }
   /** Real World mode: aerial photos over the real terrain (realworld.js) */

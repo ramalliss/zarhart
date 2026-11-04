@@ -407,7 +407,7 @@ if (params?.get("world") === "real") {
     AIRPORTS.splice(0, AIRPORTS.length, ...real.airports);
     NAVAIDS.splice(0, NAVAIDS.length, ...real.navaids);
     AIRSPACE.splice(0, AIRSPACE.length, ...real.airspace);
-    TOWNS.length = 0; OBSTACLES.length = 0; RIVER.pts = []; HIGHWAY.pts = []; RAILROAD.pts = [];
+    TOWNS.length = 0; OBSTACLES.splice(0, OBSTACLES.length, ...(real.obstacles || [])); RIVER.pts = []; HIGHWAY.pts = []; RAILROAD.pts = [];
     REAL = real; MAGVAR = real.variation || 0;
   } catch (err) { console.error(err); REAL_ERROR = err.message || String(err); }
 }

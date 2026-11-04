@@ -6,6 +6,7 @@
 //   taxiways, ramps  OpenStreetMap (© OpenStreetMap contributors, ODbL), asked for live and kept in the browser for 30 days
 //   live weather     National Weather Service observations (api.weather.gov, public domain)
 //   airspace         FAA Aeronautical Information Services open data (Class B–E and special use, public domain)
+//   obstacles        the FAA Digital Obstacle File (towers, antennas, stacks, tall buildings: public domain)
 // The sim's frame is flat: x metres east and z metres south of the home airport, so north is -z, as in Zarhart Valley.
 
 const R = 6378137, DEG = Math.PI / 180, FT = 0.3048;
@@ -156,6 +157,8 @@ function toSim(a, frame) {
     calmRwy: main.ids[0], pcl: !towered && main.lights,
     freqs: Object.fromEntries(Object.entries({ atis: f.atis, twr: f.twr, gnd: f.gnd, ctaf: towered ? undefined : f.ctaf || f.unicom || 122.9, awos: f.awos, app: f.app, appName: f.appName }).filter(([, v]) => v)),
     runways, taxiways: [], aprons: [], holdShort: [], rwyHold: [], windsock: { x: wx, z: wz }, hangars: [], parked: [], spawn,
+    // lighted fields have a rotating beacon (green and white); this one stands across the runway from the windsock
+    beacon: main.lights ? { x: main.cx + main.dir[1] * (main.wid / 2 + 230), z: main.cz - main.dir[0] * (main.wid / 2 + 230) } : undefined,
     elevFt: Math.round(a.elev), elev: a.elev * FT,
   };
   ap.flat = runways.map((r) => rect(r.cx, r.cz, r.hdg, r.len, r.wid));
@@ -197,14 +200,15 @@ export async function loadRealWorld(ident, { half = 30000, demZoom = 12, grid = 
   // magnetic variation from the nearest VOR (east is positive)
   const near = [...navaids].sort((p, q) => Math.hypot(p.x, p.z) - Math.hypot(q.x, q.z))[0];
   // airspace: the FAA's real shapes; if they can't be had, towered fields get an approximate Class D cylinder (big ones Class C)
-  const realAirspace = loadAirspace(frame, half);
+  const realAirspace = loadAirspace(frame, half), realObstacles = loadObstacles(frame, half);
   const approx = () => airports.filter((a) => a.towered).map((a) => a.size === "L"
     ? { id: `${a.id}-C`, name: `${a.call} Class C (approximate)`, cls: "C", x: a.x, z: a.z, r: 9260, floorFt: 0, ceilFt: Math.round((a.elevFt + 4000) / 100) * 100 }
     : { id: `${a.id}-D`, name: `${a.call} Class D (approximate)`, cls: "D", x: a.x, z: a.z, r: 7780, floorFt: 0, ceilFt: Math.round((a.elevFt + 2500) / 100) * 100 }).map((x) => ({ ...x, approx: true }));
   const detail = loadAirportDetail(frame, airports); // taxiways and ramps arrive whenever OpenStreetMap answers (often while the terrain loads)
   const heights = await loadHeights(frame, half, { zoom: demZoom, G: grid, progress: (d, n) => progress(`Downloading real terrain (${d}/${n})`) });
   const airspace = (await realAirspace) || approx();
-  return { frame, airports, navaids, airspace, heights, variation: near?.var ?? 0, half, detail };
+  const obstacles = (await realObstacles) || [];
+  return { frame, airports, navaids, airspace, obstacles, heights, variation: near?.var ?? 0, half, detail };
 }
 
 /* ---------- taxiways, ramps and buildings (OpenStreetMap) ---------- */
@@ -508,4 +512,23 @@ export function taxiRoute(ap, from, to) {
   // controllers name the taxiways, not the taxilanes between hangars
   const named = (refs.some((r) => !r.lane) ? refs.filter((r) => !r.lane) : refs).map((r) => r.ref);
   return { pts: out, via: named.filter((r, i) => r !== named[i - 1]) };
+}
+
+/* ---------- obstacles (FAA Digital Obstacle File) ---------- */
+const OB_KIND = (t) => /BLDG|BUILDING|HOTEL|DOME/.test(t) ? ["bldg", "building"] : /STACK|COOL|TANK|SILO|REFINERY/.test(t) ? ["stack", "stack"] : /WINDMILL|WIND/.test(t) ? ["windmill", "wind turbine"] : /ANTENNA/.test(t) ? ["mast", "antenna"] : /T-L|ELEC|POLE/.test(t) ? ["mast", "transmission tower"] : ["mast", "tower"];
+/**
+ * Obstacles 150 ft or taller over the square: { name, type (mast | stack | bldg | windmill), kind, x, z, hAgl (m), red,
+ * white (their lights), marked (painted bands) }. Wire spans (catenaries) are left out: they mark a point on a cable.
+ */
+async function loadObstacles(frame, half) {
+  const [latN, lonW] = frame.toGeo(-half, -half), [latS, lonE] = frame.toGeo(half, half);
+  const url = `${FAA}/Digital_Obstacle_File/FeatureServer/0/query?where=${encodeURIComponent("AGL>=150 AND NOT Type_Code LIKE 'CATENARY%'")}&geometry=${lonW.toFixed(4)},${latS.toFixed(4)},${lonE.toFixed(4)},${latN.toFixed(4)}&geometryType=esriGeometryEnvelope&inSR=4326&spatialRel=esriSpatialRelIntersects&outFields=Type_Code,AGL,Lighting,Marking,City&returnGeometry=true&outSR=4326&resultRecordCount=2000&f=json`;
+  try {
+    const r = await Promise.race([fetch(url), new Promise((_, rej) => setTimeout(() => rej(new Error("timeout")), 9000))]);
+    const j = await r.json(); if (j.error) throw new Error(j.error.message);
+    return (j.features || []).map((f) => {
+      const a = f.attributes, t = (a.Type_Code || "").trim().toUpperCase(), [type, kind] = OB_KIND(t), [x, z] = frame.toLocal(f.geometry.y, f.geometry.x), L = (a.Lighting || "").trim();
+      return { name: `${kind[0].toUpperCase()}${kind.slice(1)}${a.City ? ` (${title(a.City.trim())})` : ""}`, type, kind, x, z, hAgl: a.AGL * FT, red: /[RDLWCU]/.test(L), white: /[HMSD]/.test(L), marked: /[PBC]/.test((a.Marking || "").trim()) || a.AGL >= 200 && type === "mast" };
+    }).filter((o) => Math.abs(o.x) < half && Math.abs(o.z) < half);
+  } catch (err) { console.warn("FAA obstacles:", err.message); return null; }
 }

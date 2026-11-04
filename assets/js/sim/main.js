@@ -1,7 +1,7 @@
 // Zarhart simulator bootstrap: scene, loop, cameras, HUD, drawers, radio/ATC, lessons.
 import * as THREE from "three";
 import { Aircraft, C172, TYPES, KT, FT, weightBalance, RWY_COND, hydroplaneKt } from "./fdm.js";
-import { AIRPORTS, NAVAIDS, groundAt, airspaceAt, vfrMinimums, nearestAirport, heightAt, rectDist, REAL, REAL_ERROR, MAGVAR } from "./world-data.js";
+import { AIRPORTS, NAVAIDS, OBSTACLES, groundAt, airspaceAt, vfrMinimums, nearestAirport, heightAt, rectDist, REAL, REAL_ERROR, MAGVAR } from "./world-data.js";
 import { taxiRoute } from "./realworld.js";
 import { World } from "./world3d.js";
 import { buildAirplane, buildCockpit, cockpitExterior, animateAirplane, buildShadow, configurePlanes, setGhost } from "./plane3d.js";
@@ -348,6 +348,7 @@ function radioCall(kind, spoken) {
     const nm = ap.call || ap.name;
     const msg = d.onGround ? `${nm} traffic, ${CALLSIGN}, departing runway ${rw}, ${nm}.` : `${nm} traffic, ${CALLSIGN}, ${Math.max(1, Math.round(dnm))} miles ${dir}, ${Math.round(d.altInd / 100) * 100} feet, inbound for landing runway ${rw}, ${pattern || "left"} traffic, ${nm}.`;
     radioLog("You", spoken || msg, false);
+    (sim.flags.ctafCalls ||= new Set()).add(ap.id);
     if (d.onGround) sim.flags.departCall = true; else { sim.flags.inboundCall = true; if (ap === KAME && dnm > 6.5 && dnm < 13.5) sim.flags.inboundCallKAME = true; if (dnm < 6.5) say("Tip: make your first CTAF call about 10 NM out (AIM 4-1-9).", "tip"); if (dnm > 13.5) say("A little early. About 10 NM out is the standard first call.", "tip"); }
     return;
   }
@@ -359,7 +360,7 @@ function radioCall(kind, spoken) {
   const { dnm, dir } = posReport(T);
   if (kind === "taxi") { radioLog("You", spoken || `${NAME} Ground, ${CALLSIGN}, at the ramp with information ${letter}, ready to taxi.`, false); setTimeout(() => radioLog(`${NAME} Ground`, `${SHORT}, runway ${rw}, taxi via ${taxiVia(T, rw)}. Hold short of runway ${rw}.`), 1800); sim.flags.taxiClr = true; return; }
   if (kind === "depart") { radioLog("You", spoken || `${NAME} Tower, ${CALLSIGN}, holding short runway ${rw}, ready for departure.`, false); setTimeout(() => { radioLog(`${NAME} Tower`, `${SHORT}, wind ${String(Math.round(weather.windMag() / 10) * 10 || 360).padStart(3, "0")} at ${Math.round(weather.windKt)}, runway ${rw}, cleared for takeoff.`); sim.flags.departCall = true; contacted(T); }, 1800); return; }
-  if (kind === "inbound") { radioLog("You", spoken || `${NAME} Tower, ${CALLSIGN}, ${Math.round(dnm)} miles ${dir}, ${Math.round(d.altInd / 100) * 100}, inbound for landing with ${letter}.`, false); setTimeout(() => { const side = REAL || rw === "27" || rw === "36" ? "left" : "right"; radioLog(`${NAME} Tower`, `${SHORT}, ${NAME} Tower, enter ${side} downwind runway ${rw}, report midfield.${traffic.advisory(T)}`); sim.flags.inboundCall = true; contacted(T); }, 1800); return; }
+  if (kind === "inbound") { contacted(T); radioLog("You", spoken || `${NAME} Tower, ${CALLSIGN}, ${Math.round(dnm)} miles ${dir}, ${Math.round(d.altInd / 100) * 100}, inbound for landing with ${letter}.`, false); setTimeout(() => { const side = REAL || rw === "27" || rw === "36" ? "left" : "right"; radioLog(`${NAME} Tower`, `${SHORT}, ${NAME} Tower, enter ${side} downwind runway ${rw}, report midfield.${traffic.advisory(T)}`); sim.flags.inboundCall = true; contacted(T); }, 1800); return; }
   if (kind === "land") { radioLog("You", spoken || `${NAME} Tower, ${SHORT}, midfield ${rw === "27" ? "left" : ""} downwind, full stop.`, false); setTimeout(() => radioLog(`${NAME} Tower`, `${SHORT}, runway ${rw}, cleared to land.${traffic.advisory(T)}`), 1600); contacted(T); return; }
 }
 function weatherLetter() { return weather.atis(KZAR, weather.hour).letter; }
@@ -1168,6 +1169,13 @@ async function startLiveWeather(prog) {
   }, 30 * 60 * 1000);
   if (!REAL.live) say("Couldn't get the real weather just now, so it's a nice scattered day. Weather presets are in the Weather menu.", "info", 6000);
 }
+/** Real World mode: flying into one of the FAA's obstacles ends the flight, like the ground does */
+function hitObstacle() {
+  for (const o of OBSTACLES) {
+    const r = o.type === "bldg" ? Math.min(30, Math.max(9, o.hAgl * 0.11)) + 4 : o.type === "stack" ? Math.max(5, o.hAgl * 0.03) + 4 : 6;
+    if (Math.abs(ac.pos.x - o.x) < r && Math.abs(ac.pos.z - o.z) < r && ac.pos.y < heightAt(o.x, o.z) + o.hAgl) return ac.crash(`You flew into a ${Math.round(o.hAgl / FT)} ft ${o.kind}. Check the sectional for obstacles, and keep 500 ft from them (14 CFR 91.119).`);
+  }
+}
 /** the lessons for the real home field (lessons.js realLessons), on the start screen and in the Lessons menu */
 function setupRealLessons() {
   LESSONS.splice(0, LESSONS.length, ...realLessons(KZAR, weather, MAGVAR));
@@ -1344,6 +1352,7 @@ const headPos = new THREE.Vector3();
 function stepSim(dt, pilot) {
   if (pilot) pilot(ac, ac.derived, sim, dt); else input.apply(ac, dt);
   ac.step(dt);
+  if (REAL && !ac.crashed && !ac.derived.onGround) hitObstacle();
   if (!Number.isFinite(ac.pos.x + ac.pos.y + ac.pos.z + ac.vel.x + ac.q.w)) { say("Flight model reset after a numerical error.", "warn"); spawn(sim.lastSpawn); }
   sim.d = ac.derived;
   sim.t += dt;
