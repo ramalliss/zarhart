@@ -1,9 +1,12 @@
 // VR mode (WebXR) for headsets like Meta Quest: a seated cockpit view, the instrument panel drawn on the
 // dashboard, a message strip on the glareshield, and the hand controllers as yoke, throttle and switches.
+// Headsets without controllers (Apple Vision Pro) fly by pinching: a pinched right hand is the yoke, the left the throttle
+// and rudder, and a look-and-pinch presses the buttons on a small centre console.
 // Phone VR does the same for Cardboard-style viewers on phones without WebXR (iPhone): two eye views side by
 // side, head tracking from the phone's motion sensors, and a game controller to fly.
 import * as THREE from "three";
 import { Panel } from "./panel.js";
+import { pinchDelta, pinchYoke, pinchLever, pinchRole, isPinchTap } from "./headset.js";
 
 const EYE = new THREE.Vector3(-0.32, 0.62, -0.42); // pilot's eye point, aircraft coordinates (same as the 2D cockpit view)
 // VR-only interior (the flat-screen cockpit has no floor and a deep glareshield, because the page panel covers that area)
@@ -11,6 +14,9 @@ const DASH = { w: 1.44, h: 0.42, x: 0, y: 0.12, z: -1.0, tilt: -12 * Math.PI / 1
 const PANEL_TEX_W = 1600, PANEL_LOGICAL_W = 1400;
 const HUD = { w: 0.56, h: 0.09, x: -0.32, y: 0.4, z: -1.05, tilt: -25 * Math.PI / 180, texW: 1024 }; // message strip on the glareshield
 const STATS = { w: 0.3, h: 0.075, x: 0.3, y: 0.4, z: -1.05, texW: 512 }; // ?vrstats=1: frame-rate strip, right of the message strip
+// pinch controls' button console, low between the seats and tilted up toward the pilot's eyes; 3 × 2 buttons
+const CONSOLE = { w: 0.32, h: 0.15, x: -0.02, y: -0.08, z: -0.72, tilt: -67 * Math.PI / 180, texW: 768, cols: 3, rows: 2 };
+const CONSOLE_BUTTONS = ["flapsUp", "flapsDown", "brake", "mic", "recenter", "pause"];
 const DEAD = 0.12;
 const dz = (v) => (Math.abs(v) < DEAD ? 0 : (v - Math.sign(v) * DEAD) / (1 - DEAD));
 
@@ -24,6 +30,14 @@ export const VR_CONTROLS = [
   ["Y", "Recenter your view"],
   ["Right stick press", "Change flight assist"],
   ["Left stick press", "Pause"],
+];
+
+/** Apple Vision Pro (or hands on a Quest): no controllers, so you pinch */
+export const PINCH_CONTROLS = [
+  ["Right hand: pinch and move", "Fly like a yoke: toward you for nose up, away for nose down, sideways to roll"],
+  ["Left hand: pinch and move", "Up/down: throttle, like a lever · Left/right: rudder"],
+  ["Let go", "The yoke centres; the throttle stays where you left it"],
+  ["Look at a console button and pinch", "Flaps up or down, brakes (hold the pinch), mic click, recenter, pause"],
 ];
 
 /** phone in a Cardboard-style viewer: the screen can't be touched except by the viewer's button, which taps it */
@@ -76,6 +90,14 @@ export class VR {
       this.statsMesh.position.set(STATS.x, STATS.y, STATS.z); this.statsMesh.rotation.x = HUD.tilt; this.interior.add(this.statsMesh);
       this.showStats(null, "measuring…");
     }
+    // pinch controls: the button console (shown once the headset turns out to have no controllers) and the pinches held now
+    this.cc = document.createElement("canvas"); this.cc.width = CONSOLE.texW; this.cc.height = Math.round(CONSOLE.texW * CONSOLE.h / CONSOLE.w);
+    this.consoleTex = this.texture(this.cc);
+    this.consoleMesh = new THREE.Mesh(new THREE.PlaneGeometry(CONSOLE.w, CONSOLE.h), new THREE.MeshBasicMaterial({ map: this.consoleTex, toneMapped: false, transparent: true }));
+    this.consoleMesh.position.set(CONSOLE.x, CONSOLE.y, CONSOLE.z); this.consoleMesh.rotation.x = CONSOLE.tilt; this.consoleMesh.visible = false;
+    this.interior.add(this.consoleMesh);
+    this.pinches = new Map(); this.pinchMode = false; this.pinchBrake = 0; this.consoleKey = "";
+    this._ray = new THREE.Raycaster(); this._o = new THREE.Vector3(); this._d = new THREE.Vector3(); this._rq = new THREE.Quaternion();
     this.panelT = 0; this.hudT = 0; this.prev = {};
   }
 
@@ -101,11 +123,13 @@ export class VR {
     xr.setFoveation?.(1);
     this.session = session; this.active = true;
     session.addEventListener("end", () => this.exit());
+    session.addEventListener("selectstart", (e) => this.pinchStart(e));
+    session.addEventListener("selectend", (e) => this.pinchEnd(e));
     this.seat.add(this.camera); this.camera.position.set(0, 0, 0); this.camera.quaternion.identity();
     this.interior.visible = true; for (const m of this.flatParts) m.visible = false;
-    this.input.xr = { active: true, roll: 0, pitch: 0, yaw: 0, thr: 0, brake: 0 };
+    this.input.xr = { active: true, roll: 0, pitch: 0, yaw: 0, thr: 0, brake: 0, throttleSet: null };
+    this.detectFrames = 45; // after this many frames, decide between controllers and pinch controls, and say which
     this.needRecenter = 30; // recenter once the headset has reported a few poses
-    this.message("VR: right stick flies, left stick is throttle and rudder. Y recenters your view.", "lesson");
     this.onChange?.(true);
   }
 
@@ -137,6 +161,7 @@ export class VR {
     this.active = false; this.session = null;
     if (this.phone) { removeEventListener("deviceorientation", this.phone.ori); this.phone = null; }
     this.input.xr = null; this.prev = {};
+    this.pinches.clear(); this.pinchMode = false; this.pinchBrake = 0; this.consoleMesh.visible = false;
     this.seat.remove(this.camera); this.camera.scale.set(1, 1, 1);
     this.seat.position.set(0, 0, 0); this.seat.rotation.set(0, 0, 0);
     this.interior.visible = false; for (const m of this.flatParts) m.visible = true;
@@ -180,7 +205,7 @@ export class VR {
     if (!this.active || !this.session) return;
     let left = null, right = null;
     for (const src of this.session.inputSources) {
-      if (!src.gamepad) continue;
+      if (this.isPinchSource(src)) continue; // only controllers with sticks (a tracked hand can report a gamepad without any)
       if (src.handedness === "left") left = src.gamepad; else if (src.handedness === "right") right = src.gamepad;
     }
     const ax = (g, i) => g?.axes?.[i] ?? 0;
@@ -196,6 +221,99 @@ export class VR {
     edge(left, "L", 5, () => { this.recenter(); this.message("View recentered.", "info"); });
     edge(left, "L", 3, () => this.keys.pause());
     if (this.needRecenter > 0 && --this.needRecenter === 0) this.recenter();
+    if (this.detectFrames > 0 && --this.detectFrames === 0) {
+      if (left || right) this.message("VR: right stick flies, left stick is throttle and rudder. Y recenters your view.", "lesson");
+      else this.usePinch();
+    }
+    this.pinchUpdate(x);
+  }
+
+  /* ---------- pinch controls ---------- */
+  /** a pinch from a hand or the eyes-and-pinch pointer, not a controller (whose trigger also sends select events) */
+  isPinchSource(src) { return !(src.gamepad && src.gamepad.axes?.length >= 2); }
+  usePinch() {
+    if (this.pinchMode) return;
+    this.pinchMode = true; this.consoleMesh.visible = true; this.drawConsole();
+    this.message("Buttons: look at one on the console below the panel and pinch.", "info");
+    this.message("Pinch controls: pinch and move your right hand to fly, your left for throttle and rudder.", "lesson");
+  }
+  /** where a pinching hand is, in the headset's reference space */
+  handPos(frame, ref, src) {
+    const pose = frame && ref ? frame.getPose(src.gripSpace || src.targetRaySpace, ref) : null;
+    return pose ? pose.transform.position : null;
+  }
+  /** which console button (index) a gaze-and-pinch ray points at, or -1 */
+  consoleHit(transform) {
+    if (!this.consoleMesh.visible) return -1;
+    const p = transform.position, q = transform.orientation, m = this.seat.matrixWorld;
+    this._o.set(p.x, p.y, p.z).applyMatrix4(m);
+    this._d.set(0, 0, -1).applyQuaternion(this._rq.set(q.x, q.y, q.z, q.w)).transformDirection(m);
+    this.interior.updateMatrixWorld(true);
+    this._ray.set(this._o, this._d);
+    const hit = this._ray.intersectObject(this.consoleMesh, false)[0];
+    if (!hit?.uv) return -1;
+    const col = Math.min(CONSOLE.cols - 1, Math.floor(hit.uv.x * CONSOLE.cols)), row = Math.min(CONSOLE.rows - 1, Math.floor((1 - hit.uv.y) * CONSOLE.rows));
+    return row * CONSOLE.cols + col;
+  }
+  pinchStart(e) {
+    const src = e.inputSource; if (!this.active || !this.isPinchSource(src)) return;
+    const ref = this.renderer.xr.getReferenceSpace(), frame = e.frame;
+    this.usePinch();
+    const ray = frame && ref ? frame.getPose(src.targetRaySpace, ref) : null, hand = this.handPos(frame, ref, src);
+    const btn = ray ? this.consoleHit(ray.transform) : -1;
+    const head = new THREE.Euler().setFromQuaternion(this.camera.quaternion, "YXZ").y;
+    const p = { t0: performance.now(), start: hand ? { x: hand.x, y: hand.y, z: hand.z } : null, yaw: head, moved: 0, btn };
+    if (btn >= 0) {
+      p.role = "button";
+      if (CONSOLE_BUTTONS[btn] === "brake") { this.pinchBrake++; this.drawConsole(); }
+    } else {
+      const c = this.camera.position, side = hand ? pinchDelta({ x: c.x, y: c.y, z: c.z }, hand, head).right : 0;
+      p.role = pinchRole(src.handedness, side); p.throttle0 = this.controls().throttle;
+    }
+    this.pinches.set(src, p);
+  }
+  pinchEnd(e) {
+    const src = e.inputSource, p = this.pinches.get(src); if (!p) return;
+    this.pinches.delete(src);
+    if (p.role !== "button") return; // the yoke centres by itself; the throttle stays where it was left
+    const name = CONSOLE_BUTTONS[p.btn];
+    if (name === "brake") { this.pinchBrake = Math.max(0, this.pinchBrake - 1); this.drawConsole(); return; }
+    if (!isPinchTap(performance.now() - p.t0, p.moved)) return;
+    if (name === "flapsUp") this.keys.flapsUp();
+    else if (name === "flapsDown") this.keys.flapsDown();
+    else if (name === "mic") this.keys.mic();
+    else if (name === "recenter") { this.recenter(); this.message("View recentered.", "info"); }
+    else if (name === "pause") (this.hud().crashed ? this.keys.retry() : this.keys.pause());
+  }
+  /** every frame: held pinches move the yoke, throttle and rudder (after the controllers, so a pinch wins) */
+  pinchUpdate(x) {
+    x.throttleSet = null;
+    if (this.pinchBrake) x.brake = 1;
+    if (!this.pinches.size) return;
+    const frame = this.renderer.xr.getFrame?.(), ref = this.renderer.xr.getReferenceSpace?.();
+    for (const [src, p] of this.pinches) {
+      const hand = this.handPos(frame, ref, src); if (!hand || !p.start) continue;
+      p.moved = Math.max(p.moved, Math.hypot(hand.x - p.start.x, hand.y - p.start.y, hand.z - p.start.z));
+      const d = pinchDelta(p.start, hand, p.yaw);
+      if (p.role === "yoke") { const y = pinchYoke(d); x.roll = y.roll; x.pitch = y.pitch; }
+      else if (p.role === "lever") { const l = pinchLever(p.throttle0, d); x.throttleSet = l.throttle; x.yaw = l.yaw; }
+    }
+  }
+  /** the console's buttons; redrawn when a label or the brake state changes */
+  drawConsole() {
+    const info = this.hud?.() || {}, labels = { flapsUp: "Flaps up", flapsDown: "Flaps down", brake: "Brakes", mic: "Mic", recenter: "Recenter", pause: info.crashed ? "Try again" : info.paused ? "Resume" : "Pause" };
+    const key = `${labels.pause}|${this.pinchBrake > 0}`; if (key === this.consoleKey) return; this.consoleKey = key;
+    const g = this.cc.getContext("2d"), W = this.cc.width, H = this.cc.height, cw = W / CONSOLE.cols, ch = H / CONSOLE.rows, s = W / 768;
+    g.clearRect(0, 0, W, H);
+    g.fillStyle = "rgba(8, 10, 13, 0.92)"; roundRect(g, 0, 0, W, H, 16 * s); g.fill();
+    CONSOLE_BUTTONS.forEach((name, i) => {
+      const x = (i % CONSOLE.cols) * cw, y = Math.floor(i / CONSOLE.cols) * ch, on = name === "brake" && this.pinchBrake > 0;
+      g.fillStyle = on ? "#ffb020" : "rgba(255, 255, 255, 0.08)"; roundRect(g, x + 10 * s, y + 10 * s, cw - 20 * s, ch - 20 * s, 12 * s); g.fill();
+      g.strokeStyle = "rgba(255, 255, 255, 0.28)"; g.lineWidth = 2 * s; roundRect(g, x + 10 * s, y + 10 * s, cw - 20 * s, ch - 20 * s, 12 * s); g.stroke();
+      g.fillStyle = on ? "#111" : "#f4f6f8"; g.font = `600 ${40 * s}px Barlow, sans-serif`; g.textAlign = "center"; g.textBaseline = "middle";
+      g.fillText(labels[name], x + cw / 2, y + ch / 2);
+    });
+    this.consoleTex.needsUpdate = true;
   }
 
   /** follow the airplane: rig at the pilot's eye point, aligned with the airframe */
@@ -219,7 +337,7 @@ export class VR {
       this.panel.mode = this.panelMode() === "glass" ? "glass" : "steam";
       this.panel.draw(this.panelState()); this.panelTex.needsUpdate = true;
     }
-    if (this.hudT > 0.25) { this.hudT = 0; this.drawHud(); this.hudTex.needsUpdate = true; }
+    if (this.hudT > 0.25) { this.hudT = 0; this.drawHud(); this.hudTex.needsUpdate = true; if (this.pinchMode) this.drawConsole(); }
   }
 
   /** ?vrstats=1: r = { fps, ms, worst, cpu } from FrameStats (null before the first reading); label: setting, depth buffer, size */
@@ -259,8 +377,8 @@ export class VR {
     const L = info.lesson;
     g.font = `600 ${26 * s}px Barlow, sans-serif`;
     let head = "Free flight", color = "#a4abb4";
-    if (info.crashed) { head = `Flight ended: ${info.crashed} ${this.phone ? "Tap" : "Press A"} to try again.`; color = "#ffb020"; }
-    else if (info.paused) { head = `Paused. ${this.phone ? "Tap" : "Press the left stick"} to resume.`; color = "#3fd8f2"; }
+    if (info.crashed) { head = `Flight ended: ${info.crashed} ${this.phone ? "Tap to try again." : this.pinchMode ? "Look at Try again and pinch." : "Press A to try again."}`; color = "#ffb020"; }
+    else if (info.paused) { head = `Paused. ${this.phone ? "Tap to resume." : this.pinchMode ? "Look at Resume and pinch." : "Press the left stick to resume."}`; color = "#3fd8f2"; }
     else if (L) {
       const now = L.objectives.find((o) => o.state === "now");
       if (L.done) { head = L.failed ? `Lesson ended: ${L.failed}` : "Lesson complete"; color = L.failed ? "#ffb020" : "#5be38a"; }

@@ -14,7 +14,7 @@ import { Panel, setPanelV } from "./panel.js";
 import { buildSectionalBase, drawMap } from "./map.js";
 import { CHECKLISTS, suggestChecklist } from "./checklists.js";
 import { LESSONS, LessonRunner, realLessons } from "./lessons.js";
-import { VR, VR_CONTROLS, PHONE_VR_CONTROLS } from "./vr.js";
+import { VR, VR_CONTROLS, PINCH_CONTROLS, PHONE_VR_CONTROLS } from "./vr.js";
 import { shouldOfferLowForVR, vrFlags, FrameStats } from "./headset.js";
 import { buildCall, scoreCall, Listener } from "./radio.js";
 import { Traffic } from "./traffic.js";
@@ -793,6 +793,7 @@ function renderDrawer() {
     const k = (keys, what) => `<li><span class="keys">${keys.map((x) => `<kbd>${esc(x)}</kbd>`).join(" ")}</span><span>${esc(what)}</span></li>`;
     B.innerHTML = `<ul class="keylist">${k(["↑", "W"], "Nose down")}${k(["↓", "S"], "Nose up")}${k(["←", "→", "A", "D"], "Roll (ailerons)")}${k(["Q", "E"], "Rudder / nosewheel steering")}${k(["R", "F"], "Throttle up / down (Shift = full / idle)")}${k(["[", "]"], "Flaps up / down a notch")}${k(["T", "G"], "Trim nose up / down")}${k(["Z", "X"], "Mixture richer / leaner")}${k(["B"], "Brakes (with rudder for differential)")}${k(["Shift+B"], "Parking brake")}${k(["H"], "Carburetor heat")}${k(["L"], "Landing light")}${k(["O"], "Set the heading indicator to the compass")}${k(["Space"], "Push to talk: hold and speak a call (or talk online); a quick tap clicks the mic for pilot-controlled lighting")}${k(["N"], "Swap NAV1")}${k(["C"], "Change view: cockpit, chase, orbit, tower")}${k(["I"], "Panel: six-pack, glass, hidden")}${k(["M"], "Map")}${k(["K"], "Checklist")}${k(["Y"], "Mouse yoke on/off")}${k(["U"], "Flight assist: Assisted → Auto-rudder → Manual")}${k(["P", "Esc"], "Pause")}</ul>
       <h3 class="dsub">VR headset (Meta Quest)</h3><ul class="keylist">${VR_CONTROLS.map(([c, what]) => `<li><span class="keys"><kbd>${esc(c)}</kbd></span><span>${esc(what)}</span></li>`).join("")}</ul>
+      <h3 class="dsub">VR with your hands (Apple Vision Pro, or a Quest without controllers)</h3><ul class="keylist">${PINCH_CONTROLS.map(([c, what]) => `<li><span class="keys"><kbd>${esc(c)}</kbd></span><span>${esc(what)}</span></li>`).join("")}</ul>
       <h3 class="dsub">Phone VR viewer (Cardboard-style)</h3><ul class="keylist">${PHONE_VR_CONTROLS.map(([c, what]) => `<li><span class="keys"><kbd>${esc(c)}</kbd></span><span>${esc(what)}</span></li>`).join("")}</ul>
       <p class="dnote">Mouse: drag to look around (cockpit) or orbit (outside views). Scroll to zoom. Double-click to recentre. Scroll over panel knobs (Kollsman, OBS, heading bug, attitude indicator) to set them. Click the HI knob to align it with the compass.</p>`;
   }

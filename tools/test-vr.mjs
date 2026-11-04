@@ -1,8 +1,8 @@
 // Checks for VR on standalone headsets: which browsers count as a headset, when Fly in VR suggests Graphics: Low,
-// the ?vrstats / ?logdepth flags, and the frame-rate readout. Run: node tools/test-vr.mjs
+// the ?vrstats / ?logdepth flags, the frame-rate readout, and the pinch controls' maths. Run: node tools/test-vr.mjs
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { isStandaloneHeadset, shouldOfferLowForVR, vrFlags, FrameStats } from "../assets/js/sim/headset.js";
+import { isStandaloneHeadset, shouldOfferLowForVR, vrFlags, FrameStats, PINCH, pinchDelta, pinchYoke, pinchLever, pinchRole, isPinchTap } from "../assets/js/sim/headset.js";
 
 const UA = {
   quest3: "Mozilla/5.0 (X11; Linux x86_64; Quest 3) AppleWebKit/537.36 (KHTML, like Gecko) OculusBrowser/35.2.0.10.84 Chrome/128.0.6613.137 VR Safari/537.36",
@@ -69,4 +69,45 @@ test("frame-rate readout: a hitch shows as the worst frame, pauses and bad inter
   for (let i = 0; !r; i++) r = s.add(i === 5 ? 41.7 : 1000 / 90, 2);
   assert.ok(Math.abs(r.worst - 41.7) < 1e-9);
   assert.ok(r.fps < 90 && r.fps > 80, `fps ${r.fps}`);
+});
+
+const near = (a, b, msg) => assert.ok(Math.abs(a - b) < 1e-9, `${msg}: ${a} vs ${b}`);
+const P = (x, y, z) => ({ x, y, z });
+
+test("pinch: hand movement is measured from the way the head faced", () => {
+  // facing straight ahead (-z): moving the hand toward you is +z in WebXR, so fwd is negative
+  let d = pinchDelta(P(0, 1, -0.4), P(0.05, 1.02, -0.33), 0);
+  near(d.right, 0.05, "right"); near(d.up, 0.02, "up"); near(d.fwd, -0.07, "fwd");
+  // head turned 90 degrees left (yaw +pi/2 faces -x): a hand moving to -x is moving away, and -z is now to your right
+  d = pinchDelta(P(0, 0, 0), P(-0.08, 0, 0), Math.PI / 2);
+  near(d.fwd, 0.08, "fwd when turned left"); near(d.right, 0, "right when turned left");
+  d = pinchDelta(P(0, 0, 0), P(0, 0, -0.06), Math.PI / 2);
+  near(d.right, 0.06, "world -z is to the right when turned left"); near(d.fwd, 0, "fwd");
+});
+
+test("pinch yoke: dead zone, full deflection at 10 cm, signs match the sticks", () => {
+  assert.deepEqual(pinchYoke({ right: 0.01, up: 0, fwd: -0.011 }), { roll: 0, pitch: 0 }, "a hand that wobbles does nothing");
+  const pull = pinchYoke({ right: 0, up: 0, fwd: -PINCH.travel });
+  near(pull.pitch, 1, "pull toward you is full nose up");
+  near(pinchYoke({ right: 0, up: 0, fwd: 0.5 }).pitch, -1, "a long push is clamped to full nose down");
+  near(pinchYoke({ right: PINCH.travel, up: 0, fwd: 0 }).roll, 1, "right is roll right");
+  near(pinchYoke({ right: -0.056, up: 0, fwd: 0 }).roll, -0.5, "half way left is half roll left");
+});
+
+test("pinch lever: throttle moves from where it was, 15 cm is full travel, rudder sideways", () => {
+  near(pinchLever(0.5, { right: 0, up: 0.075, fwd: 0 }).throttle, 1, "up half travel from half");
+  near(pinchLever(0.5, { right: 0, up: -0.15, fwd: 0 }).throttle, 0, "clamped at idle");
+  near(pinchLever(0.2, { right: 0, up: 0.03, fwd: 0 }).throttle, 0.4, "a small lift");
+  near(pinchLever(0.2, { right: -PINCH.travel, up: 0, fwd: 0 }).yaw, -1, "left is left rudder");
+  assert.equal(pinchLever(0.2, { right: 0.005, up: 0, fwd: 0 }).yaw, 0, "rudder dead zone");
+});
+
+test("pinch role: the hand the headset reports, else the side of the head", () => {
+  assert.equal(pinchRole("right"), "yoke"); assert.equal(pinchRole("left"), "lever");
+  assert.equal(pinchRole("none", 0.2), "yoke"); assert.equal(pinchRole("none", -0.2), "lever"); assert.equal(pinchRole(undefined, 0), "yoke");
+});
+
+test("pinch tap: brief and still is a button press, a drag or a long hold is not", () => {
+  assert.equal(isPinchTap(200, 0.01), true); assert.equal(isPinchTap(PINCH.tapMs, PINCH.tapMove), true);
+  assert.equal(isPinchTap(1200, 0.01), false, "held too long"); assert.equal(isPinchTap(200, 0.08), false, "moved away");
 });
