@@ -22,6 +22,17 @@ Created by **Sophia Ramalli**, a student pilot who built it while studying for t
 
 `↑/↓` pitch · `←/→` roll · `Q/E` rudder · `R/F` throttle · `[ ]` flaps · `T/G` trim · `B` brakes · `Shift+B` parking brake · `H` carb heat · `C` view · `I` panel · `M` map · `K` checklist · `U` flight assist · `Space` mic click · `P` pause. Gamepads, joysticks and touch work too: in **Settings → Joystick, throttle and pedals**, click Assign and move any axis or press any button to map it, across several devices at once (stick, throttle quadrant, rudder pedals), with invert and a sensitivity curve. No keyboard? The on-screen stick and throttle lever work with a mouse too (drag the stick, push the lever up for power), and a coach reminds you about the parking brake, when to rotate and how to hold the climb on your first takeoffs. On phones the stick floats under your left thumb, the right thumb gets either a throttle lever with buttons (rudder, flaps, brakes, parking brake, view, pause) or a second throttle/rudder stick, and you can turn on tilt-to-fly. Phones vibrate and gamepads rumble with the stall horn and on touchdown. Flight assist starts in **Assisted** (let go of the controls and the airplane holds its pitch and bank, with auto-trim and auto-rudder); `U` switches to **Auto-rudder** only or full **Manual** to practise coordination.
 
+## Instructor's notes
+
+The sim records every flight, four samples a second: airspeed, altitude, height above the ground, sink rate, pitch, bank, heading, position, throttle, flaps and the stall warning, plus each liftoff, touchdown and crash. After each landing it marks the moments an instructor would point at, each with the number and the fix:
+
+- **On final, from 500 ft down to 100 ft:** more than 10 kt fast or 5 kt slow for at least a second and a half, or sinking over 1,000 fpm. The target is the airplane's approach speed (5 kt more with the flaps up, plus half the gust factor), or the lesson's own (60 KIAS for the short-field landing).
+- **The flare:** flaring late (still sinking as fast at 10 ft as at 50 ft), or levelling off or ballooning above 15 ft.
+- **The touchdown:** firm or hard, long (past the first third of the runway), short, off the centreline, crabbed, too fast, or bounced.
+- **Anywhere:** the stall warning (not in the flare, and not in the stall lessons, where it's the point), and more than 30° of bank below 600 ft.
+
+A finished lesson shows these as **Instructor's notes** under the result, with when each happened and what to try next. In free flight a short note follows each landing. While you fly, the sim calls out airspeed or sink rate on final and steep bank close to the ground, twice at most per approach. Settings → Controls has a switch for all of it. The rules are in `assets/js/sim/debrief.js`; the recording is what the AI debrief will read later.
+
 ## Radio practice, traffic and multiplayer
 
 - **Radio practice:** hold Space (or Talk) and speak the call the radio strip suggests. Your browser's speech recognition transcribes it, the call is scored part by part against standard phraseology, and ATC answers a good call. You can also type calls.
@@ -84,6 +95,7 @@ Phones without WebXR (iPhone Safari, the iOS app) get **phone VR** from the same
 python tools/serve.py        # http://localhost:8765 (no-cache dev server)
 node tools/test-fdm.mjs      # headless flight-model checks against C172 book numbers
 node tools/test-vr.mjs       # VR on headsets: headset detection, when to suggest Low, the VR test flags, pinch-control maths
+node tools/test-debrief.mjs  # instructor's notes: the recorder, each mistake rule on synthetic approaches, the callouts
 npm test                     # both
 ```
 
@@ -113,6 +125,7 @@ assets/js/sim/           fdm.js (flight model), world-data.js, world3d.js, plane
                          gfx.js (Graphics presets Low/High/Ultra, textures made in code, sun glare, Ultra's bloom),
                          realworld.js (Real World mode: terrain, aerial photos and airports for a real place),
                          headset.js (VR on standalone headsets: the Low-for-VR suggestion, VR test flags, pinch-control maths)
+                         debrief.js (the flight recorder, the mistake finder and the callouts: the instructor's notes)
 assets/data/airports/    real US airports, runways, frequencies and VORs per 1° square (OurAirports)
 assets/js/prep/prep.js   prep app
 assets/data/questions.json  question bank

@@ -16,6 +16,7 @@ import { CHECKLISTS, suggestChecklist } from "./checklists.js";
 import { LESSONS, LessonRunner, realLessons } from "./lessons.js";
 import { VR, VR_CONTROLS, PINCH_CONTROLS, PHONE_VR_CONTROLS } from "./vr.js";
 import { shouldOfferLowForVR, vrFlags, FrameStats } from "./headset.js";
+import { FlightRecorder, findMistakes, nextTry, LiveCoach, landingRunway } from "./debrief.js";
 import { buildCall, scoreCall, Listener } from "./radio.js";
 import { Traffic } from "./traffic.js";
 import { Multiplayer } from "./mp.js";
@@ -46,7 +47,7 @@ const FREQS = REAL ? realFreqs() : [
 const freqInfo = (f) => { let best = null, bd = Infinity; for (const q of FREQS) if (Math.abs(q.f - f) < 0.004) { const d = q.ap ? Math.hypot(q.ap.x - ac.pos.x, q.ap.z - ac.pos.z) : 0; if (d < bd) { bd = d; best = q; } } return best; };
 
 /* ---------------- settings ---------------- */
-const settings = Object.assign({ quality: "high", invert: false, mouseYoke: false, autoRudder: true, sound: true, voice: false, panel: "steam", sens: "normal", floating: true, touchRight: "slider", tilt: false, haptics: true, ctlMap: null, pad: true, pvrSep: 100, pvrFov: 80, acType: "c172" }, store.get("settings", {}));
+const settings = Object.assign({ quality: "high", invert: false, mouseYoke: false, autoRudder: true, sound: true, voice: false, panel: "steam", sens: "normal", floating: true, touchRight: "slider", tilt: false, haptics: true, ctlMap: null, pad: true, pvrSep: 100, pvrFov: 80, acType: "c172", callouts: true }, store.get("settings", {}));
 settings.assist ||= settings.autoRudder === false ? "off" : "assisted";
 const saveSettings = () => store.set("settings", settings);
 
@@ -94,12 +95,17 @@ const sim = {
   lastTouchdown: null, lightGun: null, showG: false, view: "cockpit", vor1: null,
   say, radioLog, callsign: SHORT, spawn, setRoute, vasi: (ap, endId) => world.vasiAt(ap, endId, { x: ac.pos.x, y: ac.pos.y + 0.6, z: ac.pos.z }),
   setWeather(p) {
-    weather.set(p); weather.isLive = !!p?.live; // live weather keeps itself current (Real World mode) ac.inst.kollsman = weather.qnhInHg; if (world.clouds) world.clouds.build(weather.cloudLayersMsl());
+    weather.set(p); weather.isLive = !!p?.live; // live weather keeps itself current (Real World mode)
+    ac.inst.kollsman = weather.qnhInHg; if (world.clouds) world.clouds.build(weather.cloudLayersMsl());
     const mb = weather.microburst; if (world.shaft) world.setStorm(mb, mb ? heightAt(mb.x, mb.z) : 0, mb ? (weather.cloudLayersMsl()[0]?.baseMsl ?? 1500) : 0);
   },
   setTime(h) { weather.hour = h; },
 };
 const lessons = new LessonRunner(sim);
+/** the flight recorder and the instructor's notes (debrief.js): free, in the sim; the AI debrief will read the same recording */
+const recorder = new FlightRecorder(4), liveCoach = new LiveCoach(12);
+const debriefCtx = () => ({ V: ac.ac.V, airports: AIRPORTS, gustAdd: Math.max(0, (weather.gustKt || 0) - (weather.windKt || 0)) / 2, ...lessons.lesson?.debrief });
+let landingNote = null, lessonNotes = null;
 /* automated traffic: heard only on the frequencies your audio panel is listening to */
 const traffic = new Traffic(scene, {
   weather, atis: () => weatherLetter(), player: () => ({ x: ac.pos.x, z: ac.pos.z, onGround: ac.derived.onGround, gs: ac.derived.gs }),
@@ -146,6 +152,7 @@ function spawn(spec) {
   if (spec.onGround === false) { ac.elec.lights.landing = true; ac.elec.lights.strobe = true; ac.elec.lights.beacon = true; }
   sim.flags = { everAirborne: !spec.onGround ? true : false, everRan: ac.eng.running };
   sim.lastTouchdown = null; sim.gpsWp = null; sim.gpsFrom = null; sim.pcl = { level: sim.pcl.level, until: sim.pcl.until, clicks: [] };
+  recorder.reset({ lesson: lessons.lesson?.id ?? null, aircraft: ac.ac.name ?? null }); liveCoach.reset(); landingNote = null; lessonNotes = null;
   camState.reset = true; hideCrash();
 }
 function setRoute(pts) { sim.route = pts; if (pts?.length) { sim.gpsWp = pts[pts.length - 1]; sim.gpsFrom = pts[0]; } }
@@ -500,9 +507,12 @@ function handleEvents() {
   for (const e of ac.events) {
     if (e.type === "touchdown") {
       const td = e.msg; sim.lastTouchdown = { ...td, used: false }; audio.thump(td.fpm, ac.derived.gs); buzz(td.fpm > 400 ? 160 : 60, Math.min(1, 0.3 + td.fpm / 900));
+      const hdg = ac.derived.hdg; recorder.event(sim.t, "touchdown", { fpm: td.fpm, kias: td.kias, x: Math.round(td.x * 10) / 10, z: Math.round(td.z * 10) / 10, hdg: Math.round(hdg * 10) / 10, rwy: landingRunway(AIRPORTS, td.x, td.z, hdg) });
+      landingNote = { t: sim.t + 6, td: sim.t }; liveCoach.reset(); // notes once the roll-out has settled (free flight); callouts start over
       const g = td.fpm < 200 ? "Smooth" : td.fpm < 400 ? "Good" : td.fpm < 650 ? "Firm" : "Hard";
       say(`Touchdown ${td.fpm} fpm · ${td.kias} KIAS · ${g}`, td.fpm < 650 ? "good" : "warn");
-    } else if (e.type === "crash") showCrash(e.msg);
+    } else if (e.type === "crash") { recorder.event(sim.t, "crash", { reason: e.msg }); showCrash(e.msg); }
+    else if (e.type === "liftoff") recorder.event(sim.t, "liftoff", { kias: e.msg?.kias });
     else if (e.type === "warn") say(e.msg, "warn", 7000);
     else if (e.type === "info") say(e.msg, "info");
   }
@@ -719,7 +729,8 @@ function renderDrawer() {
       <label class="chk"><input type="checkbox" id="sTilt" ${settings.tilt ? "checked" : ""}> Tilt to fly: turn the phone like a wheel to bank, tilt the top edge toward you to raise the nose</label>
       <button class="sbtn" id="sRecenter" ${settings.tilt ? "" : "hidden"}>Recenter tilt (hold the phone how you like, then tap)</button>` : `<label class="chk"><input type="checkbox" id="sPad" ${settings.pad ? "checked" : ""}> On-screen controls: a stick and a throttle lever to drag with the mouse, plus flaps, brakes and parking brake buttons</label>
       <label>Throttle and rudder <select id="sRight"><option value="slider">Throttle lever and rudder buttons</option><option value="stick">Second stick: throttle up and down, rudder left and right</option></select></label>`}
-      <label class="chk"><input type="checkbox" id="sHaptic" ${settings.haptics ? "checked" : ""}> Vibration and controller rumble with the stall horn and on touchdown</label></div>
+      <label class="chk"><input type="checkbox" id="sHaptic" ${settings.haptics ? "checked" : ""}> Vibration and controller rumble with the stall horn and on touchdown</label>
+      <label class="chk"><input type="checkbox" id="sCallouts" ${settings.callouts !== false ? "checked" : ""}> Instructor: callouts on final (airspeed, sink rate, steep bank low down) and notes after each landing</label></div>
       <h3 class="dsub">Joystick, throttle and pedals</h3>
       <p class="dnote" id="ctlDevs"></p>
       <table class="ctlmap"><tbody>${Object.entries(AXES).map(([k, label]) => `<tr><td>${esc(label)}</td><td class="mono" data-cur="${k}"></td><td><span class="axbar"><i data-bar="${k}"></i></span></td><td><label class="chk"><input type="checkbox" data-inv="${k}"> Invert</label></td><td><button class="sbtn" data-learn="${k}">Assign</button></td></tr>`).join("")}
@@ -729,6 +740,7 @@ function renderDrawer() {
     $("#sSens", B).value = settings.sens;
     $("#sSens", B).addEventListener("change", (e) => { settings.sens = input.sens = e.target.value; saveSettings(); });
     $("#sHaptic", B).addEventListener("change", (e) => { settings.haptics = e.target.checked; saveSettings(); if (settings.haptics) buzz(60, 0.5); });
+    $("#sCallouts", B).addEventListener("change", (e) => { settings.callouts = e.target.checked; saveSettings(); });
     $("#sRight", B).value = settings.touchRight;
     $("#sRight", B).addEventListener("change", (e) => { settings.touchRight = e.target.value; saveSettings(); touchLayout(); });
     $("#sPad", B)?.addEventListener("change", (e) => { settings.pad = e.target.checked; saveSettings(); padLayout(); });
@@ -860,13 +872,21 @@ function renderObjectives() {
   if (lessons.lesson !== renderObjectives.last) { renderObjectives.last = lessons.lesson; el.classList.toggle("min", innerWidth < 720 || innerHeight < 500); }
   el.innerHTML = `<div class="ohead"><span class="ltag">Lesson</span><button class="xbtn" id="oMin" aria-label="Collapse">–</button></div><h3>${esc(st.title)}</h3>
     <ol class="objs">${st.objectives.map((o) => `<li class="${o.state}">${o.state === "now" && st.ask ? `<div>${esc(forTouch(o.text))}${askForm(st.ask)}</div>` : esc(forTouch(o.text))}</li>`).join("")}</ol>
-    ${st.done ? `<div class="result ${st.failed ? "bad" : "good"}"><b>${st.failed ? "Lesson ended" : "Lesson complete"}</b>${st.failed ? `<p>${esc(st.failed)}</p>` : ""}${st.results.map((r) => `<p>${esc(r)}</p>`).join("")}</div>` : ""}
+    ${st.done ? `<div class="result ${st.failed ? "bad" : "good"}"><b>${st.failed ? "Lesson ended" : "Lesson complete"}</b>${st.failed ? `<p>${esc(st.failed)}</p>` : ""}${st.results.map((r) => `<p>${esc(r)}</p>`).join("")}</div>${debriefHtml()}` : ""}
     <details ${st.done ? "" : "open"}><summary>Tips</summary><ul class="tips">${st.tips.map((t) => `<li>${esc(forTouch(t))}</li>`).join("")}</ul></details>
     <div class="ofoot"><span class="exams">Exam: ${st.exam.map(examLink).join("")}</span><span><button class="sbtn" id="oRestart">Restart</button> <button class="sbtn" id="oExit">Exit</button></span></div>`;
   $("#oRestart").onclick = () => { lessons.start(st.id); sim.paused = false; };
   $("#oExit").onclick = () => { lessons.stop(); renderObjectives(); };
   $("#oMin").onclick = () => el.classList.toggle("min");
   const form = $("#oAsk"); if (form) form.onsubmit = (e) => { e.preventDefault(); lessons.answer(Object.fromEntries(st.ask.map((f) => [f.key, +form.elements[f.key].value]))); };
+}
+/** the instructor's notes on a finished lesson: each marked moment, then the one thing to try next */
+function debriefHtml() {
+  if (lessonNotes?.ls !== lessons.ls) lessonNotes = { ls: lessons.ls, m: findMistakes(recorder, debriefCtx()) };
+  const m = lessonNotes.m, landed = recorder.events.some((e) => e.type === "touchdown");
+  if (!m.length && !landed) return "";
+  const when = (x) => x.when || `${Math.floor((x.t - (recorder.t0 ?? 0)) / 60)}:${String(Math.round((x.t - (recorder.t0 ?? 0)) % 60)).padStart(2, "0")} into the lesson`;
+  return `<div class="debrief"><b>Instructor's notes</b>${m.length ? `<ol>${m.slice(0, 6).map((x) => `<li class="${x.level}"><span class="when">${esc(when(x))}</span><b>${esc(x.title)}.</b> ${esc(x.detail)} <i>${esc(x.fix)}</i></li>`).join("")}</ol>${m.length > 6 ? `<p class="dnote">…and ${m.length - 6} more.</p>` : ""}${m.length > 1 ? `<p><b>Next try:</b> ${esc(nextTry(m))}</p>` : ""}` : "<p>Stable approach and a good landing: nothing to point at.</p>"}</div>`;
 }
 const askForm = (ask) => `<form class="oask" id="oAsk">${ask.map((f) => `<label>${esc(f.label)}<span><input name="${f.key}" type="number" inputmode="decimal" step="any" min="0" required>${esc(f.unit)}</span></label>`).join("")}<button class="sbtn">Enter</button></form>`;
 /* coaching at the moments new pilots get stuck on a takeoff: the parking brake, when to rotate, and the climb.
@@ -1245,8 +1265,20 @@ function stepSim(dt, pilot) {
   sim.t += dt;
   sim.vor1 = ac.powered && ac.elec.avionics ? vor(ac.pos, sim.radio.nav1, ac.inst.obs) : { ok: false };
   handleEvents();
+  if (recorder.tick(sim.t, ac.derived, ac.pos, ac.ctl) && settings.callouts !== false && !ac.crashed) {
+    const c = liveCoach.update(recorder.samples.at(-1), debriefCtx()); if (c) say(c.text, "warn", 3500);
+  }
+  if (landingNote && sim.t >= landingNote.t) { const n = landingNote; landingNote = null; if (!lessons.lesson && settings.callouts !== false && !ac.crashed) sayLandingNotes(n.td); }
   monT += dt; if (monT > 0.2) { monitors(monT); monT = 0; }
   lessons.update(dt);
+}
+/** free flight: after each landing, the two most useful notes on it (or a good word) */
+function sayLandingNotes(tdT) {
+  const m = findMistakes(recorder, debriefCtx()).filter((x) => x.td === tdT || (x.t > tdT - 180 && x.t <= tdT + 4));
+  if (!m.length) { say("Instructor: stable approach and a good landing.", "good", 6000); return; }
+  const top = [...m.filter((x) => x.level === "warn"), ...m.filter((x) => x.level !== "warn")].slice(0, 2);
+  const lc = (t) => t.charAt(0).toLowerCase() + t.slice(1);
+  say(`Instructor: ${top.map((x) => `${lc(x.title)} (${lc(x.detail.replace(/\.$/, ""))})`).join("; ")}. ${nextTry(m)}`, "tip", 12000);
 }
 /** ?vrstats=1: frame rate, worst frame and CPU time on a strip in the cockpit while in VR */
 const frameStats = FLAGS.stats ? new FrameStats() : null;
@@ -1350,7 +1382,7 @@ async function boot() {
   renderer.setAnimationLoop(tick);
 }
 window.__zarhart = {
-  sim, ac, weather, world, lessons, camera, panel, settings, autoRes, REAL, FREQS, realStart, keys: input.keys, frame: (ms) => tick(ms), radioCall, traffic, transmit, mp, pttClick, renderer, scene, plane, cockpit, camState, layout, panelState, updateCamera, vr,
+  sim, ac, weather, world, lessons, camera, panel, settings, autoRes, REAL, FREQS, realStart, keys: input.keys, frame: (ms) => tick(ms), radioCall, traffic, transmit, mp, pttClick, renderer, scene, plane, cockpit, camState, layout, panelState, updateCamera, vr, recorder, debrief: () => findMistakes(recorder, debriefCtx()),
   /** headless stepping for tests: advance `secs` of sim time at 30 Hz without rendering; pilot(ac, d, sim, dt) flies */
   step(secs, pilot) { for (let i = 0, n = Math.round(secs * 30); i < n; i++) { if (ac.crashed || lessons.done) break; stepSim(1 / 30, pilot); } return ac.derived; },
 };

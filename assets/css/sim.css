@@ -52,6 +52,12 @@
 .tips { padding-left: 18px; margin: 6px 0 0; color: var(--muted); display: grid; gap: 4px; }
 .result { margin-top: 10px; padding: 10px 12px; border-radius: 3px; background: var(--panel-2); border-left: 4px solid var(--green); display: grid; gap: 4px; }
 .result.bad { border-left-color: var(--amber); }
+.debrief { margin-top: 8px; padding: 10px 12px; border-radius: 3px; background: var(--panel-2); border-left: 4px solid var(--magenta); display: grid; gap: 6px; }
+.debrief ol { margin: 0; padding-left: 18px; display: grid; gap: 6px; }
+.debrief li.warn::marker { color: var(--amber); }
+.debrief .when { display: block; font: 500 11px/1.4 var(--f-mono); color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+.debrief i { display: block; color: var(--muted); font-style: normal; }
+.debrief p { margin: 0; }
 .ltag { font: 700 11px/1 var(--f-mono); letter-spacing: .1em; text-transform: uppercase; color: var(--magenta); }
 .xbtn { background: none; border: 1px solid var(--line-2); color: var(--muted); width: 28px; height: 28px; border-radius: 3px; cursor: pointer; font-size: 14px; }
 .xbtn:hover { color: #fff; border-color: rgba(255, 255, 255, .6); }
