@@ -171,7 +171,7 @@
     <div>
       <details><summary>Is the simulator really free?</summary><p>Yes. Flying, all 19 lessons, the 650+ practice questions, flashcards, quizzes and the practice tests are free and need no account. The paid plans add printable study material and future content; they don't lock anything that's free today.</p></details>
       <details><summary>What's the difference between the Pass Pack and Pro?</summary><p>The Pass Pack is a one-time purchase of printable reference cards, checklists, an exam-day plan and flashcards. Pro is a subscription that includes the Pass Pack and adds the checkride lessons, then new scenario packs, more airports and scenery, and your progress on all your devices as they're released. The question bank, smart review and practice exams stay free.</p></details>
-      <details><summary>Where can I buy?</summary><p>Purchases are coming to the Zarhart app for iPhone and Android first, through the App Store and Google Play. Buying on the website is coming soon. Until a plan shows a buy button, it isn't on sale yet.</p></details>
+      <details><summary>Where can I buy?</summary><p>The Pass Pack is on sale here on the website: tap Buy, pay at the secure checkout, and your Pass Pack arrives by email within 24 hours. Purchases in the Zarhart app for iPhone and Android, through the App Store and Google Play, are coming. Until a plan shows a buy button, it isn't on sale yet.</p></details>
       <details><summary>Is Zarhart FAA-approved?</summary><p>No. Zarhart is a study aid. It isn't FAA-approved training, and time in it can't be logged. You still need an endorsement from a flight instructor or a home-study course before you take the knowledge test.</p></details>
       <details><summary>How do refunds work?</summary><p>Pass Pack purchases on the website come with a 14-day money-back guarantee: reply to your receipt and you get a full refund, no reason needed. Purchases in the app are refunded by Apple or Google under their policies. See the <a href="../refunds/">refund policy</a>.</p></details>
       <details><summary>What do you do with my data?</summary><p>Your progress stays on your device. Read the <a href="../privacy/">privacy policy</a> for the details.</p></details>
@@ -194,7 +194,7 @@
 // Prices and checkout links. Leave a link empty and that plan shows "Coming soon" instead of a buy button.
 // In the mobile app the same plans are the store products zarhart_pass_pack, zarhart_pro_monthly and zarhart_pro_yearly.
 const CONFIG = {
-  pass: { price: "$14.99", checkout: "" },
+  pass: { price: "$14.99", checkout: "https://www.paypal.com/ncp/payment/7TJ3H4FS8WXRE" },
   proMonthly: { price: "$4.99", checkout: "" },
   proYearly: { price: "$29.99", checkout: "" },
   schoolsContact: "", // e.g. "mailto:schools@yourdomain"
@@ -206,7 +206,7 @@ const num = (s) => parseFloat(String(s).replace(/[^0-9.]/g, "")) || 0;
 
 document.querySelector('[data-price="pass"]').textContent = CONFIG.pass.price;
 document.querySelector('[data-go="pass"]').innerHTML =
-  CONFIG.pass.checkout ? buy(CONFIG.pass.checkout, `Buy for ${CONFIG.pass.price}`) : soon("Checkout coming soon");
+  CONFIG.pass.checkout ? buy(CONFIG.pass.checkout, `Buy for ${CONFIG.pass.price}`) + `<p class="state">Your Pass Pack arrives by email within 24 hours of payment.</p>` : soon("Checkout coming soon");
 document.querySelector('[data-go="schools"]').innerHTML = CONFIG.schoolsContact
   ? `<a class="btn" href="${CONFIG.schoolsContact}">Contact us</a>` : soon();
 
