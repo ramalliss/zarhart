@@ -144,7 +144,9 @@ function qzNext() { qz.picked = null; if (qz.i >= qz.list.length) return qzEnd()
 function qzAnswer(k) {
   if (qz.picked !== null) return;
   const c = qz.list[qz.i]; qz.picked = k; const ok = k >= 0 && qz.order[k].ok;
-  qz.res.push({ c, ok, picked: k >= 0 ? qz.order[k].t : "(time ran out)" }); if (!c.drill) record(c, ok); // generated drills aren't in the bank qzRender(); $("#qzGo")?.focus();
+  qz.res.push({ c, ok, picked: k >= 0 ? qz.order[k].t : "(time ran out)" });
+  if (!c.drill) record(c, ok); // generated drills aren't in the bank
+  qzRender(); $("#qzGo")?.focus();
 }
 function qzClock() {
   clearInterval(qz.timer); if (!$("#qzTimed").checked || qz.picked !== null) return;
