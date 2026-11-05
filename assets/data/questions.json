@@ -153,9 +153,7 @@
  "cards": [
   {
    "id": "t1",
-   "n": 1,
    "src": "test",
-   "res": "miss",
    "topic": "ops",
    "q": "When approaching a nontowered airport, when should you make your first position call?",
    "c": [
@@ -168,9 +166,7 @@
   },
   {
    "id": "t2",
-   "n": 2,
    "src": "test",
-   "res": "ok",
    "topic": "perf",
    "q": "What effect does high density altitude have on aircraft performance?",
    "c": [
@@ -183,9 +179,7 @@
   },
   {
    "id": "t3",
-   "n": 3,
    "src": "test",
-   "res": "miss",
    "topic": "regs",
    "q": "When must the battery in an emergency locator transmitter (ELT) be replaced (or recharged if rechargeable)?",
    "c": [
@@ -198,9 +192,7 @@
   },
   {
    "id": "t4",
-   "n": 4,
    "src": "test",
-   "res": "miss",
    "topic": "inst",
    "q": "If an altimeter setting is not available before flight, to which altitude should the pilot adjust the altimeter?",
    "c": [
@@ -213,9 +205,7 @@
   },
   {
    "id": "t5",
-   "n": 5,
    "src": "test",
-   "res": "ok",
    "topic": "nav",
    "fig": "Figure 25",
    "orig": "(Refer to figure 25, area 2.) The control tower frequency for Addison Airport is…",
@@ -230,9 +220,7 @@
   },
   {
    "id": "t6",
-   "n": 6,
    "src": "test",
-   "res": "miss",
    "topic": "ops",
    "q": "The numbers 9 and 27 on a runway indicate that the runway is oriented approximately",
    "c": [
@@ -245,9 +233,7 @@
   },
   {
    "id": "t7",
-   "n": 7,
    "src": "test",
-   "res": "miss",
    "topic": "wx",
    "fig": "Figure 12",
    "q": "(Figure 12) What are the wind conditions at Wink, Texas (KINK)?",
@@ -261,9 +247,7 @@
   },
   {
    "id": "t8",
-   "n": 8,
    "src": "test",
-   "res": "ok",
    "topic": "wake",
    "q": "The best method to use when looking for other traffic at night is to",
    "c": [
@@ -276,9 +260,7 @@
   },
   {
    "id": "t9",
-   "n": 9,
    "src": "test",
-   "res": "ok",
    "topic": "aero",
    "q": "In order for an airplane to spin, at least one wing must be",
    "c": [
@@ -291,9 +273,7 @@
   },
   {
    "id": "t10",
-   "n": 10,
    "src": "test",
-   "res": "ok",
    "topic": "nav",
    "fig": "Figure 21",
    "orig": "(Refer to Figure 21, area 1.) What is the Common Traffic Advisory Frequency (CTAF)…",
@@ -308,9 +288,7 @@
   },
   {
    "id": "t11",
-   "n": 11,
    "src": "test",
-   "res": "ok",
    "topic": "nav",
    "fig": "Figure 23",
    "q": "(Figure 23) The magenta flag symbols at Statesboro Bullock County, Claxton-Evans County, and Ridgeland airports are",
@@ -324,9 +302,7 @@
   },
   {
    "id": "t12",
-   "n": 12,
    "src": "test",
-   "res": "miss",
    "topic": "adm",
    "q": "In the event of an asymmetric (split) flap condition, what control inputs should you use?",
    "c": [
@@ -339,9 +315,7 @@
   },
   {
    "id": "t13",
-   "n": 13,
    "src": "test",
-   "res": "miss",
    "topic": "ops",
    "q": "What does the outbound destination sign identify?",
    "c": [
@@ -354,9 +328,7 @@
   },
   {
    "id": "t14",
-   "n": 14,
    "src": "test",
-   "res": "ok",
    "topic": "regs",
    "q": "Unless otherwise authorized, which situation requires Automatic Dependent Surveillance-Broadcast (ADS-B) Out?",
    "c": [
@@ -369,9 +341,7 @@
   },
   {
    "id": "t15",
-   "n": 15,
    "src": "test",
-   "res": "ok",
    "topic": "inst",
    "q": "If the pitot tube and outside static vents become clogged, which instruments would be affected?",
    "c": [
@@ -384,9 +354,7 @@
   },
   {
    "id": "t16",
-   "n": 16,
    "src": "test",
-   "res": "miss",
    "topic": "perf",
    "q": "After takeoff, which airspeed would the pilot use to gain the most altitude in a given period of time?",
    "c": [
@@ -399,9 +367,7 @@
   },
   {
    "id": "t17",
-   "n": 17,
    "src": "test",
-   "res": "ok",
    "topic": "regs",
    "q": "Responsibility for collision avoidance in an alert area rests with",
    "c": [
@@ -414,9 +380,7 @@
   },
   {
    "id": "t18",
-   "n": 18,
    "src": "test",
-   "res": "miss",
    "topic": "regs",
    "q": "Pilots flying over a national wildlife refuge are requested to fly no lower than",
    "c": [
@@ -429,9 +393,7 @@
   },
   {
    "id": "t19",
-   "n": 19,
    "src": "test",
-   "res": "ok",
    "topic": "inst",
    "q": "How can a pilot use GPS altitude in flight?",
    "c": [
@@ -444,9 +406,7 @@
   },
   {
    "id": "t20",
-   "n": 20,
    "src": "test",
-   "res": "miss",
    "topic": "regs",
    "q": "When are non-rechargeable batteries of an emergency locator transmitter (ELT) required to be replaced?",
    "c": [
@@ -459,9 +419,7 @@
   },
   {
    "id": "t21",
-   "n": 21,
    "src": "test",
-   "res": "miss",
    "topic": "aero",
    "q": "What will happen during takeoff if you attempt to leave ground effect without sufficient airspeed?",
    "c": [
@@ -474,9 +432,7 @@
   },
   {
    "id": "t22",
-   "n": 22,
    "src": "test",
-   "res": "ok",
    "topic": "adm",
    "q": "The list of required items for a preflight visual inspection should come from:",
    "c": [
@@ -489,9 +445,7 @@
   },
   {
    "id": "t23",
-   "n": 23,
    "src": "test",
-   "res": "miss",
    "topic": "ops",
    "q": "Which approach and landing objective is assured when the pilot remains on the proper glidepath of the VASI?",
    "c": [
@@ -504,9 +458,7 @@
   },
   {
    "id": "t24",
-   "n": 24,
    "src": "test",
-   "res": "miss",
    "topic": "adm",
    "q": "The use of flaps in slow flight:",
    "c": [
@@ -520,9 +472,7 @@
   },
   {
    "id": "t25",
-   "n": 25,
    "src": "test",
-   "res": "miss",
    "topic": "wake",
    "q": "What is wake turbulence?",
    "c": [
@@ -535,9 +485,7 @@
   },
   {
    "id": "t26",
-   "n": 26,
    "src": "test",
-   "res": "ok",
    "topic": "ops",
    "fig": "Figure 48",
    "orig": "(Refer to figure 48) ATC instructs you to line up and wait…",
@@ -552,9 +500,7 @@
   },
   {
    "id": "t27",
-   "n": 27,
    "src": "test",
-   "res": "miss",
    "topic": "perf",
    "fig": "Figures 32 & 33",
    "orig": "(Refer to figures 32, 33.) With the airplane loaded as follows, what action can be taken to balance the airplane?",
@@ -570,9 +516,7 @@
   },
   {
    "id": "t28",
-   "n": 28,
    "src": "test",
-   "res": "ok",
    "topic": "inst",
    "q": "Which instrument(s) will become inoperative if the static vents become clogged?",
    "c": [
@@ -585,9 +529,7 @@
   },
   {
    "id": "t29",
-   "n": 29,
    "src": "test",
-   "res": "miss",
    "topic": "adm",
    "q": "Hazardous attitudes occur to every pilot to some degree at some time. What are some of these hazardous attitudes?",
    "c": [
@@ -600,9 +542,7 @@
   },
   {
    "id": "t30",
-   "n": 30,
    "src": "test",
-   "res": "ok",
    "topic": "regs",
    "q": "The pilot in command is responsible for ensuring that each person on board",
    "c": [
@@ -615,9 +555,7 @@
   },
   {
    "id": "t31",
-   "n": 31,
    "src": "test",
-   "res": "miss",
    "topic": "inst",
    "fig": "Figure 7",
    "q": "(Figure 7) The proper adjustment to make on the attitude indicator during level flight is to align the",
@@ -631,9 +569,7 @@
   },
   {
    "id": "t32",
-   "n": 32,
    "src": "test",
-   "res": "ok",
    "topic": "regs",
    "q": "The person directly responsible for the pre-launch briefing of passengers for a flight is the",
    "c": [
@@ -646,9 +582,7 @@
   },
   {
    "id": "t33",
-   "n": 33,
    "src": "test",
-   "res": "miss",
    "topic": "ops",
    "q": "How many times should you key the mic on the specified frequency at a nontowered airport to turn on pilot-controlled lighting at highest intensity?",
    "c": [
@@ -662,9 +596,7 @@
   },
   {
    "id": "t34",
-   "n": 34,
    "src": "test",
-   "res": "miss",
    "topic": "aero",
    "q": "The load factor in a level, coordinated turn with 60° of bank is:",
    "c": [
@@ -677,9 +609,7 @@
   },
   {
    "id": "t35",
-   "n": 35,
    "src": "test",
-   "res": "miss",
    "topic": "aero",
    "q": "What is ground effect?",
    "c": [
@@ -692,9 +622,7 @@
   },
   {
    "id": "t36",
-   "n": 36,
    "src": "test",
-   "res": "miss",
    "topic": "wake",
    "q": "Wingtip vortices are created only when an aircraft is",
    "c": [
@@ -707,9 +635,7 @@
   },
   {
    "id": "t37",
-   "n": 37,
    "src": "test",
-   "res": "miss",
    "topic": "ops",
    "fig": "Figure 49",
    "orig": "(Refer to figure 49.) Select the proper traffic pattern and runway for landing.",
@@ -725,9 +651,7 @@
   },
   {
    "id": "t38",
-   "n": 38,
    "src": "test",
-   "res": "ok",
    "topic": "nav",
    "fig": "Figure 70",
    "orig": "(Refer to Figure 70, area 5) In order to avoid the Livermore Airport, what minimum…",
@@ -742,9 +666,7 @@
   },
   {
    "id": "t39",
-   "n": 39,
    "src": "test",
-   "res": "miss",
    "topic": "aero",
    "q": "A heavier airplane, due to increased load, will",
    "c": [
@@ -758,9 +680,7 @@
   },
   {
    "id": "t40",
-   "n": 40,
    "src": "test",
-   "res": "miss",
    "topic": "ops",
    "q": "What is the purpose of the runway/runway hold position sign?",
    "c": [
@@ -773,9 +693,7 @@
   },
   {
    "id": "t41",
-   "n": 41,
    "src": "test",
-   "res": "ok",
    "topic": "regs",
    "q": "Preflight action, as required for all flights away from the vicinity of an airport, shall include",
    "c": [
@@ -788,9 +706,7 @@
   },
   {
    "id": "t42",
-   "n": 42,
    "src": "test",
-   "res": "miss",
    "topic": "aero",
    "q": "The angle of attack at which an airplane wing stalls will",
    "c": [
@@ -803,9 +719,7 @@
   },
   {
    "id": "t43",
-   "n": 43,
    "src": "test",
-   "res": "miss",
    "topic": "wx",
    "fig": "Figure 19",
    "q": "(Figure 19) How are Significant Weather Prognostic Charts best used by a pilot?",
@@ -819,9 +733,7 @@
   },
   {
    "id": "t44",
-   "n": 44,
    "src": "test",
-   "res": "miss",
    "topic": "wake",
    "q": "The most effective method of scanning for other aircraft for collision avoidance during daylight hours is to use",
    "c": [
@@ -834,9 +746,7 @@
   },
   {
    "id": "t45",
-   "n": 45,
    "src": "test",
-   "res": "miss",
    "topic": "nav",
    "fig": "Figure 22",
    "orig": "(Refer to Figure 22, area 1) While on the ground at Sandpoint airport and planning a…",
@@ -852,9 +762,7 @@
   },
   {
    "id": "t46",
-   "n": 46,
    "src": "test",
-   "res": "ok",
    "topic": "adm",
    "card": false,
    "orig": "(Question text was cut off in the screenshot.)",
@@ -866,9 +774,7 @@
   },
   {
    "id": "t47",
-   "n": 47,
    "src": "test",
-   "res": "ok",
    "topic": "nav",
    "card": false,
    "fig": "Figure 71",
@@ -881,9 +787,7 @@
   },
   {
    "id": "t48",
-   "n": 48,
    "src": "test",
-   "res": "miss",
    "topic": "perf",
    "fig": "Figures 32 & 33",
    "q": "(Figures 32 & 33) After landing, the front passenger (180 lb) gets out and a rear passenger (204 lb) moves into the vacated front seat. The airplane weighed 2,690 lb with MOM/100 of 2,260 before the change. What happens to the CG?",
@@ -898,9 +802,7 @@
   },
   {
    "id": "t49",
-   "n": 49,
    "src": "test",
-   "res": "miss",
    "topic": "regs",
    "q": "In which type of airspace are VFR flights prohibited?",
    "c": [
@@ -913,9 +815,7 @@
   },
   {
    "id": "t50",
-   "n": 50,
    "src": "test",
-   "res": "miss",
    "topic": "inst",
    "q": "What is one flight instrument a pilot can adjust in the cockpit?",
    "c": [
@@ -929,9 +829,7 @@
   },
   {
    "id": "t51",
-   "n": 51,
    "src": "test",
-   "res": "ok",
    "topic": "wake",
    "q": "Wingtip vortices created by large aircraft tend to",
    "c": [
@@ -944,9 +842,7 @@
   },
   {
    "id": "t52",
-   "n": 52,
    "src": "test",
-   "res": "ok",
    "topic": "ops",
    "fig": "Figure 47",
    "q": "On final approach to a runway with a standard 2-bar VASI, red over white means you are",
@@ -960,9 +856,7 @@
   },
   {
    "id": "t53",
-   "n": 53,
    "src": "test",
-   "res": "miss",
    "topic": "wake",
    "q": "When landing behind a large aircraft, which procedure should you follow?",
    "c": [
@@ -975,9 +869,7 @@
   },
   {
    "id": "t54",
-   "n": 54,
    "src": "test",
-   "res": "miss",
    "topic": "ops",
    "q": "While operating in Class D airspace, each pilot of an aircraft approaching to land on a runway served by a VASI shall",
    "c": [
@@ -990,9 +882,7 @@
   },
   {
    "id": "t55",
-   "n": 55,
    "src": "test",
-   "res": "ok",
    "topic": "adm",
    "q": "Why should you establish a nose-high pitch attitude during the takeoff roll on a soft field?",
    "c": [
@@ -1005,9 +895,7 @@
   },
   {
    "id": "t56",
-   "n": 56,
    "src": "test",
-   "res": "miss",
    "topic": "adm",
    "fig": "Figure 62",
    "orig": "(Refer to figure 62.) In flying the rectangular course shown, when would the aircraft be…",
@@ -1023,9 +911,7 @@
   },
   {
    "id": "t57",
-   "n": 57,
    "src": "test",
-   "res": "miss",
    "topic": "nav",
    "q": "If you are on a cross-country flight, to keep from losing your course you should:",
    "c": [
@@ -1039,9 +925,7 @@
   },
   {
    "id": "t58",
-   "n": 58,
    "src": "test",
-   "res": "ok",
    "topic": "aero",
    "q": "Stall speed is increased by:",
    "c": [
@@ -1054,9 +938,7 @@
   },
   {
    "id": "t59",
-   "n": 59,
    "src": "test",
-   "res": "miss",
    "topic": "ops",
    "q": "If you face an emergency where you want ATC assistance but are not already in contact with ATC, what should you do?",
    "c": [
@@ -1069,9 +951,7 @@
   },
   {
    "id": "t60",
-   "n": 60,
    "src": "test",
-   "res": "ok",
    "topic": "nav",
    "card": false,
    "fig": "Figure 25",
