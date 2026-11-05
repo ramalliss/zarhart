@@ -10,7 +10,7 @@ export function buildSectionalBase(size = 1024) {
   const g = c.getContext("2d"); const img = g.createImageData(size, size); const d = img.data;
   const W = WORLD_HALF * 2, step = W / size;
   const tints = [[0, [207, 227, 183]], [800, [222, 232, 182]], [1500, [238, 232, 176]], [2500, [242, 220, 162]], [4000, [232, 196, 140]], [6000, [214, 170, 118]]];
-  const H = new Float32Array(size * size);
+  const H = new Float32Array(size * size), city = cityAt();
   for (let j = 0; j < size; j++) for (let i = 0; i < size; i++) H[j * size + i] = heightAt(-WORLD_HALF + (i + 0.5) * step, -WORLD_HALF + (j + 0.5) * step) / FT;
   for (let j = 0; j < size; j++) for (let i = 0; i < size; i++) {
     const x = -WORLD_HALF + (i + 0.5) * step, z = -WORLD_HALF + (j + 0.5) * step;
@@ -20,7 +20,11 @@ export function buildSectionalBase(size = 1024) {
     const shade = Math.max(0.72, Math.min(1.12, 1 - (hx + hz) / (step / FT) * 0.35));
     let [r, gg, b] = col;
     if (inLake(x, z)) { r = 160; gg = 208; b = 236; }
-    else { r *= shade; gg *= shade; b *= shade; }
+    else {
+      // Real World: built-up areas in the sectional's yellow, where the night-time lights are brightest
+      const k = city ? Math.max(0, Math.min(1, (city(x, z) - 0.62) * 6)) : 0;
+      r = (r + (246 - r) * k) * shade; gg = (gg + (220 - gg) * k) * shade; b = (b + (106 - b) * k) * shade;
+    }
     const o = (j * size + i) * 4; d[o] = r; d[o + 1] = gg; d[o + 2] = b; d[o + 3] = 255;
   }
   g.putImageData(img, 0, 0);
@@ -33,9 +37,20 @@ export function buildSectionalBase(size = 1024) {
   return c;
 }
 
+/** Real World mode: how bright NASA's night lights are at a point (0–1, bilinear), or null without them */
+function cityAt() {
+  const L = REAL?.lights; if (!L) return null;
+  const { grid, n, half } = L, c = (2 * half) / n;
+  return (x, z) => {
+    const fx = Math.max(0, Math.min(n - 1.001, (x + half) / c - 0.5)), fz = Math.max(0, Math.min(n - 1.001, (z + half) / c - 0.5)), i = fx | 0, j = fz | 0, tx = fx - i, tz = fz - j;
+    return (grid[j * n + i] * (1 - tx) + grid[j * n + i + 1] * tx) * (1 - tz) + (grid[(j + 1) * n + i] * (1 - tx) + grid[(j + 1) * n + i + 1] * tx) * tz;
+  };
+}
+
 /**
  * Draw the map into rect (x,y,w,h).
- * opts: { base, cx, cz (world centre), rangeNm (centre to edge), own: {x,z,hdg}, route: [{x,z,id}], style: 'sectional'|'mfd', vfrNight }
+ * opts: { base, cx, cz (world centre), rangeNm (centre to edge), own: {x,z,hdg}, route: [{x,z,id}], style: 'sectional'|'mfd', vfrNight,
+ *   chart (the base is the FAA's own chart, which already shows the airspace, airports, VORs, obstacles and towns) }
  * Returns a function screen->world for click handling.
  */
 export function drawMap(g, x, y, w, h, o) {
@@ -59,7 +74,7 @@ export function drawMap(g, x, y, w, h, o) {
   const big = o.rangeNm <= 12;
   const font = (px, wt = 600) => `${wt} ${px}px "Barlow", "Arial Narrow", sans-serif`;
   // airspace
-  for (const a of AIRSPACE) {
+  for (const a of o.chart ? [] : AIRSPACE) {
     if (a.poly) { drawRealAirspace(g, a, S, x, y, w, h, font); continue; }
     const [ax, ay] = S(a.x, a.z), r = a.r * s;
     if (ax + r < x || ax - r > x + w || ay + r < y || ay - r > y + h) continue;
@@ -74,7 +89,7 @@ export function drawMap(g, x, y, w, h, o) {
     }
   }
   // towns labels
-  if (o.rangeNm <= 20) { g.font = font(12, 600); g.fillStyle = INK; for (const t of TOWNS) { const [a, b] = S(t.x, t.z); g.fillText(t.name.toUpperCase(), a + t.r * s * 0.7, b - t.r * s * 0.7); } }
+  if (o.rangeNm <= 20 && !o.chart) { g.font = font(12, 600); g.fillStyle = INK; for (const t of TOWNS) { const [a, b] = S(t.x, t.z); g.fillText(t.name.toUpperCase(), a + t.r * s * 0.7, b - t.r * s * 0.7); } }
   // lesson / route waypoints
   if (o.route?.length) {
     g.strokeStyle = "#e64bd0"; g.lineWidth = 3; g.beginPath();
@@ -82,11 +97,11 @@ export function drawMap(g, x, y, w, h, o) {
     for (const p of o.route) { if (!p.id) continue; const [a, b] = S(p.x, p.z); g.beginPath(); g.arc(a, b, 5, 0, Math.PI * 2); g.fillStyle = "#e64bd0"; g.fill(); g.font = font(12, 700); g.fillText(p.id, a + 8, b - 6); }
   }
   // obstacles
-  for (const ob of OBSTACLES) { if (o.rangeNm > 25) break; const [a, b] = S(ob.x, ob.z); g.strokeStyle = INK; g.lineWidth = 1.5; g.beginPath(); g.moveTo(a - 5, b + 6); g.lineTo(a, b - 8); g.lineTo(a + 5, b + 6); g.stroke(); g.beginPath(); g.arc(a, b + 4, 1.6, 0, 7); g.fillStyle = INK; g.fill(); if (big) { const msl = Math.round((heightAt(ob.x, ob.z) / FT + ob.hAgl / FT) / 10) * 10; g.font = font(11, 700); g.fillText(`${msl}`, a + 7, b - 2); g.font = font(10, 500); g.fillText(`(${Math.round(ob.hAgl / FT)})`, a + 7, b + 9); } }
+  for (const ob of OBSTACLES) { if (o.rangeNm > 25 || o.chart) break; const [a, b] = S(ob.x, ob.z); g.strokeStyle = INK; g.lineWidth = 1.5; g.beginPath(); g.moveTo(a - 5, b + 6); g.lineTo(a, b - 8); g.lineTo(a + 5, b + 6); g.stroke(); g.beginPath(); g.arc(a, b + 4, 1.6, 0, 7); g.fillStyle = INK; g.fill(); if (big) { const msl = Math.round((heightAt(ob.x, ob.z) / FT + ob.hAgl / FT) / 10) * 10; g.font = font(11, 700); g.fillText(`${msl}`, a + 7, b - 2); g.font = font(10, 500); g.fillText(`(${Math.round(ob.hAgl / FT)})`, a + 7, b + 9); } }
   // launch complex
   if (!REAL) { const [a, b] = S(LAUNCH.x, LAUNCH.z); g.fillStyle = INK; g.beginPath(); g.moveTo(a, b - 9); g.lineTo(a + 4, b + 6); g.lineTo(a - 4, b + 6); g.closePath(); g.fill(); if (o.rangeNm <= 20) { g.font = font(11, 600); g.fillText("LAUNCH COMPLEX", a + 8, b + 4); } }
   // VORs
-  for (const n of NAVAIDS) {
+  for (const n of o.chart ? [] : NAVAIDS) {
     const [a, b] = S(n.x, n.z); const rr = Math.max(26, Math.min(70, 4 * NM * s));
     g.strokeStyle = BLUE; g.lineWidth = 1.2; g.beginPath(); g.arc(a, b, rr, 0, Math.PI * 2); g.stroke();
     for (let k = 0; k < 36; k++) { const an = k * 10 * DEG; const l = k % 9 === 0 ? 9 : k % 3 === 0 ? 6 : 3; g.beginPath(); g.moveTo(a + Math.sin(an) * rr, b - Math.cos(an) * rr); g.lineTo(a + Math.sin(an) * (rr - l), b - Math.cos(an) * (rr - l)); g.stroke(); }
@@ -96,7 +111,7 @@ export function drawMap(g, x, y, w, h, o) {
     const lx = a + rr * 0.72, ly = b + rr * 0.72; g.fillStyle = "rgba(255,255,255,0.88)"; g.fillRect(lx, ly, lw, 30); g.strokeStyle = BLUE; g.strokeRect(lx, ly, lw, 30); g.fillStyle = BLUE; g.fillText(label[0], lx + 5, ly + 12); g.fillText(label[1], lx + 5, ly + 25);
   }
   // airports
-  for (const ap of AIRPORTS) {
+  for (const ap of o.chart ? [] : AIRPORTS) {
     const [a, b] = S(ap.x, ap.z); const col = ap.towered ? BLUE : MAG; const r = 10;
     const paved = ap.runways.some((q) => q.surface !== "grass");
     if (paved) { g.beginPath(); g.arc(a, b, r, 0, Math.PI * 2); g.fillStyle = col; g.fill(); }

@@ -214,7 +214,8 @@ function lakeD(x, z) {
   const wob = 1 + 0.12 * simplex(x / 900, z / 900);
   return Math.hypot(u / LAKE.rx, v / LAKE.rz) / wob;
 }
-export function inLake(x, z) { return !REAL && lakeD(x, z) < 1; }
+/** water: Lake Itasca, or in Real World mode the sea, bays and anything else at sea level */
+export function inLake(x, z) { return REAL ? realWater(x, z) : lakeD(x, z) < 1; }
 
 /** the rectangles in a list that can matter within `reach` m of a point, from a 400 m grid (big real airports have thousands) */
 const grids = new WeakMap(), NONE = [];

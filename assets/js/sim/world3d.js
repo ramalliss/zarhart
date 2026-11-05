@@ -264,22 +264,30 @@ if (tDist < 6000.0) { // detail normals from the same relief samples as the blot
 /**
  * Real World mode's ground: the aerial photo of the whole square, plus a sharper one around the home airport blended in
  * over its last 6 %. Photos already hold the ground's own light and shade, so there's no baked AO or detail relief.
+ * At night, towns glow a dim orange from below their lights (NASA's night-time brightness, as a small texture).
  */
-function realTerrainShader(inner, rect) {
+function realTerrainShader(inner, rect, city) {
   return (sh) => {
-    sh.uniforms.uSnow = WX.uSnow; sh.uniforms.uWet = WX.uWet;
+    sh.uniforms.uSnow = WX.uSnow; sh.uniforms.uWet = WX.uWet; sh.uniforms.uNight = WX.uNight; sh.uniforms.uLightGain = WX.uLightGain;
     sh.uniforms.uInner = { value: inner }; sh.uniforms.uInnerRect = { value: new THREE.Vector4(rect.x0, rect.z0, rect.size, inner ? 1 : 0) };
+    sh.uniforms.uCity = { value: city?.tex || null }; sh.uniforms.uCityHalf = { value: city ? city.half : 0 };
     sh.vertexShader = sh.vertexShader.replace("#include <common>", "#include <common>\nvarying vec3 vWPos;")
       .replace("#include <begin_vertex>", "#include <begin_vertex>\nvWPos = (modelMatrix * vec4(transformed, 1.0)).xyz;");
     sh.fragmentShader = sh.fragmentShader.replace("#include <common>", `#include <common>
-varying vec3 vWPos; uniform float uSnow; uniform float uWet; uniform sampler2D uInner; uniform vec4 uInnerRect;`)
+varying vec3 vWPos; uniform float uSnow; uniform float uWet; uniform sampler2D uInner; uniform vec4 uInnerRect;
+uniform sampler2D uCity; uniform float uCityHalf, uNight, uLightGain;`)
       .replace("#include <map_fragment>", `#include <map_fragment>
 if (uInnerRect.w > 0.5) {
   vec2 iu = (vWPos.xz - uInnerRect.xy) / uInnerRect.z, e = min(iu, 1.0 - iu);
   float k = smoothstep(0.0, 0.06, min(e.x, e.y));
   if (k > 0.0) diffuseColor.rgb = mix(diffuseColor.rgb, texture2D(uInner, vec2(iu.x, 1.0 - iu.y)).rgb, k);
 }
-diffuseColor.rgb = mix(diffuseColor.rgb * (1.0 - 0.15 * uWet), vec3(0.9, 0.92, 0.95), clamp(uSnow * 0.8, 0.0, 1.0));`);
+diffuseColor.rgb = mix(diffuseColor.rgb * (1.0 - 0.15 * uWet), vec3(0.9, 0.92, 0.95), clamp(uSnow * 0.8, 0.0, 1.0));`)
+      .replace("#include <emissivemap_fragment>", `#include <emissivemap_fragment>
+if (uCityHalf > 0.0 && uNight > 0.0) {
+  float cg = texture2D(uCity, (vWPos.xz + uCityHalf) / (2.0 * uCityHalf)).r;
+  totalEmissiveRadiance += vec3(1.0, 0.58, 0.28) * cg * cg * cg * uNight * uLightGain * 0.045;
+}`);
   };
 }
 function buildTerrain(groundCanvas, Q, real = null) {
@@ -305,7 +313,7 @@ function buildTerrain(groundCanvas, Q, real = null) {
   const tex = new THREE.CanvasTexture(groundCanvas);
   tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8; tex.generateMipmaps = true; tex.minFilter = THREE.LinearMipmapLinearFilter;
   const mat = new THREE.MeshLambertMaterial({ map: tex, vertexColors: Q.pbr && !real });
-  if (real) mat.onBeforeCompile = realTerrainShader(real.inner, real.rect);
+  if (real) mat.onBeforeCompile = realTerrainShader(real.inner, real.rect, real.city);
   else if (Q.pbr) mat.onBeforeCompile = terrainDetail;
   else mat.onBeforeCompile = (sh) => {
     sh.uniforms.uSnow = WX.uSnow; sh.uniforms.uWet = WX.uWet;
@@ -855,6 +863,49 @@ function buildAirportProps(ap, root, mats, lights) {
   }
 }
 
+/* ===================== Real World city lights ===================== */
+/**
+ * Streetlights and windows for Real World mode at night: NASA's night-time brightness says how many lights each 470 m
+ * cell gets (up to `perCell`, within `budget` in all); inside a cell they go where the aerial photo isn't water,
+ * forest or fields, and never on a runway. Mostly sodium orange and warm LED white, some cool white. They come as one
+ * Points object per 1/8 of the square on a side, so the ones out of view aren't drawn.
+ */
+function buildCityLights(nl, photo, budget, perCell, material) {
+  const { grid, n, half } = nl, cell = (2 * half) / n, P = 1024, B = 8, per = n / B;
+  const pc = canvas(P, P), pg = pc.getContext("2d", { willReadFrequently: true }); pg.drawImage(photo, 0, 0, P, P);
+  const px = pg.getImageData(0, 0, P, P).data; pc.width = pc.height = 0;
+  let want = 0; for (const v of grid) want += v ** 1.6 * perCell;
+  const k = perCell * Math.min(1, budget / Math.max(1, want)), blocks = Array.from({ length: B * B }, () => ({ pos: [], col: [] }));
+  const fields = AIRPORTS.map((ap) => ({ ap, r: Math.max(...ap.runways.map((q) => q.len)) / 2 + 400 }));
+  const onRunway = (x, z) => fields.some(({ ap, r }) => Math.abs(x - ap.x) < r && Math.abs(z - ap.z) < r && ap.runways.some((q) => rectDist(x, z, q, 40) < 0));
+  let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  const tints = [[1, 0.6, 0.27], [1, 0.6, 0.27], [1, 0.62, 0.3], [1, 0.9, 0.74], [1, 0.9, 0.74], [0.82, 0.9, 1]];
+  for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) {
+    const m = grid[j * n + i] ** 1.6 * k, cnt = Math.floor(m) + (rnd() < m % 1 ? 1 : 0), { pos, col } = blocks[((j / per) | 0) * B + ((i / per) | 0)];
+    for (let c = 0; c < cnt; c++) {
+      const x = -half + (i + rnd()) * cell, z = -half + (j + rnd()) * cell;
+      const o = (Math.min(P - 1, ((z + half) / (2 * half)) * P | 0) * P + Math.min(P - 1, ((x + half) / (2 * half)) * P | 0)) * 4, r = px[o], g = px[o + 1], b = px[o + 2];
+      if (inLake(x, z) || r + g + b < 110 || (g > r * 1.06 && g > b * 1.04) || onRunway(x, z)) continue; // water, shade, trees and crops, runways
+      pos.push(x, heightAt(x, z) + 5, z); col.push(...tints[(rnd() * tints.length) | 0]);
+    }
+  }
+  const g = new THREE.Group();
+  for (const { pos, col } of blocks) {
+    if (!pos.length) continue;
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3)); geo.setAttribute("color", new THREE.Float32BufferAttribute(col, 3)); geo.computeBoundingSphere();
+    g.add(new THREE.Points(geo, material));
+  }
+  return g.children.length ? g : null;
+}
+/** NASA's night-time brightness as a small texture for the ground's glow */
+function cityGlowTexture(nl) {
+  const { grid, n } = nl, d = new Uint8Array(n * n);
+  for (let k = 0; k < n * n; k++) d[k] = Math.round(grid[k] * 255);
+  const tex = new THREE.DataTexture(d, n, n, THREE.RedFormat); tex.magFilter = tex.minFilter = THREE.LinearFilter; tex.needsUpdate = true;
+  return tex;
+}
+
 /* ===================== Real World obstacles ===================== */
 /**
  * The FAA's obstacles, a few instanced meshes for hundreds of them: towers and antennas (in red and white bands when
@@ -1144,19 +1195,21 @@ export function sunFromHour(hour) {
 /**
  * High and above: town lights. Each point shrinks with distance, and once it would be smaller than a pixel it fades instead,
  * so a far town glows faintly instead of thousands of full-size points piling up into a white band on the horizon.
+ * Real World's city lights are seen from much farther: they stay full size out to `near` m, never fade below `floor`, and
+ * with `fogDim` haze dims them rather than mixing in its colour (a light adds to the scene: mixing would add haze).
  */
-function townLightMaterial(tex, pixelRatio) {
+function townLightMaterial(tex, pixelRatio, { size = 3, near = 450, floor = 0, fogDim = 0 } = {}) {
   return new THREE.ShaderMaterial({
-    uniforms: THREE.UniformsUtils.merge([THREE.UniformsLib.fog, { map: { value: tex }, uGain: { value: 1 }, uPR: { value: pixelRatio } }]),
+    uniforms: THREE.UniformsUtils.merge([THREE.UniformsLib.fog, { map: { value: tex }, uGain: { value: 1 }, uPR: { value: pixelRatio }, uSize: { value: size }, uNear: { value: near }, uFloor: { value: floor }, uFogDim: { value: fogDim } }]),
     vertexShader: `#include <common>
 #include <fog_pars_vertex>
 #include <logdepthbuf_pars_vertex>
-uniform float uGain, uPR; attribute vec3 color; varying vec3 vCol; varying float vA;
+uniform float uGain, uPR, uSize, uNear, uFloor; attribute vec3 color; varying vec3 vCol; varying float vA;
 void main(){
   vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
-  float px = 3.0 * 450.0 / max(-mvPosition.z, 1.0);
-  gl_PointSize = clamp(px, 1.0, 3.0) * uPR;
-  vA = px < 1.0 ? px * px : 1.0;
+  float px = uSize * uNear / max(-mvPosition.z, 1.0);
+  gl_PointSize = clamp(px, 1.0, uSize) * uPR;
+  vA = px < 1.0 ? max(px * px, uFloor) : 1.0;
   vCol = color * uGain;
   gl_Position = projectionMatrix * mvPosition;
   #include <logdepthbuf_vertex>
@@ -1165,12 +1218,15 @@ void main(){
     fragmentShader: `#include <common>
 #include <fog_pars_fragment>
 #include <logdepthbuf_pars_fragment>
-uniform sampler2D map; varying vec3 vCol; varying float vA;
+uniform sampler2D map; uniform float uFogDim; varying vec3 vCol; varying float vA;
 void main(){
   #include <logdepthbuf_fragment>
   gl_FragColor = vec4(vCol, texture2D(map, gl_PointCoord).a * vA);
   #include <tonemapping_fragment>
   #include <colorspace_fragment>
+  #if defined(USE_FOG) && !defined(FOG_EXP2)
+  if (uFogDim > 0.0) { gl_FragColor.rgb *= 1.0 - smoothstep(fogNear, fogFar, vFogDepth) * uFogDim; return; } // haze dims a far light; it doesn't turn it fog-coloured
+  #endif
   #include <fog_fragment>
 }`,
     transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: true,
@@ -1228,8 +1284,13 @@ export class World {
     const detail = await Promise.race([REAL.detail?.catch(() => null), new Promise((res) => setTimeout(res, 2500))]);
     if (detail) { const { applyAirportDetail } = await import("./realworld.js"); for (const ap of AIRPORTS) applyAirportDetail(ap, detail[ap.id], true); }
     progress("Raising the terrain"); await new Promise((res) => setTimeout(res, 16));
-    const terrain = buildTerrain(base, Q, { inner: innerTex, rect: { x0: home.x - S, z0: home.z - S, size: 2 * S }, average: (r << 16) | (g << 8) | b });
+    const city = REAL.lights ? { tex: cityGlowTexture(REAL.lights), half: REAL.lights.half } : null;
+    const terrain = buildTerrain(base, Q, { inner: innerTex, rect: { x0: home.x - S, z0: home.z - S, size: 2 * S }, average: (r << 16) | (g << 8) | b, city });
     this.scene.add(terrain.group); this.terrain = terrain; this.trees = null;
+    // the towns' lights at night
+    const lightMat = townLightMaterial(this.lightsTex, this.renderer.getPixelRatio(), { size: 2.6, near: 2500, floor: 0.45, fogDim: 0.75 });
+    const lights = REAL.lights && buildCityLights(REAL.lights, base, { low: 90000, high: 360000, ultra: 600000 }[this.quality] || 360000, 160, lightMat);
+    if (lights) { this.townLights = lights; this.townLightMat = lightMat; this.townGain = Q.pbr ? 2.2 : 1.2; lights.visible = false; this.scene.add(lights); }
   }
   /** a real airport's OpenStreetMap detail that arrived after the world was built (laid on the terrain) */
   addAirportDetail(ap) { this.ap.root.add(buildRealDetail(ap, this.ap.mats, this.ap.lights)); }
@@ -1306,6 +1367,7 @@ export class World {
     this.updateEnvMap(env.hour, env.snow || 0, gloom);
     if (this.clouds) this.clouds.setLight(new THREE.Color().copy(warm).multiplyScalar(0.25 + 0.75 * day).lerp(new THREE.Color(1, 1, 1), 0.4 * day), new THREE.Color(0.55, 0.6, 0.68).multiplyScalar(0.2 + 0.8 * day), dir, this.renderer.toneMappingExposure, gloom);
     this.sunWarm.copy(warm);
+    if (this.townLights) { this.townLights.visible = this.dusk; (this.townLightMat || this.townLights.material).uniforms.uGain.value = (this.townGain || 1.1) / this.renderer.toneMappingExposure; }
     if (!this.Q.pbr) return;
     // night lighting: lit windows and light points stay bright against the low night exposure; stars come out after dusk
     const exp = this.renderer.toneMappingExposure, nightK = Math.max(0, Math.min(1, (2 - elev) / 8));
@@ -1315,7 +1377,6 @@ export class World {
     WX.uNight.value = nightK; WX.uLightGain.value = 1 / exp; WX.uRain.value = env.rain || 0; WX.uTime.value = env.t || 0;
     const to = ((env.windDir ?? 270) + 180) * DEG, ws = (env.windKt || 0) * 0.5144; WX.uWind.value.set(Math.sin(to) * ws, -Math.cos(to) * ws);
     const k = Math.max(1, 1.5 / exp); for (const m of this.lightMats) m.color.setScalar(k);
-    if (this.townLights) { this.townLights.visible = this.dusk; this.townLights.material.uniforms.uGain.value = 1.1 / exp; }
     if (this.stars) {
       const sk = Math.max(0, Math.min(1, (-elev - 5) / 7)) * (1 - Math.min(1, gloom * 2)) * (1 - this.inCloud) * Math.min(1, env.visSM / 5);
       this.stars.visible = sk > 0.02; this.stars.material.color.setScalar(sk * 0.9 / exp); this.stars.material.opacity = Math.min(1, sk * 1.5);

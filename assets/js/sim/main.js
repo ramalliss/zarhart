@@ -659,11 +659,12 @@ function renderDrawer() {
     $("#pvShow", B).addEventListener("change", (e) => { settings.showWords = e.target.checked; saveSettings(); renderDrawer(); });
   } else if (n === "map") {
     B.innerHTML = `<canvas id="bigMap" aria-label="VFR sectional-style map. Click to fly direct to a point."></canvas>
-      <div class="maptools"><button class="sbtn" id="mzIn">＋</button><button class="sbtn" id="mzOut">−</button><span class="dnote">Click the map to go direct (GPS).</span></div>
+      <div class="maptools"><button class="sbtn" id="mzIn">＋</button><button class="sbtn" id="mzOut">−</button>${REAL ? `<button class="sbtn" id="mChart" ${chartBase ? "" : "disabled"}>${!chartBase ? "FAA chart loading…" : chartOn() ? "Simple map" : "FAA chart"}</button>` : ""}<span class="dnote">Click the map to go direct (GPS).</span></div>
       <div class="calls">${WAYPOINTS.map((w) => `<button class="sbtn" data-wp="${w.id}">→ ${w.id}</button>`).join("")}<button class="sbtn" id="wpClear">Clear GPS</button></div>
-      <p class="dnote">Sectional symbols: blue airports have a tower, magenta airports don't. The dashed blue ring is Class D (ceiling in brackets, hundreds of feet MSL). The magenta fade means Class E starts at 700 ft AGL. Learn them in Prep ${examLink("t45")}${examLink("e61")}.</p>`;
+      <p class="dnote">${chartOn() ? "The FAA's current VFR Sectional chart, with the Terminal Area Chart near busy airports (public domain). For practice, not for navigation. Read its symbols in" : "Sectional symbols: blue airports have a tower, magenta airports don't. The dashed blue ring is Class D (ceiling in brackets, hundreds of feet MSL). The magenta fade means Class E starts at 700 ft AGL. Learn them in"} Prep ${examLink("t45")}${examLink("e61")}.</p>`;
     const cv = $("#bigMap", B); bigMap.canvas = cv; drawBigMap();
     cv.addEventListener("click", (e) => { const r = cv.getBoundingClientRect(); const w = bigMap.toWorld(e.clientX - r.left, e.clientY - r.top); directTo({ id: "USER", name: "Map point", x: w.x, z: w.z }); });
+    $("#mChart", B)?.addEventListener("click", () => { settings.mapChart = !chartOn(); saveSettings(); renderDrawer(); });
     $("#mzIn", B).addEventListener("click", () => { bigMap.range = Math.max(2, bigMap.range / 1.5); drawBigMap(); }); $("#mzOut", B).addEventListener("click", () => { bigMap.range = Math.min(25, bigMap.range * 1.5); drawBigMap(); });
     B.querySelectorAll("[data-wp]").forEach((b) => b.addEventListener("click", () => directTo(WAYPOINTS.find((w) => w.id === b.dataset.wp))));
     $("#wpClear", B).addEventListener("click", () => { sim.gpsWp = null; sim.gpsFrom = null; sim.route = null; drawBigMap(); });
@@ -847,7 +848,16 @@ function drawBigMap() {
   const cv = bigMap.canvas; if (!cv || !sectionalBase || openDrawerName !== "map") return;
   const dpr = Math.min(2, devicePixelRatio || 1); const r = cv.getBoundingClientRect(); if (cv.width !== Math.round(r.width * dpr)) { cv.width = Math.round(r.width * dpr); cv.height = Math.round(r.height * dpr); }
   const g = cv.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0);
-  bigMap.toWorld = drawMap(g, 0, 0, r.width, r.height, { base: sectionalBase, cx: ac.pos.x, cz: ac.pos.z, rangeNm: bigMap.range, own: { x: ac.pos.x, z: ac.pos.z, hdg: ac.derived.hdg }, route: sim.route, style: "sectional" });
+  const chart = chartOn();
+  bigMap.toWorld = drawMap(g, 0, 0, r.width, r.height, { base: chart ? chartBase : sectionalBase, chart, cx: ac.pos.x, cz: ac.pos.z, rangeNm: bigMap.range, own: { x: ac.pos.x, z: ac.pos.z, hdg: ac.derived.hdg }, route: sim.route, style: "sectional" });
+}
+/** Real World mode: the big map shows the FAA's own chart once it has arrived, unless the simple map was chosen */
+const chartOn = () => !!chartBase && settings.mapChart !== false;
+/** the FAA chart for the map, fetched once the sim is flying so it doesn't hold up loading */
+async function realChartLater() {
+  const { loadChart } = await import("./realworld.js"), low = settings.quality === "low";
+  chartBase = await loadChart(REAL.frame, REAL.half, low ? 1024 : 2048, low ? 11 : 12).catch((err) => { console.warn("FAA chart:", err.message); return null; });
+  if (chartBase && openDrawerName === "map") renderDrawer();
 }
 
 /* ---------------- objectives card & HUD ---------------- */
@@ -1021,7 +1031,7 @@ function realWorldUi() {
   $("#realGo").addEventListener("click", go);
   $("#realApt").addEventListener("keydown", (ev) => { ev.stopPropagation(); if (ev.key === "Enter") go(); });
 }
-const REAL_ATTRIBUTION = "Terrain: Terrain Tiles on AWS (USGS 3DEP, SRTM) · Imagery: USGS The National Map · Airports: OurAirports · Taxiways: © OpenStreetMap contributors";
+const REAL_ATTRIBUTION = "Terrain: Terrain Tiles on AWS (USGS 3DEP, SRTM) · Imagery: USGS The National Map · Airports: OurAirports · Taxiways: © OpenStreetMap contributors · Charts: FAA · Night lights: NASA Black Marble";
 /** a Cherokee taxiing out from a parking spot along the real taxiways, once the home field has them */
 function realDepartureTraffic() {
   if (!KZAR.detail || !KZAR.holdShort.length || settings.traffic === false || lessons.lesson || mp.connected || traffic.agents.some((a) => a.kind === "depart")) return;
@@ -1217,7 +1227,7 @@ function panelState() {
 }
 
 /* ---------------- main loop ---------------- */
-let sectionalBase = null, last = performance.now(), panelT = 0, hudT = 0, monT = 0;
+let sectionalBase = null, chartBase = null, last = performance.now(), panelT = 0, hudT = 0, monT = 0;
 const headPos = new THREE.Vector3();
 /** One simulation step: controls, physics, events, monitors, lessons. `pilot` (tests) replaces keyboard input. */
 function stepSim(dt, pilot) {
@@ -1307,7 +1317,7 @@ async function boot() {
     if (REAL) await startLiveWeather(prog);
     else { sim.setWeather(PRESETS.scattered); sim.setTime(13); }
     spawn({ ...(KZAR.spawn.rwy27 || KZAR.spawn.start), onGround: true });
-    if (REAL) { sim.radio.com1 = KZAR.freqs.twr || KZAR.freqs.ctaf || 122.9; sim.radio.com2 = KZAR.freqs.gnd || KZAR.freqs.awos || KZAR.freqs.atis || 121.5; realDetailLater(); }
+    if (REAL) { sim.radio.com1 = KZAR.freqs.twr || KZAR.freqs.ctaf || 122.9; sim.radio.com2 = KZAR.freqs.gnd || KZAR.freqs.awos || KZAR.freqs.atis || 121.5; realDetailLater(); realChartLater(); }
     sim.ready = true; sim.d = ac.derived;
     if (post) post.overlay = world.labels;
     $("#loading").hidden = true; $("#startChoices").hidden = false;

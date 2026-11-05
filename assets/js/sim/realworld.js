@@ -7,13 +7,17 @@
 //   live weather     National Weather Service observations (api.weather.gov, public domain)
 //   airspace         FAA Aeronautical Information Services open data (Class B–E and special use, public domain)
 //   obstacles        the FAA Digital Obstacle File (towers, antennas, stacks, tall buildings: public domain)
+//   charts           the FAA's current VFR Sectional and Terminal Area Charts, for the map (public domain)
+//   night lights     NASA Black Marble (VIIRS night-time brightness, 2016: public domain), for city lights at night
 // The sim's frame is flat: x metres east and z metres south of the home airport, so north is -z, as in Zarhart Valley.
 
 const R = 6378137, DEG = Math.PI / 180, FT = 0.3048;
-export const ATTRIBUTION = "Terrain: Terrain Tiles on AWS (USGS 3DEP, SRTM) · Imagery: USGS The National Map · Airports: OurAirports · Taxiways: © OpenStreetMap contributors";
+export const ATTRIBUTION = "Terrain: Terrain Tiles on AWS (USGS 3DEP, SRTM) · Imagery: USGS The National Map · Airports: OurAirports · Taxiways: © OpenStreetMap contributors · Charts: FAA · Night lights: NASA Black Marble";
 const DATA = new URL("../../data/airports/", import.meta.url).href;
 const DEM = (z, x, y) => `https://s3.amazonaws.com/elevation-tiles-prod/terrarium/${z}/${x}/${y}.png`;
 const PHOTO = (z, x, y) => `https://basemap.nationalmap.gov/arcgis/rest/services/USGSImageryOnly/MapServer/tile/${z}/${y}/${x}`;
+const CHARTS = "https://tiles.arcgis.com/tiles/ssFJjBXIUyZDrSYZ/arcgis/rest/services";
+const LIGHTS = (z, x, y) => `https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/VIIRS_Black_Marble/default/2016-01-01/GoogleMapsCompatible_Level8/${z}/${y}/${x}.png`;
 
 /** a flat local frame around (lat0, lon0): good to a few metres across 60 km */
 export class GeoFrame {
@@ -31,16 +35,24 @@ async function pool(items, n, fn, progress) {
   const worker = async () => { while (next < items.length) { const i = next++; await fn(items[i], i); done++; progress?.(done, items.length); } };
   await Promise.all(Array.from({ length: Math.min(n, items.length) }, worker));
 }
-async function image(url, tries = 3) {
+/** a tile's bytes, or null when there is none; network errors are tried again */
+async function fetchTile(url, tries = 3) {
   for (let k = 0; k < tries; k++) {
     try {
-      const r = await fetch(url, { mode: "cors" });
+      // a server that never answers would hold up loading for good: give each try 15 s
+      const r = await fetch(url, { mode: "cors", signal: AbortSignal.timeout?.(15000) });
       if (r.status === 404) return null;
       if (!r.ok) throw new Error(r.status);
-      return await createImageBitmap(await r.blob(), { colorSpaceConversion: "none", premultiplyAlpha: "none" });
+      return await r.blob();
     } catch (err) { if (k === tries - 1) { console.warn("tile failed", url, err); return null; } await new Promise((res) => setTimeout(res, 400 * (k + 1))); }
   }
 }
+async function image(url, tries = 3) {
+  const blob = await fetchTile(url, tries); if (!blob) return null;
+  try { return await createImageBitmap(blob, { colorSpaceConversion: "none", premultiplyAlpha: "none" }); } catch (err) { console.warn("tile unreadable", url, err); return null; }
+}
+/** draw one tile from tileUrl(tx, ty) into a mosaic; false when there isn't one */
+const tile = (tileUrl) => async (g, tx, ty, ox, oy) => { const bmp = await image(tileUrl(tx, ty)); if (!bmp) return false; g.drawImage(bmp, ox, oy); bmp.close?.(); return true; };
 const canvas = (w, h) => { const c = document.createElement("canvas"); c.width = w; c.height = h; return c; };
 /** the tile range that covers a local square [cx ± half, cz ± half] */
 function tileRange(frame, cx, cz, half, zoom) {
@@ -100,14 +112,15 @@ function fillGaps(hm, W, H) {
 }
 
 /**
- * Aerial photos of the square [cx ± half, cz ± half] on a size × size canvas, north up. The tiles come in Web Mercator;
- * rows of constant latitude are straight in both projections, so each output row is copied from the matching mosaic row.
+ * A Web Mercator tile set over the square [cx ± half, cz ± half] on a size × size canvas, north up: drawTile(g, tx, ty,
+ * ox, oy) puts each tile into a mosaic, and since rows of constant latitude are straight in both projections, each output
+ * row is copied from the matching mosaic row. null if no tile came.
  */
-export async function loadPhotos(frame, cx, cz, half, size, zoom, progress) {
+async function mosaic(frame, cx, cz, half, size, zoom, drawTile, fill, progress) {
   const t = tileRange(frame, cx, cz, half, zoom), W = (t.x1 - t.x0 + 1) * 256, H = (t.y1 - t.y0 + 1) * 256;
-  const mosaic = canvas(W, H), mg = mosaic.getContext("2d"); mg.fillStyle = "#56603f"; mg.fillRect(0, 0, W, H);
+  const m = canvas(W, H), mg = m.getContext("2d"); mg.fillStyle = fill; mg.fillRect(0, 0, W, H);
   let got = 0;
-  await pool(tilesOf(t), 8, async ([tx, ty]) => { const bmp = await image(PHOTO(zoom, tx, ty)); if (!bmp) return; mg.drawImage(bmp, (tx - t.x0) * 256, (ty - t.y0) * 256); bmp.close?.(); got++; }, progress);
+  await pool(tilesOf(t), 8, async ([tx, ty]) => { if (await drawTile(mg, tx, ty, (tx - t.x0) * 256, (ty - t.y0) * 256)) got++; }, progress);
   if (!got) return null;
   const out = canvas(size, size), og = out.getContext("2d"); og.imageSmoothingQuality = "high";
   const [, lonW] = frame.toGeo(cx - half, 0), [, lonE] = frame.toGeo(cx + half, 0), sx = mx(lonW, zoom) - t.x0 * 256, sw = mx(lonE, zoom) - mx(lonW, zoom);
@@ -115,10 +128,46 @@ export async function loadPhotos(frame, cx, cz, half, size, zoom, progress) {
   for (let r = 0; r < size; r += band) {
     const z0 = cz - half + (r / size) * 2 * half, z1 = cz - half + ((r + band) / size) * 2 * half;
     const y0 = my(frame.toGeo(0, z0)[0], zoom) - t.y0 * 256, y1 = my(frame.toGeo(0, z1)[0], zoom) - t.y0 * 256;
-    og.drawImage(mosaic, sx, y0, sw, Math.max(0.5, y1 - y0), 0, r, size, band);
+    og.drawImage(m, sx, y0, sw, Math.max(0.5, y1 - y0), 0, r, size, band);
   }
-  mosaic.width = mosaic.height = 0; // free it now
+  m.width = m.height = 0; // free it now
   return out;
+}
+/** aerial photos of the square [cx ± half, cz ± half] on a size × size canvas, north up */
+export const loadPhotos = (frame, cx, cz, half, size, zoom, progress) => mosaic(frame, cx, cz, half, size, zoom, tile((x, y) => PHOTO(zoom, x, y)), "#56603f", progress);
+
+/**
+ * The FAA's current VFR charts over the whole square for the map, north up (public domain; not for navigation): the
+ * Terminal Area Chart (1:250,000) on every tile one covers, with the Sectional (1:500,000) under its edges and elsewhere.
+ */
+export async function loadChart(frame, half, size, zoom, progress) {
+  const t = tileRange(frame, 0, 0, half, zoom), url = (chart, tx, ty) => `${CHARTS}/${chart}/MapServer/tile/${zoom}/${ty}/${tx}`;
+  let tac = () => false;
+  try { // which tiles the terminal area charts cover (an error when none does)
+    const j = await (await fetch(`${CHARTS}/VFR_Terminal/MapServer/tilemap/${zoom}/${t.y0}/${t.x0}/${t.x1 - t.x0 + 1}/${t.y1 - t.y0 + 1}?f=json`)).json(), L = j.location;
+    if (j.data && L) tac = (tx, ty) => { const c = tx - L.left, r = ty - L.top; return c >= 0 && r >= 0 && c < L.width && r < L.height && j.data[r * L.width + c] === 1; };
+  } catch { /* the sectional alone */ }
+  const draw = async (g, blob, ox, oy) => { if (!blob) return false; try { const bmp = await createImageBitmap(blob); g.drawImage(bmp, ox, oy); bmp.close?.(); return true; } catch { return false; } };
+  return mosaic(frame, 0, 0, half, size, zoom, async (g, tx, ty, ox, oy) => {
+    const tc = tac(tx, ty) ? await fetchTile(url("VFR_Terminal", tx, ty)) : null;
+    // the terminal chart's tiles are JPEG, except at its edge, where a PNG lets the sectional show through
+    const edge = !tc || new Uint8Array(await tc.slice(0, 1).arrayBuffer())[0] === 0x89;
+    const under = edge && (await draw(g, await fetchTile(url("VFR_Sectional", tx, ty)), ox, oy));
+    return (await draw(g, tc, ox, oy)) || under;
+  }, "#f2efe6", progress);
+}
+
+/**
+ * How bright the square is at night, from NASA's Black Marble (VIIRS, 2016): an n × n grid (row 0 = the north edge, about
+ * 470 m a cell at n = 128) from 0 (dark countryside) to 1 (a city centre). null offline.
+ */
+export async function loadNightLights(frame, half, n = 128) {
+  const c = await mosaic(frame, 0, 0, half, n, 8, tile((x, y) => LIGHTS(8, x, y)), "#000", null);
+  if (!c) return null;
+  const d = c.getContext("2d", { willReadFrequently: true }).getImageData(0, 0, n, n).data, grid = new Float32Array(n * n);
+  const floor = 0.12; // the darkest land on the map is a dim blue-grey, not black
+  for (let k = 0; k < n * n; k++) grid[k] = Math.max(0, Math.min(1, ((0.35 * d[k * 4] + 0.5 * d[k * 4 + 1] + 0.15 * d[k * 4 + 2]) / 255 - floor) / (1 - floor)));
+  return { grid, n, half };
 }
 
 /* ---------- airports ---------- */
@@ -205,10 +254,12 @@ export async function loadRealWorld(ident, { half = 30000, demZoom = 12, grid = 
     ? { id: `${a.id}-C`, name: `${a.call} Class C (approximate)`, cls: "C", x: a.x, z: a.z, r: 9260, floorFt: 0, ceilFt: Math.round((a.elevFt + 4000) / 100) * 100 }
     : { id: `${a.id}-D`, name: `${a.call} Class D (approximate)`, cls: "D", x: a.x, z: a.z, r: 7780, floorFt: 0, ceilFt: Math.round((a.elevFt + 2500) / 100) * 100 }).map((x) => ({ ...x, approx: true }));
   const detail = loadAirportDetail(frame, airports); // taxiways and ramps arrive whenever OpenStreetMap answers (often while the terrain loads)
+  // night lights are a nicety: never wait more than 10 s for them
+  const nightLights = Promise.race([loadNightLights(frame, half), new Promise((res) => setTimeout(() => res(null), 10000))]).catch(() => null);
   const heights = await loadHeights(frame, half, { zoom: demZoom, G: grid, progress: (d, n) => progress(`Downloading real terrain (${d}/${n})`) });
   const airspace = (await realAirspace) || approx();
   const obstacles = (await realObstacles) || [];
-  return { frame, airports, navaids, airspace, obstacles, heights, variation: near?.var ?? 0, half, detail };
+  return { frame, airports, navaids, airspace, obstacles, heights, lights: await nightLights, variation: near?.var ?? 0, half, detail };
 }
 
 /* ---------- taxiways, ramps and buildings (OpenStreetMap) ---------- */
@@ -524,8 +575,8 @@ async function loadObstacles(frame, half) {
   const [latN, lonW] = frame.toGeo(-half, -half), [latS, lonE] = frame.toGeo(half, half);
   const url = `${FAA}/Digital_Obstacle_File/FeatureServer/0/query?where=${encodeURIComponent("AGL>=150 AND NOT Type_Code LIKE 'CATENARY%'")}&geometry=${lonW.toFixed(4)},${latS.toFixed(4)},${lonE.toFixed(4)},${latN.toFixed(4)}&geometryType=esriGeometryEnvelope&inSR=4326&spatialRel=esriSpatialRelIntersects&outFields=Type_Code,AGL,Lighting,Marking,City&returnGeometry=true&outSR=4326&resultRecordCount=2000&f=json`;
   try {
-    const r = await Promise.race([fetch(url), new Promise((_, rej) => setTimeout(() => rej(new Error("timeout")), 9000))]);
-    const j = await r.json(); if (j.error) throw new Error(j.error.message);
+    const j = await Promise.race([fetch(url).then((r) => r.json()), new Promise((_, rej) => setTimeout(() => rej(new Error("timeout")), 9000))]);
+    if (j.error) throw new Error(j.error.message);
     return (j.features || []).map((f) => {
       const a = f.attributes, t = (a.Type_Code || "").trim().toUpperCase(), [type, kind] = OB_KIND(t), [x, z] = frame.toLocal(f.geometry.y, f.geometry.x), L = (a.Lighting || "").trim();
       return { name: `${kind[0].toUpperCase()}${kind.slice(1)}${a.City ? ` (${title(a.City.trim())})` : ""}`, type, kind, x, z, hAgl: a.AGL * FT, red: /[RDLWCU]/.test(L), white: /[HMSD]/.test(L), marked: /[PBC]/.test((a.Marking || "").trim()) || a.AGL >= 200 && type === "mast" };
