@@ -70,6 +70,7 @@ export const LESSONS = [
   },
   {
     id: "stall", title: "Power-off stall & recovery", tag: "Slow flight & stalls", time: "4 min", level: 2,
+    debrief: { skip: ["stallWarn"] }, // the instructor's notes (debrief.js): the horn is the point here
     summary: "In landing configuration, slow until the wing stalls, then recover. Then stall again in a 30° bank and compare the airspeed. The angle of attack is the same.",
     exam: ["t42", "t9", "t58", "e34", "t24"],
     tips: ["The stall horn sounds about 5–10 kt before the stall.", "Recover: reduce the angle of attack first (nose down), full power, level the wings with coordinated rudder, flaps to 20.", "A wing always stalls at the same critical angle of attack. Bank and weight change only the speed."],
@@ -83,6 +84,7 @@ export const LESSONS = [
   },
   {
     id: "softfield", title: "Soft-field takeoff on grass", tag: "Takeoffs & landings", time: "3 min", level: 2,
+    debrief: { skip: ["long", "centreline", "crab", "fastTouchdown", "bounce"] }, // a takeoff: lifting off early and settling back is part of it
     summary: "Electra Field's grass strip: get the nosewheel up early, lift off slowly, then accelerate in ground effect before climbing.",
     exam: ["t55", "t21", "t35"],
     tips: ["Flaps 10, full back pressure as you add power, then ease off to hold the nosewheel just clear.", "Ground effect lets you fly below normal climb speed. Climbing out of it too slowly brings induced drag back, and you can settle.", "Accelerate to Vx (59) or Vy (74) before climbing out of ground effect."],
@@ -170,6 +172,7 @@ export const LESSONS = [
   },
   {
     id: "wake", title: "Wake turbulence behind a heavy jet", tag: "Wake turbulence", time: "5 min", level: 3,
+    debrief: { skip: ["long"] }, // landing beyond the jet's touchdown point is the lesson
     summary: "A heavy jet lands ahead of you on runway 27. Its wingtip vortices sink and drift. Stay above its path and land beyond its touchdown point.",
     exam: ["t25", "t36", "t51", "t53"],
     tips: ["Vortices form only while the wing makes lift, from rotation to touchdown.", "They sink 300–500 fpm and level off 500–1,000 ft below the flight path.", "A light quartering tailwind is the worst case: it can hold vortices over the runway."],
@@ -390,6 +393,7 @@ export const LESSONS = [
   },
   {
     id: "shortfield", pro: true, title: "Short-field approach and landing", tag: "Takeoffs & landings", time: "4 min", level: 3,
+    debrief: { appKt: 60 },
     summary: "Runway 27 with 50-ft trees before the threshold. Full flaps, 60 KIAS, clear the trees, touch down on the orange aiming point and stop as short as you can.",
     exam: ["t35", "t39", "e34"],
     tips: ["Flaps 30 and 60 KIAS on final; the ACS allows +10/−5 kt. A steeper, slower approach clears the trees and still lands short.", "Aim at the orange bar 500 ft past the threshold. The ACS standard is on it or within 100 ft beyond it.", "Extra speed means floating in ground effect and using up runway. Once down: flaps up, full back elevator, maximum braking."],
@@ -405,6 +409,7 @@ export const LESSONS = [
   },
   {
     id: "slowflight", pro: true, title: "Slow flight", tag: "Slow flight & stalls", time: "5 min", level: 2,
+    debrief: { skip: ["stallWarn"] },
     summary: "Fly at the edge of a stall without stalling: full flaps, just above the stall horn, holding altitude. Then turn and climb. Here the nose controls airspeed and power controls altitude.",
     exam: ["t24", "p36", "e39", "t58"],
     tips: ["Power back and hold altitude as you slow; flaps 30 below 85 KIAS. Add power at about 52 KIAS to stop the descent.", "Behind the power curve, power holds altitude and the nose holds airspeed. Expect lots of right rudder at high power and a high angle of attack (P-factor).", "ACS: altitude ±100 ft, heading ±10°, airspeed +10/−0 kt, and no stall warning. Keep turns shallow: the stall speed rises with bank."],

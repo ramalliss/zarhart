@@ -2,5 +2,5 @@
   "name": "zarhart",
   "private": true,
   "type": "module",
-  "scripts": { "test": "node tools/test-fdm.mjs", "serve": "python -m http.server 8765" }
+  "scripts": { "test": "node tools/test-fdm.mjs && node tools/test-vr.mjs && node tools/test-debrief.mjs", "serve": "python -m http.server 8765" }
 }

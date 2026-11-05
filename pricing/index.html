@@ -79,6 +79,35 @@
   .tier .for { min-height: 0; }
   .faq { grid-template-columns: minmax(0, 1fr); margin-top: 88px; }
 }
+
+.sample { margin-top: 96px; display: grid; grid-template-columns: minmax(0, 4fr) minmax(0, 8fr); gap: clamp(28px, 5vw, 80px); align-items: start; }
+.sample .sub { color: var(--muted); max-width: 40ch; margin: 14px 0 18px; }
+.samplecard { border: 1px solid var(--line-2); padding: 22px 24px; display: grid; gap: 14px; background: var(--panel, #0E1115); }
+.samplecard header { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; flex-wrap: wrap; }
+.samplecard h3 { margin: 0; font-size: 20px; letter-spacing: .04em; text-transform: uppercase; }
+.samplecard .tag { font: 500 12px var(--f-mono); color: var(--muted); }
+.samplecard .tablewrap { overflow-x: auto; }
+.samplecard table { width: 100%; border-collapse: collapse; font-size: 14.5px; }
+.samplecard th, .samplecard td { text-align: left; padding: 8px 10px; border-top: 1px solid var(--line); vertical-align: top; }
+.samplecard thead th { font: 600 11px var(--f-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); border-top: 0; }
+.samplecard tbody th { font-weight: 600; }
+.samplecard ul { margin: 0; padding-left: 18px; display: grid; gap: 6px; color: #D5DAE0; font-size: 14.5px; }
+.samplecard .cardfoot { margin: 0; font: 500 11px var(--f-mono); color: var(--dim); }
+@media (max-width: 640px) { .sample { grid-template-columns: minmax(0, 1fr); margin-top: 72px; } .samplecard { padding: 16px; } .samplecard table { font-size: 13px; } .samplecard th, .samplecard td { padding: 6px; } }
+/* "Print this card": the card alone, black on white, on one US Letter page */
+@page { size: letter; margin: 0.5in; }
+@media print {
+  body.print-sample > *:not(main), body.print-sample main > *:not(.sample), body.print-sample .sample > div:first-child { display: none !important; }
+  body.print-sample, body.print-sample main { background: #fff !important; color: #000; margin: 0; padding: 0; }
+  body.print-sample .sample { display: block; margin: 0; }
+  body.print-sample .samplecard { background: #fff; border-color: #999; color: #000; }
+  body.print-sample main.wrap { max-width: none !important; width: auto; padding: 0 !important; }
+  body.print-sample .samplecard { width: 100%; box-sizing: border-box; padding: 14px 16px; gap: 10px; }
+  body.print-sample .samplecard table, body.print-sample .samplecard ul { font-size: 10pt; }
+  body.print-sample .samplecard th, body.print-sample .samplecard td { padding: 5px 8px; }
+  body.print-sample .samplecard *, body.print-sample .samplecard thead th { color: #000 !important; }
+  :root { color-scheme: light; }
+}
 </style>
 <link rel="manifest" href="../assets/site.webmanifest">
 <link rel="apple-touch-icon" href="../assets/img/icons/apple-touch-icon.png">
@@ -129,7 +158,7 @@
       <p class="for">Everything to know cold, on paper, for the week of your knowledge test.</p>
       <p class="price"><b data-price="pass">$14.99</b><span>one time</span></p>
       <ul>
-        <li>10 quick-reference cards: VFR minimums, airspace, signs, lighting, light-gun signals and more</li>
+        <li>10 quick-reference cards: VFR minimums, airspace, signs, lighting, light-gun signals and more (<a href="#sample">see one free</a>)</li>
         <li>15 normal and emergency checklists for the C172-class trainer</li>
         <li>An exam-day plan: endorsement, FTN, PSI, what to bring</li>
         <li>175 printable flashcards with explanations</li>
@@ -166,12 +195,35 @@
   </section>
   <p class="legend"><span><i></i>Planned: not available yet</span><span>Prices in US dollars. Taxes may apply.</span><span>By buying you agree to the <a href="../terms/">terms</a>. <a href="../refunds/">14-day refund policy</a>.</span></p>
 
+  <section class="sample" id="sample" aria-labelledby="sampleh">
+    <div><p class="eyebrow">Free sample</p><h2 id="sampleh" style="margin-top:16px">One Pass Pack card, free.</h2>
+      <p class="sub">This is the VFR weather minimums card from the Pass Pack, as it prints. Nine more like it come in the pack.</p>
+      <button class="btn sm" id="printSample" type="button">Print this card</button></div>
+      <article class="samplecard" id="vfr-mins-card"><header><h3>VFR weather minimums</h3><span class="tag">14 CFR 91.155</span></header>
+        <div class="tablewrap"><table><thead><tr><th scope="col">Airspace</th><th scope="col">Visibility</th><th scope="col">Distance from clouds</th></tr></thead><tbody>
+          <tr><th scope="row">Class A</th><td>—</td><td>IFR only</td></tr>
+          <tr><th scope="row">Class B</th><td>3 SM</td><td>Clear of clouds</td></tr>
+          <tr><th scope="row">Class C</th><td>3 SM</td><td>500 below · 1,000 above · 2,000 horizontal</td></tr>
+          <tr><th scope="row">Class D</th><td>3 SM</td><td>500 below · 1,000 above · 2,000 horizontal</td></tr>
+          <tr><th scope="row">Class E below 10,000 MSL</th><td>3 SM</td><td>500 below · 1,000 above · 2,000 horizontal</td></tr>
+          <tr><th scope="row">Class E at or above 10,000 MSL</th><td>5 SM</td><td>1,000 below · 1,000 above · 1 SM horizontal</td></tr>
+          <tr><th scope="row">Class G, 1,200 AGL or less, day</th><td>1 SM</td><td>Clear of clouds</td></tr>
+          <tr><th scope="row">Class G, 1,200 AGL or less, night</th><td>3 SM</td><td>500 below · 1,000 above · 2,000 horizontal*</td></tr>
+          <tr><th scope="row">Class G, above 1,200 AGL below 10,000 MSL, day</th><td>1 SM</td><td>500 below · 1,000 above · 2,000 horizontal</td></tr>
+          <tr><th scope="row">Class G, above 1,200 AGL below 10,000 MSL, night</th><td>3 SM</td><td>500 below · 1,000 above · 2,000 horizontal</td></tr>
+          <tr><th scope="row">Class G, above 1,200 AGL at or above 10,000 MSL</th><td>5 SM</td><td>1,000 below · 1,000 above · 1 SM horizontal</td></tr>
+        </tbody></table></div>
+        <ul><li>* Night in Class G at or below 1,200 AGL: 1 SM and clear of clouds is allowed in a traffic pattern within ½ SM of the runway.</li><li>Memory aid for C, D and E below 10,000 MSL: “3-152”: 3 SM, 1,000 above, 500 below, 2,000 horizontal.</li><li>Inside the surface area of Class B, C, D or E airspace you need a 1,000 ft ceiling and 3 SM ground visibility to fly VFR beneath the ceiling or enter the traffic pattern.</li><li>Special VFR (91.157): ATC clearance, 1 SM, clear of clouds, below 10,000 MSL in a surface area. At night it also needs an instrument rating and an IFR-equipped airplane.</li></ul>
+        <p class="cardfoot">Zarhart Written Test Pass Pack · Study aid, not FAA-approved training</p>
+      </article>
+  </section>
+
   <section class="faq" aria-labelledby="faqh">
     <div><p class="eyebrow">Questions</p><h2 id="faqh" style="margin-top:16px">Before you buy.</h2></div>
     <div>
       <details><summary>Is the simulator really free?</summary><p>Yes. Flying, all 19 lessons, the 650+ practice questions, flashcards, quizzes and the practice tests are free and need no account. The paid plans add printable study material and future content; they don't lock anything that's free today.</p></details>
       <details><summary>What's the difference between the Pass Pack and Pro?</summary><p>The Pass Pack is a one-time purchase of printable reference cards, checklists, an exam-day plan and flashcards. Pro is a subscription that includes the Pass Pack and adds the checkride lessons, then new scenario packs, more airports and scenery, and your progress on all your devices as they're released. The question bank, smart review and practice exams stay free.</p></details>
-      <details><summary>Where can I buy?</summary><p>Purchases are coming to the Zarhart app for iPhone and Android first, through the App Store and Google Play. Buying on the website is coming soon. Until a plan shows a buy button, it isn't on sale yet.</p></details>
+      <details><summary>Where can I buy?</summary><p>The Pass Pack is on sale here on the website: tap Buy, pay at the secure checkout, and your Pass Pack arrives by email within 24 hours. Purchases in the Zarhart app for iPhone and Android, through the App Store and Google Play, are coming. Until a plan shows a buy button, it isn't on sale yet.</p></details>
       <details><summary>Is Zarhart FAA-approved?</summary><p>No. Zarhart is a study aid. It isn't FAA-approved training, and time in it can't be logged. You still need an endorsement from a flight instructor or a home-study course before you take the knowledge test.</p></details>
       <details><summary>How do refunds work?</summary><p>Pass Pack purchases on the website come with a 14-day money-back guarantee: reply to your receipt and you get a full refund, no reason needed. Purchases in the app are refunded by Apple or Google under their policies. See the <a href="../refunds/">refund policy</a>.</p></details>
       <details><summary>What do you do with my data?</summary><p>Your progress stays on your device. Read the <a href="../privacy/">privacy policy</a> for the details.</p></details>
@@ -194,7 +246,7 @@
 // Prices and checkout links. Leave a link empty and that plan shows "Coming soon" instead of a buy button.
 // In the mobile app the same plans are the store products zarhart_pass_pack, zarhart_pro_monthly and zarhart_pro_yearly.
 const CONFIG = {
-  pass: { price: "$14.99", checkout: "" },
+  pass: { price: "$14.99", checkout: "https://www.paypal.com/ncp/payment/7TJ3H4FS8WXRE" },
   proMonthly: { price: "$4.99", checkout: "" },
   proYearly: { price: "$29.99", checkout: "" },
   schoolsContact: "", // e.g. "mailto:schools@yourdomain"
@@ -206,7 +258,7 @@ const num = (s) => parseFloat(String(s).replace(/[^0-9.]/g, "")) || 0;
 
 document.querySelector('[data-price="pass"]').textContent = CONFIG.pass.price;
 document.querySelector('[data-go="pass"]').innerHTML =
-  CONFIG.pass.checkout ? buy(CONFIG.pass.checkout, `Buy for ${CONFIG.pass.price}`) : soon("Checkout coming soon");
+  CONFIG.pass.checkout ? buy(CONFIG.pass.checkout, `Buy for ${CONFIG.pass.price}`) + `<p class="state">Your Pass Pack arrives by email within 24 hours of payment.</p>` : soon("Checkout coming soon");
 document.querySelector('[data-go="schools"]').innerHTML = CONFIG.schoolsContact
   ? `<a class="btn" href="${CONFIG.schoolsContact}">Contact us</a>` : soon();
 
@@ -223,6 +275,8 @@ function setBilling(period) {
 }
 for (const b of document.querySelectorAll("[data-bill]")) b.addEventListener("click", () => setBilling(b.dataset.bill));
 setBilling("year");
+document.getElementById("printSample")?.addEventListener("click", () => { document.body.classList.add("print-sample"); window.print(); });
+addEventListener("afterprint", () => document.body.classList.remove("print-sample"));
 </script>
 </body>
 </html>

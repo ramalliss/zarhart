@@ -186,6 +186,7 @@ export class Input {
     if (this.held("f", "PageDown", "-")) c.throttle = clamp(c.throttle - 0.45 * dt, 0, 1);
     if (this.touch.throttle != null) { c.throttle = this.touch.throttle; this.touch.throttle = null; } // slider moves set it once; lessons and keys can still change it
     if (xr?.thr) c.throttle = clamp(c.throttle + xr.thr * 0.5 * dt, 0, 1);
+    if (xr?.throttleSet != null) c.throttle = xr.throttleSet; // a pinched hand moving the throttle like a lever (vr.js)
     if (this._holds.throttleUp) c.throttle = clamp(c.throttle + 0.45 * dt, 0, 1);
     if (this._holds.throttleDown) c.throttle = clamp(c.throttle - 0.45 * dt, 0, 1);
     // mixture: Z richer, X leaner (or the red lever, or the Aircraft drawer)

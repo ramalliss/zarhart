@@ -14,7 +14,9 @@ import { Panel, setPanelV } from "./panel.js";
 import { buildSectionalBase, drawMap } from "./map.js";
 import { CHECKLISTS, suggestChecklist } from "./checklists.js";
 import { LESSONS, LessonRunner, realLessons } from "./lessons.js";
-import { VR, VR_CONTROLS, PHONE_VR_CONTROLS } from "./vr.js";
+import { VR, VR_CONTROLS, PINCH_CONTROLS, PHONE_VR_CONTROLS } from "./vr.js";
+import { shouldOfferLowForVR, vrFlags, FrameStats } from "./headset.js";
+import { FlightRecorder, findMistakes, nextTry, LiveCoach, landingRunway, approachProfile } from "./debrief.js";
 import { buildCall, scoreCall, Listener } from "./radio.js";
 import { Traffic } from "./traffic.js";
 import { Multiplayer } from "./mp.js";
@@ -45,14 +47,15 @@ const FREQS = REAL ? realFreqs() : [
 const freqInfo = (f) => { let best = null, bd = Infinity; for (const q of FREQS) if (Math.abs(q.f - f) < 0.004) { const d = q.ap ? Math.hypot(q.ap.x - ac.pos.x, q.ap.z - ac.pos.z) : 0; if (d < bd) { bd = d; best = q; } } return best; };
 
 /* ---------------- settings ---------------- */
-const settings = Object.assign({ quality: "high", invert: false, mouseYoke: false, autoRudder: true, sound: true, voice: false, panel: "steam", sens: "normal", floating: true, touchRight: "slider", tilt: false, haptics: true, ctlMap: null, pad: true, pvrSep: 100, pvrFov: 80, acType: "c172" }, store.get("settings", {}));
+const settings = Object.assign({ quality: "high", invert: false, mouseYoke: false, autoRudder: true, sound: true, voice: false, panel: "steam", sens: "normal", floating: true, touchRight: "slider", tilt: false, haptics: true, ctlMap: null, pad: true, pvrSep: 100, pvrFov: 80, acType: "c172", callouts: true }, store.get("settings", {}));
 settings.assist ||= settings.autoRudder === false ? "off" : "assisted";
 const saveSettings = () => store.set("settings", settings);
 
 /* ---------------- renderer & scene ---------------- */
 const view = $("#view");
 const Q = preset(settings.quality); // Graphics: low, high or ultra (gfx.js)
-const renderer = new THREE.WebGLRenderer({ canvas: view, antialias: true, logarithmicDepthBuffer: true, powerPreference: "high-performance" });
+const FLAGS = vrFlags(location.search); // testing VR on a headset: ?vrstats=1, ?logdepth=0 (headset.js)
+const renderer = new THREE.WebGLRenderer({ canvas: view, antialias: true, logarithmicDepthBuffer: FLAGS.logDepth, powerPreference: "high-performance" });
 renderer.setPixelRatio(Math.min(devicePixelRatio || 1, Q.pixelRatio));
 const autoRes = new AutoRes(renderer.getPixelRatio()); // draws fewer pixels when the frame rate drops (Settings)
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -92,12 +95,18 @@ const sim = {
   lastTouchdown: null, lightGun: null, showG: false, view: "cockpit", vor1: null,
   say, radioLog, callsign: SHORT, spawn, setRoute, vasi: (ap, endId) => world.vasiAt(ap, endId, { x: ac.pos.x, y: ac.pos.y + 0.6, z: ac.pos.z }),
   setWeather(p) {
-    weather.set(p); weather.isLive = !!p?.live; // live weather keeps itself current (Real World mode) ac.inst.kollsman = weather.qnhInHg; if (world.clouds) world.clouds.build(weather.cloudLayersMsl());
+    weather.set(p); weather.isLive = !!p?.live; // live weather keeps itself current (Real World mode)
+    ac.inst.kollsman = weather.qnhInHg; if (world.clouds) world.clouds.build(weather.cloudLayersMsl());
     const mb = weather.microburst; if (world.shaft) world.setStorm(mb, mb ? heightAt(mb.x, mb.z) : 0, mb ? (weather.cloudLayersMsl()[0]?.baseMsl ?? 1500) : 0);
   },
   setTime(h) { weather.hour = h; },
 };
 const lessons = new LessonRunner(sim);
+/** the flight recorder and the instructor's notes (debrief.js): free, in the sim; the AI debrief will read the same recording */
+const recorder = new FlightRecorder(4), liveCoach = new LiveCoach(12);
+const debriefCtx = () => ({ V: ac.ac.V, airports: AIRPORTS, gustAdd: Math.max(0, (weather.gustKt || 0) - (weather.windKt || 0)) / 2, ...lessons.lesson?.debrief });
+let landingNote = null, lessonNotes = null, freeNotes = null;
+const vrNotes = { queue: [], next: 0 }; // in VR the notes come one at a time on the glareshield, read aloud
 /* automated traffic: heard only on the frequencies your audio panel is listening to */
 const traffic = new Traffic(scene, {
   weather, atis: () => weatherLetter(), player: () => ({ x: ac.pos.x, z: ac.pos.z, onGround: ac.derived.onGround, gs: ac.derived.gs }),
@@ -144,6 +153,8 @@ function spawn(spec) {
   if (spec.onGround === false) { ac.elec.lights.landing = true; ac.elec.lights.strobe = true; ac.elec.lights.beacon = true; }
   sim.flags = { everAirborne: !spec.onGround ? true : false, everRan: ac.eng.running };
   sim.lastTouchdown = null; sim.gpsWp = null; sim.gpsFrom = null; sim.pcl = { level: sim.pcl.level, until: sim.pcl.until, clicks: [] };
+  recorder.reset({ lesson: lessons.lesson?.id ?? null, aircraft: ac.ac.name ?? null }); liveCoach.reset(); landingNote = null; lessonNotes = null; vrNotes.queue.length = 0;
+  if (freeNotes) { freeNotes = null; renderObjectives(); }
   camState.reset = true; hideCrash();
 }
 function setRoute(pts) { sim.route = pts; if (pts?.length) { sim.gpsWp = pts[pts.length - 1]; sim.gpsFrom = pts[0]; } }
@@ -160,7 +171,7 @@ const vr = new VR({
   panelMode: () => settings.panel, panelState: () => panelState(), controls: () => ac.ctl,
   hud: () => ({ lesson: lessons.status(), stall: ac.derived.stallWarn, lightGun: sim.lightGun, paused: sim.paused, crashed: !$("#crash").hidden ? $("#crashReason").textContent : "" }),
   keys: { flapsDown: () => keymap["]"](), flapsUp: () => keymap["["](), mic: () => pttClick(), assist: () => keymap.u(), pause: () => togglePause(), retry: () => retry() },
-  onChange: (on) => vrChanged(on),
+  onChange: (on) => vrChanged(on), stats: FLAGS.stats,
 });
 /* ---------------- aircraft types ---------------- */
 const TYPE_LABELS = { c172: "Cessna 172 (the lesson trainer)", c152: "Cessna 152 (two seats, 110 hp)", pa28: "Piper PA-28 Warrior (low wing)" };
@@ -499,9 +510,12 @@ function handleEvents() {
   for (const e of ac.events) {
     if (e.type === "touchdown") {
       const td = e.msg; sim.lastTouchdown = { ...td, used: false }; audio.thump(td.fpm, ac.derived.gs); buzz(td.fpm > 400 ? 160 : 60, Math.min(1, 0.3 + td.fpm / 900));
+      const hdg = ac.derived.hdg; recorder.event(sim.t, "touchdown", { fpm: td.fpm, kias: td.kias, x: Math.round(td.x * 10) / 10, z: Math.round(td.z * 10) / 10, hdg: Math.round(hdg * 10) / 10, rwy: landingRunway(AIRPORTS, td.x, td.z, hdg) });
+      landingNote = { t: sim.t + 6, td: recorder.events.at(-1).t }; liveCoach.reset(); // notes once the roll-out has settled (free flight); callouts start over
       const g = td.fpm < 200 ? "Smooth" : td.fpm < 400 ? "Good" : td.fpm < 650 ? "Firm" : "Hard";
       say(`Touchdown ${td.fpm} fpm · ${td.kias} KIAS · ${g}`, td.fpm < 650 ? "good" : "warn");
-    } else if (e.type === "crash") showCrash(e.msg);
+    } else if (e.type === "crash") { recorder.event(sim.t, "crash", { reason: e.msg }); showCrash(e.msg); }
+    else if (e.type === "liftoff") recorder.event(sim.t, "liftoff", { kias: e.msg?.kias });
     else if (e.type === "warn") say(e.msg, "warn", 7000);
     else if (e.type === "info") say(e.msg, "info");
   }
@@ -718,7 +732,8 @@ function renderDrawer() {
       <label class="chk"><input type="checkbox" id="sTilt" ${settings.tilt ? "checked" : ""}> Tilt to fly: turn the phone like a wheel to bank, tilt the top edge toward you to raise the nose</label>
       <button class="sbtn" id="sRecenter" ${settings.tilt ? "" : "hidden"}>Recenter tilt (hold the phone how you like, then tap)</button>` : `<label class="chk"><input type="checkbox" id="sPad" ${settings.pad ? "checked" : ""}> On-screen controls: a stick and a throttle lever to drag with the mouse, plus flaps, brakes and parking brake buttons</label>
       <label>Throttle and rudder <select id="sRight"><option value="slider">Throttle lever and rudder buttons</option><option value="stick">Second stick: throttle up and down, rudder left and right</option></select></label>`}
-      <label class="chk"><input type="checkbox" id="sHaptic" ${settings.haptics ? "checked" : ""}> Vibration and controller rumble with the stall horn and on touchdown</label></div>
+      <label class="chk"><input type="checkbox" id="sHaptic" ${settings.haptics ? "checked" : ""}> Vibration and controller rumble with the stall horn and on touchdown</label>
+      <label class="chk"><input type="checkbox" id="sCallouts" ${settings.callouts !== false ? "checked" : ""}> Instructor: callouts on final (airspeed, sink rate, steep bank low down) and notes after each landing</label></div>
       <h3 class="dsub">Joystick, throttle and pedals</h3>
       <p class="dnote" id="ctlDevs"></p>
       <table class="ctlmap"><tbody>${Object.entries(AXES).map(([k, label]) => `<tr><td>${esc(label)}</td><td class="mono" data-cur="${k}"></td><td><span class="axbar"><i data-bar="${k}"></i></span></td><td><label class="chk"><input type="checkbox" data-inv="${k}"> Invert</label></td><td><button class="sbtn" data-learn="${k}">Assign</button></td></tr>`).join("")}
@@ -728,6 +743,7 @@ function renderDrawer() {
     $("#sSens", B).value = settings.sens;
     $("#sSens", B).addEventListener("change", (e) => { settings.sens = input.sens = e.target.value; saveSettings(); });
     $("#sHaptic", B).addEventListener("change", (e) => { settings.haptics = e.target.checked; saveSettings(); if (settings.haptics) buzz(60, 0.5); });
+    $("#sCallouts", B).addEventListener("change", (e) => { settings.callouts = e.target.checked; saveSettings(); });
     $("#sRight", B).value = settings.touchRight;
     $("#sRight", B).addEventListener("change", (e) => { settings.touchRight = e.target.value; saveSettings(); touchLayout(); });
     $("#sPad", B)?.addEventListener("change", (e) => { settings.pad = e.target.checked; saveSettings(); padLayout(); });
@@ -792,6 +808,7 @@ function renderDrawer() {
     const k = (keys, what) => `<li><span class="keys">${keys.map((x) => `<kbd>${esc(x)}</kbd>`).join(" ")}</span><span>${esc(what)}</span></li>`;
     B.innerHTML = `<ul class="keylist">${k(["↑", "W"], "Nose down")}${k(["↓", "S"], "Nose up")}${k(["←", "→", "A", "D"], "Roll (ailerons)")}${k(["Q", "E"], "Rudder / nosewheel steering")}${k(["R", "F"], "Throttle up / down (Shift = full / idle)")}${k(["[", "]"], "Flaps up / down a notch")}${k(["T", "G"], "Trim nose up / down")}${k(["Z", "X"], "Mixture richer / leaner")}${k(["B"], "Brakes (with rudder for differential)")}${k(["Shift+B"], "Parking brake")}${k(["H"], "Carburetor heat")}${k(["L"], "Landing light")}${k(["O"], "Set the heading indicator to the compass")}${k(["Space"], "Push to talk: hold and speak a call (or talk online); a quick tap clicks the mic for pilot-controlled lighting")}${k(["N"], "Swap NAV1")}${k(["C"], "Change view: cockpit, chase, orbit, tower")}${k(["I"], "Panel: six-pack, glass, hidden")}${k(["M"], "Map")}${k(["K"], "Checklist")}${k(["Y"], "Mouse yoke on/off")}${k(["U"], "Flight assist: Assisted → Auto-rudder → Manual")}${k(["P", "Esc"], "Pause")}</ul>
       <h3 class="dsub">VR headset (Meta Quest)</h3><ul class="keylist">${VR_CONTROLS.map(([c, what]) => `<li><span class="keys"><kbd>${esc(c)}</kbd></span><span>${esc(what)}</span></li>`).join("")}</ul>
+      <h3 class="dsub">VR with your hands (Apple Vision Pro, or a Quest without controllers)</h3><ul class="keylist">${PINCH_CONTROLS.map(([c, what]) => `<li><span class="keys"><kbd>${esc(c)}</kbd></span><span>${esc(what)}</span></li>`).join("")}</ul>
       <h3 class="dsub">Phone VR viewer (Cardboard-style)</h3><ul class="keylist">${PHONE_VR_CONTROLS.map(([c, what]) => `<li><span class="keys"><kbd>${esc(c)}</kbd></span><span>${esc(what)}</span></li>`).join("")}</ul>
       <p class="dnote">Mouse: drag to look around (cockpit) or orbit (outside views). Scroll to zoom. Double-click to recentre. Scroll over panel knobs (Kollsman, OBS, heading bug, attitude indicator) to set them. Click the HI knob to align it with the compass.</p>`;
   }
@@ -853,18 +870,108 @@ function drawBigMap() {
 /* ---------------- objectives card & HUD ---------------- */
 function renderObjectives() {
   const st = lessons.status(); const el = $("#objectives");
-  if (!st) { el.hidden = true; return; }
+  if (!st) { // free flight: the notes on the last landing, until closed or the next flight
+    if (!freeNotes) { el.hidden = true; return; }
+    el.hidden = false; el.classList.remove("min");
+    el.innerHTML = `<div class="ohead"><span class="ltag">Landing</span><button class="xbtn" id="oClose" aria-label="Close">×</button></div><h3>${esc(freeNotes.title)}</h3>${notesHtml(freeNotes)}`;
+    $("#oClose").onclick = () => { freeNotes = null; renderObjectives(); };
+    drawProfiles(el, freeNotes); return;
+  }
   el.hidden = false;
   if (lessons.lesson !== renderObjectives.last) { renderObjectives.last = lessons.lesson; el.classList.toggle("min", innerWidth < 720 || innerHeight < 500); }
   el.innerHTML = `<div class="ohead"><span class="ltag">Lesson</span><button class="xbtn" id="oMin" aria-label="Collapse">–</button></div><h3>${esc(st.title)}</h3>
     <ol class="objs">${st.objectives.map((o) => `<li class="${o.state}">${o.state === "now" && st.ask ? `<div>${esc(forTouch(o.text))}${askForm(st.ask)}</div>` : esc(forTouch(o.text))}</li>`).join("")}</ol>
-    ${st.done ? `<div class="result ${st.failed ? "bad" : "good"}"><b>${st.failed ? "Lesson ended" : "Lesson complete"}</b>${st.failed ? `<p>${esc(st.failed)}</p>` : ""}${st.results.map((r) => `<p>${esc(r)}</p>`).join("")}</div>` : ""}
+    ${st.done ? `<div class="result ${st.failed ? "bad" : "good"}"><b>${st.failed ? "Lesson ended" : "Lesson complete"}</b>${st.failed ? `<p>${esc(st.failed)}</p>` : ""}${st.results.map((r) => `<p>${esc(r)}</p>`).join("")}</div>${debriefHtml()}` : ""}
     <details ${st.done ? "" : "open"}><summary>Tips</summary><ul class="tips">${st.tips.map((t) => `<li>${esc(forTouch(t))}</li>`).join("")}</ul></details>
     <div class="ofoot"><span class="exams">Exam: ${st.exam.map(examLink).join("")}</span><span><button class="sbtn" id="oRestart">Restart</button> <button class="sbtn" id="oExit">Exit</button></span></div>`;
   $("#oRestart").onclick = () => { lessons.start(st.id); sim.paused = false; };
   $("#oExit").onclick = () => { lessons.stop(); renderObjectives(); };
   $("#oMin").onclick = () => el.classList.toggle("min");
   const form = $("#oAsk"); if (form) form.onsubmit = (e) => { e.preventDefault(); lessons.answer(Object.fromEntries(st.ask.map((f) => [f.key, +form.elements[f.key].value]))); };
+  if (st.done && lessonNotes) { drawProfiles(el, lessonNotes); if (vr.active && !lessonNotes.vrQueued) { lessonNotes.vrQueued = true; queueVrNotes(lessonNotes.m); } }
+}
+/** notes plus a chart of each landing's approach: { m: moments, tds: touchdowns, profiles, what: "lesson" | "flight" } */
+function notesFor(m, tds, what) { const ctx = debriefCtx(); return { m, tds, what, profiles: tds.map((td) => approachProfile(recorder, td, ctx, m)).filter(Boolean) }; }
+/** the instructor's notes as a card section: each marked moment, a chart of each approach, then the one thing to try next */
+function notesHtml(n) {
+  const m = n.m, t0 = recorder.t0 ?? 0;
+  const when = (x) => x.when || `${Math.floor((x.t - t0) / 60)}:${String(Math.round((x.t - t0) % 60)).padStart(2, "0")} into the ${n.what}`;
+  const list = m.length ? `<ol>${m.map((x) => `<li class="${x.level}"><span class="when">${esc(when(x))}</span><b>${esc(x.title)}.</b> ${esc(x.detail)} <i>${esc(x.fix)}</i></li>`).join("")}</ol>` : "<p>Stable approach and a good landing: nothing to point at.</p>";
+  const charts = n.profiles.map((p, i) => `<canvas class="profile" data-i="${i}" role="img" aria-label="Approach to ${esc(p.rwy)}: your height and airspeed against the 3° path and the target speed, with the numbered notes marked"></canvas>`).join("");
+  return `<div class="debrief"><b>Instructor's notes</b>${list}${charts}${m.length > 1 ? `<p><b>Next try:</b> ${esc(nextTry(m))}</p>` : ""}</div>`;
+}
+/** the instructor's notes on a finished lesson */
+function debriefHtml() {
+  if (lessonNotes?.ls !== lessons.ls) lessonNotes = { ls: lessons.ls, ...notesFor(findMistakes(recorder, debriefCtx()), recorder.events.filter((e) => e.type === "touchdown"), "lesson") };
+  return lessonNotes.m.length || lessonNotes.tds.length ? notesHtml(lessonNotes) : "";
+}
+const SPEED_NOTES = new Set(["fastFinal", "slowFinal", "fastTouchdown"]);
+function drawProfiles(root, n) { root.querySelectorAll("canvas.profile").forEach((cv) => { const p = n.profiles[+cv.dataset.i]; if (p) drawProfile(cv, p); }); }
+/** the approach, to scale: height against the 3° path above, airspeed against the target band below, the notes numbered on both */
+function drawProfile(cv, p) {
+  const W = cv.clientWidth; if (!W) return;
+  const css = getComputedStyle(document.documentElement), col = (v, d) => css.getPropertyValue(v).trim() || d;
+  const ink = col("--text", "#F4F6F8"), muted = col("--muted", "#A4ABB4"), grid = col("--line", "rgba(255,255,255,.1)"), you = col("--cyan", "#3FD8F2"), good = col("--green", "#5BE38A"), warn = col("--amber", "#FFB020"), tip = col("--magenta", "#E64BD0");
+  const H = 252, dpr = Math.min(2, devicePixelRatio || 1); cv.width = Math.round(W * dpr); cv.height = H * dpr; cv.style.height = H + "px";
+  const g = cv.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, W, H);
+  const font = (px, w = 400) => `${w} ${px}px system-ui, sans-serif`;
+  const air = p.pts.filter((q) => !q.gnd), x0 = p.pts[0].d, x1 = Math.max(p.pts.at(-1).d, p.aimFt + 600), L = 36, R = W - 10;
+  const X = (d) => L + ((d - x0) / (x1 - x0)) * (R - L);
+  // height above the runway
+  const hTop = 38, hBot = 144, hMax = Math.max(100, Math.ceil(Math.max(...p.pts.map((q) => q.h), p.glide * (p.aimFt - x0)) / 100) * 100);
+  const Yh = (h) => hBot - (Math.max(0, h) / hMax) * (hBot - hTop);
+  // airspeed
+  const sTop = 176, sBot = 230, sLo = Math.floor(Math.min(...air.map((q) => q.ias), ...air.map((q) => q.tgt - 5)) - 3), sHi = Math.ceil(Math.max(...air.map((q) => q.ias), ...air.map((q) => q.tgt + 10)) + 3);
+  const Ys = (v) => sBot - ((v - sLo) / (sHi - sLo)) * (sBot - sTop);
+  g.font = font(11, 600); g.fillStyle = ink; g.textBaseline = "alphabetic"; g.textAlign = "left";
+  g.fillText(`Height above runway ${p.rwy.split(" ")[1]} (ft)`, L, hTop - 8); g.fillText("Airspeed (KIAS)", L, sTop - 8);
+  g.font = font(10.5); g.fillStyle = muted; g.textAlign = "right";
+  for (const h of [0, hMax / 2, hMax]) { g.fillText(String(h), L - 6, Yh(h) + 4); g.strokeStyle = grid; g.lineWidth = 1; g.beginPath(); g.moveTo(L, Yh(h)); g.lineTo(R, Yh(h)); g.stroke(); }
+  for (const v of [sLo + 3, sHi - 3]) g.fillText(String(v), L - 6, Ys(v) + 4);
+  g.textAlign = "center"; // distance marks
+  for (const [d, t] of [[-2 * 6076, "2 NM"], [-6076, "1 NM"], [0, "threshold"]]) if (d >= x0 && d <= x1) { g.fillText(t, X(d), H - 6); g.strokeStyle = grid; g.beginPath(); g.moveTo(X(d), hTop); g.lineTo(X(d), sBot); g.stroke(); }
+  // the runway, the 3° path to the aiming point, and your path
+  g.strokeStyle = muted; g.lineWidth = 4; g.beginPath(); g.moveTo(X(Math.max(0, x0)), hBot + 2); g.lineTo(X(Math.min(p.lenFt, x1)), hBot + 2); g.stroke();
+  const trace = (pts, Y, key) => { g.beginPath(); pts.forEach((q, i) => (i ? g.lineTo(X(q.d), Y(q[key])) : g.moveTo(X(q.d), Y(q[key])))); g.stroke(); };
+  g.strokeStyle = you; g.lineWidth = 2; trace(p.pts, Yh, "h");
+  g.setLineDash([5, 4]); g.lineWidth = 1.5; g.strokeStyle = good; g.beginPath(); g.moveTo(X(x0), Yh(p.glide * (p.aimFt - x0))); g.lineTo(X(p.aimFt), Yh(0)); g.stroke(); g.setLineDash([]);
+  // target speed band: 5 kt below to 10 kt above
+  g.fillStyle = good; g.globalAlpha = 0.14; g.beginPath(); air.forEach((q, i) => (i ? g.lineTo(X(q.d), Ys(q.tgt + 10)) : g.moveTo(X(q.d), Ys(q.tgt + 10)))); for (const q of [...air].reverse()) g.lineTo(X(q.d), Ys(q.tgt - 5)); g.closePath(); g.fill(); g.globalAlpha = 1;
+  g.strokeStyle = you; g.lineWidth = 2; trace(air, Ys, "ias");
+  // legend
+  g.font = font(10.5); g.textAlign = "left"; g.fillStyle = you; g.fillRect(L, 7, 14, 2); g.fillText("you", L + 18, 12);
+  g.fillStyle = good; g.fillRect(L + 48, 7, 4, 2); g.fillRect(L + 55, 7, 4, 2); g.fillText("3° path", L + 64, 12); g.globalAlpha = 0.3; g.fillRect(L + 112, 3, 12, 10); g.globalAlpha = 1; g.fillText("target speed", L + 128, 12);
+  // the notes, numbered as in the list
+  // moments at nearly the same spot share one marker ("3·4")
+  const groups = [];
+  for (const m of p.marks) {
+    const x = X(m.d), y = SPEED_NOTES.has(m.kind) ? Ys(m.ias) : Yh(m.h), near = groups.find((q) => Math.abs(q.x - x) < 24 && Math.abs(q.y - y) < 16);
+    if (near) { near.ns.push(m.n); near.warn ||= m.level === "warn"; } else groups.push({ x, y, ns: [m.n], warn: m.level === "warn" });
+  }
+  g.font = font(10.5, 700); g.textAlign = "center";
+  for (const q of groups) {
+    const label = q.ns.join("·"), w = Math.max(16, g.measureText(label).width + 10), x = Math.min(R - w / 2, Math.max(L + w / 2, q.x));
+    g.fillStyle = q.warn ? warn : tip; g.beginPath(); g.roundRect(x - w / 2, q.y - 8, w, 16, 8); g.fill();
+    g.fillStyle = "#111"; g.fillText(label, x, q.y + 3.5);
+  }
+}
+/** VR: queue the notes for the glareshield, one at a time, each read aloud */
+function queueVrNotes(m) {
+  vrNotes.queue = m.length ? m.map((x, i) => ({ text: `${i + 1}. ${x.title}: ${x.short}`, kind: x.level === "warn" ? "warn" : "lesson", speech: `${x.title}. ${x.detail} ${x.fix}` })) : [{ text: "Instructor: stable approach and a good landing.", kind: "good", speech: "Stable approach and a good landing." }];
+  if (m.length > 1) vrNotes.queue.push({ text: `Next try: ${nextTry(m)}`, kind: "lesson", speech: `Next try: ${nextTry(m)}` });
+  vrNotes.next = 0;
+}
+function vrNotesTick(now) {
+  if (!vrNotes.queue.length || now < vrNotes.next) return;
+  if (!vr.active) { vrNotes.queue.length = 0; return; }
+  const n = vrNotes.queue.shift(); vr.message(n.text, n.kind);
+  vrNotes.next = now + 9000; speakPlain(n.speech, () => { vrNotes.next = Math.min(vrNotes.next, performance.now() + 900); });
+}
+/** the instructor's voice: plain speech (not radio phraseology), queued after anything already speaking */
+function speakPlain(text, onend) {
+  if (settings.sound === false || !("speechSynthesis" in window)) return;
+  text = text.replace(/\bKIAS\b|\bkt\b/g, "knots").replace(/\bfpm\b/g, "feet per minute").replace(/\bft\b/g, "feet").replace(/°/g, " degrees").replace(/(\d) m\b/g, "$1 metres").replace(/(\d)–(\d)/g, "$1 to $2");
+  try { const u = new SpeechSynthesisUtterance(text); u.volume = (settings.radioVol ?? 80) / 100; if (onend) u.onend = onend; speechSynthesis.speak(u); } catch { /* ignore */ }
 }
 const askForm = (ask) => `<form class="oask" id="oAsk">${ask.map((f) => `<label>${esc(f.label)}<span><input name="${f.key}" type="number" inputmode="decimal" step="any" min="0" required>${esc(f.unit)}</span></label>`).join("")}<button class="sbtn">Enter</button></form>`;
 /* coaching at the moments new pilots get stuck on a takeoff: the parking brake, when to rotate, and the climb.
@@ -1099,6 +1206,7 @@ function enterVR() {
 let wakeLock = null;
 function vrChanged(on) {
   $("#vrBtn").textContent = on ? "Exit VR" : "VR"; $("#vrBtn").setAttribute("aria-pressed", String(on));
+  frameStats?.reset();
   const phone = on && !!vr.phone, mono = phone && vr.phone.mono;
   document.body.classList.toggle("phonevr", phone); document.body.classList.toggle("pvrmono", mono);
   $("#pvr").hidden = !phone || mono; $("#pvrBar").hidden = !mono;
@@ -1150,12 +1258,33 @@ $("#pvr").addEventListener("pointerdown", (e) => {
     else { vr.recenter(); vr.message("View recentered.", "info"); }
   }, 380);
 });
-$("#vrBtn").addEventListener("click", () => { if (vr.active) vr.end(); else enterVR(); });
-$("#startVR").addEventListener("click", () => {
+/*
+ * A standalone headset (Quest) with Graphics on High or Ultra: ask first whether to switch to Low. Yes saves Low and reloads,
+ * and the start screen offers Fly in VR again (WebXR needs a fresh tap, so it never starts by itself). No goes straight into
+ * VR from the same tap. Desktop browsers and phone VR never see the question; a "no" isn't saved and isn't asked again.
+ */
+let vrLowPending = null, vrLowDeclined = false;
+function vrGate(go) {
+  if (vrLowDeclined || !shouldOfferLowForVR({ webxr: vr.supported, ua: navigator.userAgent, quality: settings.quality })) return go();
+  const name = settings.quality === "ultra" ? "Ultra" : "High";
+  $("#vrLowNow").textContent = name; $("#vrLowNo").textContent = `Keep ${name} and fly in VR`;
+  vrLowPending = go; $("#vrLow").hidden = false; $("#vrLowYes").focus();
+}
+$("#vrLowYes").addEventListener("click", () => {
+  settings.quality = "low"; saveSettings();
+  try { sessionStorage.setItem("zarhart:vrReady", "1"); } catch { /* the note after the reload is only a nicety */ }
+  location.reload();
+});
+$("#vrLowNo").addEventListener("click", () => {
+  $("#vrLow").hidden = true; vrLowDeclined = true;
+  const go = vrLowPending; vrLowPending = null; go?.(); // still inside this tap, so WebXR may start
+});
+$("#vrBtn").addEventListener("click", () => { if (vr.active) vr.end(); else vrGate(enterVR); });
+$("#startVR").addEventListener("click", () => vrGate(() => {
   startFlying();
   if (new URLSearchParams(location.search).get("lesson")) lessons.start(startLessonId); else freeFlight("kzar27", "scattered", 13);
   enterVR();
-});
+}));
 $("#crashLessons").addEventListener("click", () => { hideCrash(); openDrawer("lessons"); });
 $("#resume").addEventListener("click", () => { sim.paused = false; $("#paused").hidden = true; });
 input.on("onPad", (id) => say(`Controller connected: ${id.slice(0, 40)}`, "good"));
@@ -1229,12 +1358,36 @@ function stepSim(dt, pilot) {
   sim.t += dt;
   sim.vor1 = ac.powered && ac.elec.avionics ? vor(ac.pos, sim.radio.nav1, ac.inst.obs) : { ok: false };
   handleEvents();
+  if (recorder.tick(sim.t, ac.derived, ac.pos, ac.ctl) && settings.callouts !== false && !ac.crashed) {
+    const c = liveCoach.update(recorder.samples.at(-1), debriefCtx()); if (c) { say(c.text, "warn", 3500); if (vr.active) speakPlain(c.text); }
+  }
+  if (landingNote && sim.t >= landingNote.t) { const n = landingNote; landingNote = null; if (!lessons.lesson && settings.callouts !== false && !ac.crashed) landingNotes(n.td); }
   monT += dt; if (monT > 0.2) { monitors(monT); monT = 0; }
   lessons.update(dt);
 }
+/** free flight: after each landing, the notes on it in a card (in VR, on the glareshield and read aloud) */
+function landingNotes(tdT) {
+  const td = recorder.events.find((e) => e.type === "touchdown" && e.t === tdT);
+  const m = findMistakes(recorder, debriefCtx()).filter((x) => x.td === tdT || (x.t > tdT - 180 && x.t <= tdT + 4));
+  const ap = td?.rwy && AIRPORTS.find((a) => a.id === td.rwy.airport);
+  freeNotes = { ...notesFor(m, td ? [td] : [], "flight"), title: td?.rwy ? `Runway ${td.rwy.id}${ap ? ` at ${ap.name}` : ""}` : "Your landing" };
+  if (vr.active) { queueVrNotes(m); return; }
+  renderObjectives();
+  const lc = (t) => t.charAt(0).toLowerCase() + t.slice(1);
+  if (!m.length) say("Instructor: stable approach and a good landing.", "good", 6000);
+  else say(`Instructor's notes on your landing: ${m.slice(0, 3).map((x) => lc(x.title)).join(", ")}${m.length > 3 ? ` and ${m.length - 3} more` : ""}. Details in the card.`, "tip", 8000);
+}
+/** ?vrstats=1: frame rate, worst frame and CPU time on a strip in the cockpit while in VR */
+const frameStats = FLAGS.stats ? new FrameStats() : null;
+function statsLabel() {
+  const L = renderer.xr.getSession?.()?.renderState?.baseLayer, size = L ? `${L.framebufferWidth}×${L.framebufferHeight}` : `${view.width}×${view.height}`;
+  return `${settings.quality} · log depth ${FLAGS.logDepth ? "on" : "off"} · ${size}`;
+}
 function tick(now) {
+  const t0 = frameStats ? performance.now() : 0;
   const frameMs = now - last, dt = Math.max(0, Math.min(0.05, frameMs / 1000)); last = Math.max(last, now);
   if (vr.active) vr.poll();
+  vrNotesTick(now);
   { const held = input.held(" ") || !!input._holds?.mic || ptt.pad; if (held !== ptt.down) { if (held) pttDown(); else pttUp(); } }
   input.poll(); // assigning a joystick control works while paused too
   if (sim.ready && !sim.paused) stepSim(dt);
@@ -1283,6 +1436,7 @@ function tick(now) {
     hudT += dt; if (hudT > 0.12) { hudT = 0; hudUpdate(); }
     if (openDrawerName === "online" && mp.role === "atc" && mp.connected) { scopeT = (scopeT || 0) + dt; if (scopeT > 0.5) { scopeT = 0; drawScope(); } }
     audio.update(ac, d, sim.paused, vr.active ? "cockpit" : sim.view);
+    if (frameStats && vr.active) { const r = frameStats.add(frameMs, performance.now() - t0); if (r) vr.showStats(r, statsLabel()); }
   }
 }
 
@@ -1313,14 +1467,20 @@ async function boot() {
     $("#loading").hidden = true; $("#startChoices").hidden = false;
     const p = new URLSearchParams(location.search).get("lesson");
     if (p && !REAL && LESSONS.some((l) => l.id === p)) { startLessonId = p; $("#startLesson").textContent = `Start lesson: ${LESSONS.find((l) => l.id === p).title}`; }
-    vr.check().then((ok) => { $("#startVR").hidden = $("#vrBtn").hidden = !(ok || TOUCH); }); // phones without WebXR get phone VR
+    let vrReady = false; try { vrReady = sessionStorage.getItem("zarhart:vrReady") === "1"; sessionStorage.removeItem("zarhart:vrReady"); } catch { /* no session storage */ }
+    vr.check().then((ok) => {
+      $("#startVR").hidden = $("#vrBtn").hidden = !(ok || TOUCH); // phones without WebXR get phone VR
+      if (vrReady && ok) { // just switched to Low for VR: point at Fly in VR
+        $("#vrReady").hidden = false; $("#startLesson").classList.remove("primary"); $("#startVR").classList.add("primary"); $("#startVR").focus();
+      }
+    });
   } catch (err) {
     console.error(err); prog.textContent = "Zarhart couldn't start: " + err.message + ". Try another browser with WebGL turned on.";
   }
   renderer.setAnimationLoop(tick);
 }
 window.__zarhart = {
-  sim, ac, weather, world, lessons, camera, panel, settings, autoRes, REAL, FREQS, realStart, keys: input.keys, frame: (ms) => tick(ms), radioCall, traffic, transmit, mp, pttClick, renderer, scene, plane, cockpit, camState, layout, panelState, updateCamera, vr,
+  sim, ac, weather, world, lessons, camera, panel, settings, autoRes, REAL, FREQS, realStart, keys: input.keys, frame: (ms) => tick(ms), radioCall, traffic, transmit, mp, pttClick, renderer, scene, plane, cockpit, camState, layout, panelState, updateCamera, vr, recorder, debrief: () => findMistakes(recorder, debriefCtx()),
   /** headless stepping for tests: advance `secs` of sim time at 30 Hz without rendering; pilot(ac, d, sim, dt) flies */
   step(secs, pilot) { for (let i = 0, n = Math.round(secs * 30); i < n; i++) { if (ac.crashed || lessons.done) break; stepSim(1 / 30, pilot); } return ac.derived; },
 };

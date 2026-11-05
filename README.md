@@ -22,6 +22,17 @@ Created by **Sophia Ramalli**, a student pilot who built it while studying for t
 
 `↑/↓` pitch · `←/→` roll · `Q/E` rudder · `R/F` throttle · `[ ]` flaps · `T/G` trim · `B` brakes · `Shift+B` parking brake · `H` carb heat · `C` view · `I` panel · `M` map · `K` checklist · `U` flight assist · `Space` mic click · `P` pause. Gamepads, joysticks and touch work too: in **Settings → Joystick, throttle and pedals**, click Assign and move any axis or press any button to map it, across several devices at once (stick, throttle quadrant, rudder pedals), with invert and a sensitivity curve. No keyboard? The on-screen stick and throttle lever work with a mouse too (drag the stick, push the lever up for power), and a coach reminds you about the parking brake, when to rotate and how to hold the climb on your first takeoffs. On phones the stick floats under your left thumb, the right thumb gets either a throttle lever with buttons (rudder, flaps, brakes, parking brake, view, pause) or a second throttle/rudder stick, and you can turn on tilt-to-fly. Phones vibrate and gamepads rumble with the stall horn and on touchdown. Flight assist starts in **Assisted** (let go of the controls and the airplane holds its pitch and bank, with auto-trim and auto-rudder); `U` switches to **Auto-rudder** only or full **Manual** to practise coordination.
 
+## Instructor's notes
+
+The sim records every flight, four samples a second: airspeed, altitude, height above the ground, sink rate, pitch, bank, heading, position, throttle, flaps and the stall warning, plus each liftoff, touchdown and crash. After each landing it marks the moments an instructor would point at, each with the number and the fix:
+
+- **On final, from 500 ft down to 100 ft:** more than 10 kt fast or 5 kt slow for at least a second and a half, or sinking over 1,000 fpm. The target is the airplane's approach speed (5 kt more with the flaps up, plus half the gust factor), or the lesson's own (60 KIAS for the short-field landing).
+- **The flare:** flaring late (still sinking as fast at 10 ft as at 50 ft), or levelling off or ballooning above 15 ft.
+- **The touchdown:** firm or hard, long (past the first third of the runway), short, off the centreline, crabbed, too fast, or bounced.
+- **Anywhere:** the stall warning (not in the flare, and not in the stall lessons, where it's the point), and more than 30° of bank below 600 ft.
+
+A finished lesson shows these as **Instructor's notes** under the result, with when each happened and what to try next. Below them, a chart of each approach draws your height against the 3° path to the 1,000 ft aiming point and your airspeed against the target band, with each note's number at the moment it happened. In free flight the same notes and chart open in a card after each landing. In VR they appear one at a time on the glareshield and are read aloud, and so are the callouts. While you fly, the sim calls out airspeed or sink rate on final and steep bank close to the ground, twice at most per approach. Settings → Controls has a switch for all of it. The rules are in `assets/js/sim/debrief.js`; the recording is what the AI debrief will read later.
+
 ## Radio practice, traffic and multiplayer
 
 - **Radio practice:** hold Space (or Talk) and speak the call the radio strip suggests. Your browser's speech recognition transcribes it, the call is scored part by part against standard phraseology, and ATC answers a good call. You can also type calls.
@@ -46,13 +57,34 @@ Runway lengths, widths, surfaces, lights and numbers are real, and so are the to
 
 The site is an installable web app. On iPhone or iPad, open it in Safari and tap **Share → Add to Home Screen**; on Android or desktop Chrome and Edge, use **Install the app** on the home page (or Install in the browser menu). It opens full screen, and pages you've visited work offline (`sw.js`, network first, so online visitors always get the latest version).
 
-## VR (Meta Quest, or a phone in a viewer)
+## VR (Meta Quest, Apple Vision Pro, or a phone in a viewer)
 
 Open the simulator in the Quest's built-in browser and tap **Fly in VR** (or **VR** in the toolbar). It's a seated cockpit view through WebXR: the instruments are on the dashboard, lesson objectives and radio calls are on a strip on the glareshield, and the controllers fly the airplane:
 
 Right stick: pitch and roll · Left stick: throttle (up/down) and rudder (left/right) · Right trigger: brakes · A / B: flaps down / up · X: mic click · Y: recenter your view · Right stick press: flight assist · Left stick press: pause.
 
+**Graphics on a standalone headset.** A headset like the Quest draws the cockpit twice every frame, 72 to 90 times a second, on its built-in graphics chip. So when Graphics is High or Ultra, **Fly in VR** (and **VR** in the toolbar) first asks *Switch to Low for VR? Recommended on Quest.* **Switch** saves Graphics: Low and reloads the page, then highlights **Fly in VR**: tap it again, because a VR session can only start from a tap. **Keep** goes into VR with your current setting and isn't asked again until the page reloads. Desktop browsers driving a PC headset, and phone VR, never ask. The headset check is by browser (Meta Quest Browser, Pico Browser, Wolvic), in `assets/js/sim/headset.js`.
+
+**Without controllers: pinch controls (Apple Vision Pro, or a Quest with hand tracking).** If no controller with sticks shows up in the first few frames, or on the first pinch, the cockpit shows a small console of six buttons below the panel, and you fly with your hands:
+
+- **Right hand, pinch and move** works like a yoke. Pull toward you for nose up, push away for nose down, move sideways to roll. Full deflection takes 10 cm. Let go and the yoke centres.
+- **Left hand, pinch and move**: up and down move the throttle like a lever from where it was (15 cm for full travel), and sideways is rudder. Let go and the throttle stays where you left it.
+- **Look at a console button and pinch** for Flaps up, Flaps down, Brakes (on while you hold the pinch), Mic, Recenter, and Pause (Resume while paused, Try again after a crash). A button needs a short pinch that stays put; a long hold does nothing.
+
+Movement is measured from the way your head faced when the pinch began, so the controls still work if you turn in the seat. A pinch from a hand the headset doesn't call left or right takes the yoke on the right of your head and the lever on the left. The maths is in `assets/js/sim/headset.js`, the controls in `assets/js/sim/vr.js`.
+
 WebXR needs HTTPS, so test VR on the live site rather than the local dev server. The VR button only appears in browsers that support immersive VR.
+
+### Testing VR on a headset
+
+Pinch controls have been tested only in a desktop browser with a simulated session, not on a Vision Pro or a Quest. On a headset, check: that the console appears and the controller message doesn't; that a right-hand pinch pulled back raises the nose, without needing so much movement that it's tiring; that the left hand moves the throttle and holds it when let go; that looking at each console button and pinching presses it, and that a pinch aimed elsewhere flies instead; and that Brakes stay on only while held.
+
+Zarhart hasn't been measured on a headset yet, so neither setting is known to hold the frame rate. Two URL flags help compare them:
+
+- `?vrstats=1` shows a strip on the right of the glareshield in VR: frames per second (green at 71 and up, amber from 55, red below), the average and worst time between frames, and the CPU time of Zarhart's own work per frame, plus the Graphics setting, whether the logarithmic depth buffer is on, and the VR framebuffer size. It counts how often frames arrive; it doesn't measure the graphics chip. Use OVR Metrics Tool for that.
+- `?logdepth=0` turns off the logarithmic depth buffer. It keeps distant surfaces from flickering through each other across the 160 km view, but every pixel then writes its own depth, which stops a graphics chip from skipping hidden pixels early and can cost speed on a headset. three.js fixes it when the renderer starts, so the flag covers the whole page load, the flat view included. The default is unchanged (on). In still views on a computer, turning it off changed under 0.02% of pixels (far-off runway lights); watch for flicker in the distance while moving, such as runway markings and taxiways far ahead.
+
+Combine them: `https://ramalliss.github.io/zarhart/sim/?vrstats=1` and `https://ramalliss.github.io/zarhart/sim/?vrstats=1&logdepth=0`. For each one, on Low and on High, fly the same thing (for example free flight from runway 27, a minute on the runway and a minute at 2,000 ft over the valley) with Meta's OVR Metrics Tool (in the Meta Horizon Store; see [Meta's performance guide](https://developers.meta.com/horizon/documentation/native/android/ts-ovr-best-practices/)) showing its overlay, and note FPS, GPU and CPU utilization, GPU and CPU levels, and stale frames. In OVR Metrics Tool's Settings tab, turn on **Enable Persistent Overlay** so the graph stays on top of the browser, and **Record all captured metrics to CSV file** to compare runs afterwards on a computer.
 
 ### Phone VR (Cardboard-style viewers, iPhone included)
 
@@ -63,6 +95,9 @@ Phones without WebXR (iPhone Safari, the iOS app) get **phone VR** from the same
 ```bash
 python tools/serve.py        # http://localhost:8765 (no-cache dev server)
 node tools/test-fdm.mjs      # headless flight-model checks against C172 book numbers
+node tools/test-vr.mjs       # VR on headsets: headset detection, when to suggest Low, the VR test flags, pinch-control maths
+node tools/test-debrief.mjs  # instructor's notes: the recorder, each mistake rule on synthetic approaches, the callouts
+npm test                     # both
 ```
 
 To flight-test the lessons end to end, open `/sim/` on the dev server and run this in the browser console:
@@ -89,7 +124,9 @@ assets/img/shots/        product shots rendered in the simulator
 assets/js/sim/           fdm.js (flight model), world-data.js, world3d.js, plane3d.js, panel.js, map.js,
                          nav.js, weather.js, input.js, audio.js, checklists.js, lessons.js, main.js,
                          gfx.js (Graphics presets Low/High/Ultra, textures made in code, sun glare, Ultra's bloom),
-                         realworld.js (Real World mode: terrain, aerial photos and airports for a real place)
+                         realworld.js (Real World mode: terrain, aerial photos and airports for a real place),
+                         headset.js (VR on standalone headsets: the Low-for-VR suggestion, VR test flags, pinch-control maths)
+                         debrief.js (the flight recorder, the mistake finder and the callouts: the instructor's notes)
 assets/data/airports/    real US airports, runways, frequencies and VORs per 1° square (OurAirports)
 assets/js/prep/prep.js   prep app
 assets/data/questions.json  question bank
