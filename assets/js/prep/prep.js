@@ -1,5 +1,6 @@
 // Zarhart Prep: study guide, flashcards, quiz, timed practice exam, Quizlet export.
 import { DRILLS, drillSet } from "./drills.js";
+import * as Limits from "../limits.js";
 const $ = (s, r = document) => r.querySelector(s);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const shuffle = (a) => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
@@ -95,14 +96,15 @@ function renderStatus() {
 }
 function renderGuide(focusId) {
   renderStatus();
-  $("#guide").innerHTML = DATA.topics.map((t) => {
+  const showA = !Limits.on() || Limits.FREE.guideAnswers;
+  $("#guide").innerHTML = (showA ? "" : `<p class="freenote">Answers and explanations for every question are in <a href="${Limits.upgradeHref()}">Zarhart Pro</a>. On the free plan, practise 3 questions a day in Quiz.</p>`) + DATA.topics.map((t) => {
     const cs = CARDS.filter((c) => c.topic === t.key); const m = META[t.key];
     const open = focusId ? cs.some((c) => c.id === focusId) : false;
     return `<details class="topic" id="g-${t.key}" ${open ? "open" : ""}><summary><span class="tname">${esc(t.name)}</span><span class="tmeta">${esc(m.acs)} · ${cs.length} questions</span></summary>
       <div class="tbody">
         <div class="tlinks"><a href="${PHAK}" target="_blank" rel="noopener">PHAK ${esc(m.phak)} ↗</a><a href="https://fly8ma.com/private-pilot-ground-school/" target="_blank" rel="noopener">FLY8MA lesson videos ↗</a>${m.lessons.map(([id, n]) => `<a class="fly" href="../sim/?lesson=${id}">✈ Fly it: ${esc(n)}</a>`).join("")}</div>
         <div class="facts"><h3>Know cold</h3><ul>${t.facts.map((f) => `<li>${esc(f)}</li>`).join("")}</ul></div>
-        <ol class="qlist">${cs.map((c) => `<li id="card-${c.id}" class="${c.id === focusId ? "focus" : ""}"><p class="q"><span class="qid">${c.id.toUpperCase()}</span>${esc(c.orig || c.q)}</p>${c.orig ? `<p class="concept">Practice version: ${esc(c.q)}</p>` : ""}<p class="a"><span>Answer</span>${esc(c.c[0])}</p>${c.why ? `<p class="why">${esc(c.why)}</p>` : ""}<p class="meta">${mastered(c) ? `<span class="st ok">Mastered</span>` : missed(c) ? `<span class="st no">Missed ${hist[c.id].w}×</span>` : ""}${c.fig ? `<span class="fig">${esc(c.fig)}</span>` : ""}<span>${esc(c.ref || "")}</span><span>${esc(SRC[c.src])}</span>${c.note ? `<span>${esc(c.note)}</span>` : ""}</p></li>`).join("")}</ol>
+        <ol class="qlist">${cs.map((c) => `<li id="card-${c.id}" class="${c.id === focusId ? "focus" : ""}"><p class="q"><span class="qid">${c.id.toUpperCase()}</span>${esc(c.orig || c.q)}</p>${c.orig ? `<p class="concept">Practice version: ${esc(c.q)}</p>` : ""}${showA ? `<p class="a"><span>Answer</span>${esc(c.c[0])}</p>${c.why ? `<p class="why">${esc(c.why)}</p>` : ""}` : ""}<p class="meta">${mastered(c) ? `<span class="st ok">Mastered</span>` : missed(c) ? `<span class="st no">Missed ${hist[c.id].w}×</span>` : ""}${c.fig ? `<span class="fig">${esc(c.fig)}</span>` : ""}<span>${esc(c.ref || "")}</span><span>${esc(SRC[c.src])}</span>${c.note ? `<span>${esc(c.note)}</span>` : ""}</p></li>`).join("")}</ol>
       </div></details>`;
   }).join("");
   if (focusId) setTimeout(() => $("#card-" + focusId)?.scrollIntoView({ block: "center" }), 50);
@@ -120,7 +122,7 @@ function fcRender() {
     ${fc.flipped ? `<p class="cq small">${esc(c.q)}</p><p class="clabel">Answer</p><p class="ca">${esc(c.c[0])}</p>${c.why ? `<p class="cwhy">${esc(c.why)}</p>` : ""}<p class="cref">${esc(c.ref || "")}</p>` : `<p class="cq">${esc(c.q)}</p><p class="chint">Tap, or press Space, to flip</p>`}</div>`;
   $("#fcCard").onclick = flip; $("#fcCard").onkeydown = (e) => { if (e.key === "Enter") flip(); };
 }
-const flip = () => { if (!fc.list.length) return; fc.flipped = !fc.flipped; fcRender(); };
+const flip = () => { if (!fc.list.length) return; if (!fc.flipped && !Limits.seeFlashcard(fc.list[fc.i].id)) return fcLimit(); fc.flipped = !fc.flipped; fcRender(); };
 const move = (d) => { if (!fc.list.length) return; fc.i = (fc.i + d + fc.list.length) % fc.list.length; fc.flipped = false; fcRender(); };
 function mark(k) { if (!fc.list.length) return; const c = fc.list[fc.i]; if (k) known.add(c.id); else known.delete(c.id); store.set("known", [...known]); if (k && $("#fcSkip").checked) { fc.list.splice(fc.i, 1); if (fc.i >= fc.list.length) fc.i = 0; fc.flipped = false; fcRender(); } else move(1); }
 
@@ -139,12 +141,15 @@ function qzStart(retry, label = "") {
   if (!qz.list.length) { clearInterval(qz.timer); $("#qzStage").innerHTML = `<div class="empty">${esc(EMPTY[mode] || "No questions match.")}</div>`; return; }
   qzNext();
 }
-function qzNext() { qz.picked = null; if (qz.i >= qz.list.length) return qzEnd(); const c = qz.list[qz.i]; qz.order = shuffle(c.c.map((t, k) => ({ t, ok: k === 0 }))); qzRender(); }
+function qzNext() { qz.picked = null; if (qz.i >= qz.list.length) return qzEnd(); if (Limits.on() && Limits.questionsLeft() === 0) return qzLimit(); const c = qz.list[qz.i]; qz.order = shuffle(c.c.map((t, k) => ({ t, ok: k === 0 }))); qzRender(); }
 /** k: the chosen answer, or -1 when the time ran out */
 function qzAnswer(k) {
   if (qz.picked !== null) return;
+  if (!Limits.useQuestion()) return qzLimit();
   const c = qz.list[qz.i]; qz.picked = k; const ok = k >= 0 && qz.order[k].ok;
-  qz.res.push({ c, ok, picked: k >= 0 ? qz.order[k].t : "(time ran out)" }); if (!c.drill) record(c, ok); // generated drills aren't in the bank qzRender(); $("#qzGo")?.focus();
+  qz.res.push({ c, ok, picked: k >= 0 ? qz.order[k].t : "(time ran out)" });
+  if (!c.drill) record(c, ok); // generated drills aren't in the bank
+  qzRender(); $("#qzGo")?.focus();
 }
 function qzClock() {
   clearInterval(qz.timer); if (!$("#qzTimed").checked || qz.picked !== null) return;
@@ -154,7 +159,7 @@ function qzClock() {
 }
 function qzRender() {
   const c = qz.list[qz.i], done = qz.picked !== null, good = done && qz.picked >= 0 && qz.order[qz.picked].ok, timedOut = done && qz.picked < 0;
-  $("#qzStage").innerHTML = `<div class="qtop"><span>Question ${qz.i + 1} of ${qz.list.length}</span>${$("#qzTimed").checked && !done ? `<span class="clock" id="qzClock"></span>` : ""}<span>${qz.res.filter((r) => r.ok).length} correct</span></div><div class="bar"><span style="width:${(qz.i / qz.list.length) * 100}%"></span></div>
+  $("#qzStage").innerHTML = `<div class="qtop"><span>Question ${qz.i + 1} of ${qz.list.length}</span>${Limits.on() ? `<span class="freeleft">Free: ${Limits.questionsLeft()} left today</span>` : ""}${$("#qzTimed").checked && !done ? `<span class="clock" id="qzClock"></span>` : ""}<span>${qz.res.filter((r) => r.ok).length} correct</span></div><div class="bar"><span style="width:${(qz.i / qz.list.length) * 100}%"></span></div>
     <div class="cmeta"><span class="pill">${esc(TOPICS[c.topic].name)}</span>${c.fig ? `<span class="pill fig">${esc(c.fig)}</span>` : ""}${missed(c) && !done ? `<span class="pill no">Missed before</span>` : ""}</div><p class="qq">${esc(c.q)}</p>${c.code ? `<p class="qcode">${esc(c.code)}</p>` : ""}
     ${qz.order.map((o, k) => `<button class="choice ${done && o.ok ? "right" : done && k === qz.picked ? "wrong" : ""}" data-k="${k}" ${done ? "disabled" : ""}><span class="lt">${"ABC"[k]}</span><span>${esc(o.t)}</span></button>`).join("")}
     ${done ? `<div class="fb ${good ? "" : "no"}"><p><b>${good ? "Correct." : timedOut ? "Time's up." : "Not quite."}</b> ${good ? "" : "Answer: " + esc(c.c[0])}</p>${c.why ? `<p>${esc(c.why)}</p>` : ""}${c.ref ? `<p class="cref">${esc(c.ref)}</p>` : ""}</div><div class="actions"><button class="btn primary" id="qzGo">${qz.i + 1 < qz.list.length ? "Next →" : "See results"}</button></div>` : ""}`;
@@ -162,6 +167,21 @@ function qzRender() {
   const go = $("#qzGo"); if (go) go.onclick = () => { qz.i++; qzNext(); };
   qzClock();
 }
+/* ---------------- free plan ---------------- */
+const comeBack = "Free practice resets at midnight. Zarhart Pro removes the daily limit.";
+function paywall(sel, title, body, extra = "") {
+  const el = $(sel); if (!el) return;
+  el.innerHTML = Limits.paywallHTML(title, body) + extra;
+  Limits.bindPaywall(el, () => location.reload());
+}
+function qzLimit() {
+  clearInterval(qz.timer);
+  paywall("#qzStage", "You've used today's 3 free questions.", comeBack,
+    qz.res.length ? `<div class="actions"><button class="btn" id="qzSeen">See results for the ${qz.res.length} you answered</button></div>` : "");
+  const b = $("#qzSeen"); if (b) b.onclick = () => qzEnd();
+}
+function fcLimit() { paywall("#fcStage", "You've seen today's 3 free flashcards.", `${comeBack} You can still read the question on every card.`); }
+
 function qzEnd() {
   const r = qz.res.filter((x) => x.ok).length, p = Math.round(100 * r / qz.res.length), wrong = qz.res.filter((x) => !x.ok);
   $("#qzStage").innerHTML = `<div class="result"><p class="eyebrow">Quiz result</p><p class="big ${p >= 70 ? "pass" : "fail"}">${p}%</p><p>${r} of ${qz.res.length} · ${p >= 70 ? "above" : "below"} the 70% passing score</p>
@@ -200,6 +220,7 @@ function renderForms() {
   el.querySelectorAll("[data-form]").forEach((b) => (b.onclick = () => exStart(+b.dataset.form)));
 }
 function exStart(form = null) {
+  if (Limits.on()) return paywall("#exStage", "Timed practice tests are part of Zarhart Pro.", "Pro gives you all ten 60-question practice tests and random ones, each with a topic report. Free accounts get 3 practice questions a day in Quiz.");
   ex.form = form;
   ex.list = form ? formPick(form) : examPick(); ex.orders = ex.list.map((c) => shuffle(c.c.map((t, k) => ({ t, ok: k === 0 }))));
   ex.answers = new Array(ex.list.length).fill(null); ex.i = 0; ex.done = false; ex.end = Date.now() + 150 * 60 * 1000;
@@ -239,10 +260,12 @@ function exFinish() {
 
 /* ---------------- quizlet ---------------- */
 const clean = (s) => String(s).replace(/[\t\r\n]+/g, " ").trim();
-function qlRender() { const why = $("#qlWhy").checked; $("#qlText").value = deck($("#qlDeck").value).map((c) => clean(c.q) + "\t" + clean(c.c[0] + (why && c.why ? ". " + c.why : ""))).join("\n"); $("#qlStatus").textContent = ""; }
+function qlRender() { if (Limits.on() && !Limits.FREE.quizletExport) { $("#qlText").value = ""; $("#qlText").hidden = true; $("#qlCopy").disabled = true; $("#qlStatus").textContent = "Quizlet export is part of Zarhart Pro."; return; } $("#qlText").hidden = false; $("#qlCopy").disabled = false; const why = $("#qlWhy").checked; $("#qlText").value = deck($("#qlDeck").value).map((c) => clean(c.q) + "\t" + clean(c.c[0] + (why && c.why ? ". " + c.why : ""))).join("\n"); $("#qlStatus").textContent = ""; }
 
 /* ---------------- boot ---------------- */
 async function boot() {
+  await Limits.init();
+  Limits.onChange(() => { if (CARDS) { renderGuide(); qlRender(); } });
   try { DATA = await (await fetch("../assets/data/questions.json")).json(); }
   catch { $("#guide").innerHTML = `<p class="dwarn">Couldn't load the question bank. If you opened this file directly, run it from a web server (see the README).</p>`; return; }
   TOPICS = Object.fromEntries(DATA.topics.map((t) => [t.key, t]));
